@@ -148,6 +148,7 @@ PROJ_OBJ += commander.o attitude_pid_controller.o sensfusion6.o stabilizer.o pos
 PROJ_OBJ += log.o worker.o trigger.o sitaw.o queuemonitor.o
 PROJ_OBJ_CF1 += sound_cf1.o
 PROJ_OBJ_CF2 += platformservice.o sound_cf2.o extrx.o
+PROJ_OBJ_CF2 += test_eigen.cpp.o
 
 # Deck Core
 PROJ_OBJ_CF2 += deck.o deck_info.o deck_drivers.o deck_test.o
@@ -191,6 +192,7 @@ endif
 ############### Compilation configuration ################
 AS = $(CROSS_COMPILE)as
 CC = $(CROSS_COMPILE)gcc
+CPLUS = $(CROSS_COMPILE)g++
 LD = $(CROSS_COMPILE)gcc
 SIZE = $(CROSS_COMPILE)size
 OBJCOPY = $(CROSS_COMPILE)objcopy
@@ -213,6 +215,7 @@ INCLUDES_CF2 += -I$(STLIB)/STM32_USB_Device_Library/Core/inc
 INCLUDES_CF2 += -I$(STLIB)/STM32_USB_OTG_Driver/inc
 INCLUDES_CF2 += -Isrc/deck/interface -Isrc/deck/drivers/interface
 INCLUDES_CF2 += -Ivendor/libdw1000/inc
+INCLUDES_CF2 += -I/usr/include/eigen3
 
 ifeq ($(USE_FPU), 1)
 	PROCESSOR = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
@@ -360,6 +363,9 @@ prep:
 
 check_submodules:
 	@$(PYTHON2) tools/make/check-for-submodules.py
+
+%.cpp.o: %.cpp
+	$(CPLUS) -DEIGEN_NO_AUTOMATIC_RESIZING -DEIGEN_NO_MALLOC $(CFLAGS) -O3 -std=c++11 -c $< -o $(BIN)/$@
 
 include tools/make/targets.mk
 
