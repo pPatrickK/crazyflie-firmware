@@ -59,6 +59,7 @@
 #include "queuemonitor.h"
 #include "buzzer.h"
 #include "sound.h"
+#include "trajectory.h"
 #include "SEGGER_RTT.h"
 
 #ifdef PLATFORM_CF1
@@ -191,6 +192,8 @@ void systemTask(void *arg)
 #ifdef PROXIMITY_ENABLED
   proximityInit();
 #endif
+
+  trajectoryInit();
 
   //Test the modules
   pass &= systemTest();
