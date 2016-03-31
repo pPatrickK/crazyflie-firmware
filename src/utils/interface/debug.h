@@ -25,6 +25,7 @@
  */
 #include "config.h"
 #include "console.h"
+#include "segger.h"
 
 #ifdef DEBUG_MODULE
 #define DEBUG_FMT(fmt) DEBUG_MODULE ": " fmt
@@ -43,6 +44,9 @@
 #elif defined(DEBUG_PRINT_ON_SWO)
   #define DEBUG_PRINT(fmt, ...) eprintf(ITM_SendChar, fmt, ## __VA_ARGS__)
   #define DEBUG_PRINT_OS(fmt, ...) eprintf(ITM_SendChar, fmt, ## __VA_ARGS__)
+#elif defined(DEBUG_PRINT_ON_SEGGER_RTT)
+  #define DEBUG_PRINT(fmt, ...) eprintf(seggerPutchar, fmt, ## __VA_ARGS__)
+  #define DEBUG_PRINT_OS(fmt, ...) eprintf(seggerPutchar, fmt, ## __VA_ARGS__)
 #else
   #define DEBUG_PRINT(fmt, ...) consolePrintf(DEBUG_FMT(fmt), ##__VA_ARGS__)
 #define DEBUG_PRINT_OS(fmt, ...) consolePrintf(DEBUG_FMT(fmt), ##__VA_ARGS__)
