@@ -59,6 +59,7 @@
 #include "queuemonitor.h"
 #include "buzzer.h"
 #include "sound.h"
+#include "trajectory.h"
 
 #ifdef PLATFORM_CF1
 #include "uart.h"
@@ -188,6 +189,8 @@ void systemTask(void *arg)
 #ifdef PROXIMITY_ENABLED
   proximityInit();
 #endif
+
+  trajectoryInit();
 
   //Test the modules
   pass &= systemTest();
