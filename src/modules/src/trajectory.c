@@ -61,6 +61,7 @@ struct data_add {
   float velocity_x; // m/s
   float velocity_y; // m/s
   float velocity_z; // m/s
+  float yaw; // rad
 } __attribute__((packed));
 
 
@@ -68,7 +69,7 @@ struct data_add {
 
 struct trajectoryEntry {
   uint16_t time_from_start;
-  struct trajectoryPoint_s point;
+  trajectoryPoint_t point;
 };
 
 // Global variables
@@ -104,7 +105,7 @@ bool trajectoryTest(void)
   return isInit;
 }
 
-void trajectoryGetCurrentGoal(struct trajectoryPoint_s* goal)
+void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   uint64_t t = xTaskGetTickCount();
 
@@ -123,8 +124,8 @@ void trajectoryGetCurrentGoal(struct trajectoryPoint_s* goal)
     uint16_t dt = t - trajectory[currentEntry-1].time_from_start;
     float factor = dt / timeSpan;
 
-    const struct trajectoryPoint_s* last = &trajectory[currentEntry-1].point;
-    const struct trajectoryPoint_s* now = &trajectory[currentEntry].point;
+    const trajectoryPoint_t* last = &trajectory[currentEntry-1].point;
+    const trajectoryPoint_t* now = &trajectory[currentEntry].point;
 
     goal->x = last->x + (now->x - last->x) * factor;
     goal->y = last->y + (now->y - last->y) * factor;
@@ -132,6 +133,7 @@ void trajectoryGetCurrentGoal(struct trajectoryPoint_s* goal)
     goal->velocity_x = last->velocity_x + (now->velocity_x - last->velocity_x) * factor;
     goal->velocity_y = last->velocity_y + (now->velocity_y - last->velocity_y) * factor;
     goal->velocity_z = last->velocity_z + (now->velocity_z - last->velocity_z) * factor;
+    goal->yaw = last->yaw + (now->yaw - last->yaw) * factor;
   } else {
     // set to last valid entry
     goal->x = lastValidTrajectoryEntry.point.x;
@@ -140,6 +142,7 @@ void trajectoryGetCurrentGoal(struct trajectoryPoint_s* goal)
     goal->velocity_x = lastValidTrajectoryEntry.point.x;
     goal->velocity_y = lastValidTrajectoryEntry.point.velocity_y;
     goal->velocity_z = lastValidTrajectoryEntry.point.velocity_z;
+    goal->yaw = lastValidTrajectoryEntry.point.yaw;
   }
 }
 
@@ -191,6 +194,7 @@ int trajectoryAdd(struct data_add* data)
     trajectory[numEntries].point.velocity_x = data->velocity_x;
     trajectory[numEntries].point.velocity_y = data->velocity_y;
     trajectory[numEntries].point.velocity_z = data->velocity_z;
+    trajectory[numEntries].point.yaw = data->yaw;
     ++numEntries;
     return 0;
   }
