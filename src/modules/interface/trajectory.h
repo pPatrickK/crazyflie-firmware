@@ -35,17 +35,18 @@ void trajectoryInit(void);
 bool trajectoryTest(void);
 
 // Basic trajectory point containing target position and velocity
-struct trajectoryPoint_s {
-  float x;
-  float y;
-  float z;
-  float velocity_x;
-  float velocity_y;
-  float velocity_z;
-};
+typedef struct {
+  float x;            // m
+  float y;            // m
+  float z;            // m
+  float velocity_x;   // m/s
+  float velocity_y;   // m/s
+  float velocity_z;   // m/s
+  float yaw;          // rad
+} trajectoryPoint_t;
 
 // Sets the current goal of the active trajectory
-void trajectoryGetCurrentGoal(struct trajectoryPoint_s* goal);
+void trajectoryGetCurrentGoal(trajectoryPoint_t* goal);
 
 
 #endif /* __TRAJECTORY_H__ */
