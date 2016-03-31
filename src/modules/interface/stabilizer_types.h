@@ -134,6 +134,12 @@ typedef struct estimate_s {
   point_t position;
 } estimate_t;
 
+/** Pose estimate */
+typedef struct {
+  point_t position;
+  attitude_t attitude;
+} pose_t;
+
 /** Setpoint for althold */
 typedef struct setpointZ_s {
   float z;

@@ -164,6 +164,7 @@ PROJ_OBJ += ekf.o
 PROJ_OBJ += sensors_$(SENSORS).o power_distribution_$(POWER_DISTRIBUTION).o
 PROJ_OBJ += position_external.o
 PROJ_OBJ += trajectory.o
+PROJ_OBJ += position_controller_mellinger.o
 
 
 # Deck Core
