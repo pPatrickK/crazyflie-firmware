@@ -60,6 +60,7 @@
 #include "buzzer.h"
 #include "sound.h"
 #include "trajectory.h"
+#include "SEGGER_RTT.h"
 
 #ifdef PLATFORM_CF1
 #include "uart.h"
@@ -108,6 +109,8 @@ void systemInit(void)
   /* Initialized hear and early so that DEBUG_PRINT (buffered) can be used early */
   crtpInit();
   consoleInit();
+  SEGGER_RTT_Init();
+  SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 
   DEBUG_PRINT("----------------------------\n");
   DEBUG_PRINT(P_NAME " is up and running!\n");
