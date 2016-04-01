@@ -39,6 +39,7 @@
 // #include "config.h"
 #include "crtp.h"
 #include "trajectory.h"
+#include "debug.h"
 
 //#include "console.h"
 //#include "cfassert.h"
@@ -54,6 +55,7 @@ enum TrajectoryCommand_e {
 // } __attribute__((packed));
 
 struct data_add {
+  uint8_t id;
   uint16_t time_from_start; // ms; 0 marks the beginning of the execution
   float x; // m
   float y; // m
@@ -61,7 +63,7 @@ struct data_add {
   float velocity_x; // m/s
   float velocity_y; // m/s
   float velocity_z; // m/s
-  float yaw; // rad
+  int16_t yaw; // rad * 1000
 } __attribute__((packed));
 
 
@@ -98,6 +100,7 @@ void trajectoryInit(void)
               TRAJECTORY_TASK_STACKSIZE, NULL, TRAJECTORY_TASK_PRI, NULL);
 
   isInit = true;
+  DEBUG_PRINT("traj. initialized.\n");
 }
 
 bool trajectoryTest(void)
@@ -153,6 +156,7 @@ void trajectoryTask(void * prm)
 
   while(1) {
     crtpReceivePacketBlock(CRTP_PORT_TRAJECTORY, &p);
+    DEBUG_PRINT("Recv. sth.\n");
 
     switch(p.data[0])
     {
@@ -171,8 +175,8 @@ void trajectoryTask(void * prm)
     }
 
     //answer
-    p.data[1] = ret;
-    p.size = 2;
+    p.data[2] = ret;
+    p.size = 3;
     crtpSendPacket(&p);
   }
 }
@@ -180,13 +184,14 @@ void trajectoryTask(void * prm)
 int trajectoryReset(void)
 {
   numEntries = 0;
+  DEBUG_PRINT("trajectoryReset\n");
 
   return 0;
 }
 
 int trajectoryAdd(struct data_add* data)
 {
-  if (numEntries < MAX_TRAJECTORY_ENTRIES) {
+  if (data->id < MAX_TRAJECTORY_ENTRIES) {
     trajectory[numEntries].time_from_start = data->time_from_start;
     trajectory[numEntries].point.x = data->x;
     trajectory[numEntries].point.y = data->y;
@@ -194,8 +199,9 @@ int trajectoryAdd(struct data_add* data)
     trajectory[numEntries].point.velocity_x = data->velocity_x;
     trajectory[numEntries].point.velocity_y = data->velocity_y;
     trajectory[numEntries].point.velocity_z = data->velocity_z;
-    trajectory[numEntries].point.yaw = data->yaw;
-    ++numEntries;
+    trajectory[numEntries].point.yaw = data->yaw / 1000.0;
+    numEntries = data->id + 1;
+    DEBUG_PRINT("trajectoryAdd: %d\n", data->id);
     return 0;
   }
 
@@ -204,9 +210,24 @@ int trajectoryAdd(struct data_add* data)
 
 int trajectoryStart(void)
 {
+  int i;
   if (numEntries > 0) {
     lastValidTrajectoryEntry = trajectory[numEntries - 1];
   }
+
+  DEBUG_PRINT("trajectoryStart\n");
+  for (i = 0; i < numEntries; ++i) {
+    DEBUG_PRINT("%d, [%f,%f,%f], [%f,%f,%f], %f\n",
+      trajectory[i].time_from_start,
+      trajectory[i].point.x,
+      trajectory[i].point.y,
+      trajectory[i].point.z,
+      trajectory[i].point.velocity_x,
+      trajectory[i].point.velocity_y,
+      trajectory[i].point.velocity_z,
+      trajectory[i].point.yaw);
+  }
+
 
   startTime = xTaskGetTickCount();
   currentEntry = 0;
