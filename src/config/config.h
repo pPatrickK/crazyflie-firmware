@@ -82,6 +82,7 @@
 #define PROXIMITY_TASK_PRI      0
 #define PM_TASK_PRI             0
 #define TRAJECTORY_TASK_PRI     0
+#define POSEXT_TASK_PRI         1
 
 #ifdef PLATFORM_CF2
   #define SYSLINK_TASK_PRI        5
@@ -120,6 +121,7 @@
 #define EXTRX_TASK_NAME         "EXTRX"
 #define UART_RX_TASK_NAME       "UART"
 #define TRAJECTORY_TASK_NAME    "TRAJECTORY"
+#define POSEXT_TASK_NAME        "POSEXT"
 
 //Task stack sizes
 #define SYSTEM_TASK_STACKSIZE         (2* configMINIMAL_STACK_SIZE)
@@ -140,6 +142,7 @@
 #define EXTRX_TASK_STACKSIZE          configMINIMAL_STACK_SIZE
 #define UART_RX_TASK_STACKSIZE        configMINIMAL_STACK_SIZE
 #define TRAJECTORY_TASK_STACKSIZE     configMINIMAL_STACK_SIZE
+#define POSEXT_TASK_STACKSIZE         configMINIMAL_STACK_SIZE
 
 //The radio channel. From 0 to 125
 #define RADIO_CHANNEL 80

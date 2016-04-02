@@ -7,7 +7,7 @@
  *
  * Crazyflie control firmware
  *
- * Copyright (C) 2012 BitCraze AB
+ * Copyright (C) 2016 Bitcraze AB
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,39 +21,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
- * trajectory.h - Module to receive trajectory from the host
+ *
  */
+#ifndef POSITION_EXTERNAL_H_
+#define POSITION_EXTERNAL_H_
 
-#ifndef __TRAJECTORY_H__
-#define __TRAJECTORY_H__
+void positionExternalInit(void);
+bool positionExternalTest(void);
 
-#include <stdbool.h>
-#include <stdint.h>
+void positionExternalGetLastData(
+  float* x,
+  float* y,
+  float* z,
+  float* yaw,
+  uint16_t* last_time_in_ms);
 
-/* Public functions */
-void trajectoryInit(void);
-bool trajectoryTest(void);
-
-// Basic trajectory point containing target position and velocity
-typedef struct {
-  float x;            // m
-  float y;            // m
-  float z;            // m
-  float velocity_x;   // m/s
-  float velocity_y;   // m/s
-  float velocity_z;   // m/s
-  float yaw;          // rad
-} trajectoryPoint_t;
-
-// Sets the current goal of the active trajectory
-void trajectoryGetCurrentGoal(trajectoryPoint_t* goal);
-
-typedef enum {
-  TRAJECTORY_STATE_IDLE = 0,
-  TRAJECTORY_STATE_FLYING = 1,
-} trajectoryState_t;
-
-void trajectoryGetState(trajectoryState_t* state);
-
-
-#endif /* __TRAJECTORY_H__ */
+#endif /* POSITION_EXTERNAL_H_ */

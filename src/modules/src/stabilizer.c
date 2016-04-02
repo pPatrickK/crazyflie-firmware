@@ -49,7 +49,10 @@
 #include "num.h"
 #include "position_estimator.h"
 #include "position_controller.h"
+#include "position_external.h"
 #include "altitude_hold.h"
+#include "trajectory.h"
+#include "position_controller_mellinger.h"
 
 
 /**
@@ -109,7 +112,7 @@ static void readBarometerData(float* pressure, float* temperature, float* asl);
 static float temperature; // temp from barometer in celcius
 static float pressure;    // pressure from barometer in bar
 static float asl;         // raw Altitude over Sea Level from pressure sensor, in meters. Has an offset.
-static estimate_t estimatedPosition;
+// static estimate_t estimatedPosition;
 
 
 void stabilizerInit(void)
@@ -124,6 +127,8 @@ void stabilizerInit(void)
 #if defined(SITAW_ENABLED)
   sitAwInit();
 #endif
+
+  positionExternalInit();
 
   rollRateDesired = 0;
   pitchRateDesired = 0;
@@ -187,9 +192,9 @@ static void stabilizerPreThrustUpdateCallOut(void)
 
 static void stabilizerTask(void* param)
 {
-  RPYType rollType;
-  RPYType pitchType;
-  RPYType yawType;
+  RPYType rollType = ANGLE;
+  RPYType pitchType = ANGLE;
+  RPYType yawType = ANGLE;
   uint32_t attitudeCounter = 0;
   uint32_t altHoldCounter = 0;
   uint32_t lastWakeTime;
@@ -211,8 +216,8 @@ static void stabilizerTask(void* param)
 
     if (imu6IsCalibrated())
     {
-      commanderGetRPY(&eulerRollDesired, &eulerPitchDesired, &eulerYawDesired);
-      commanderGetRPYType(&rollType, &pitchType, &yawType);
+      // commanderGetRPY(&eulerRollDesired, &eulerPitchDesired, &eulerYawDesired);
+      // commanderGetRPYType(&rollType, &pitchType, &yawType);
 
       // Rate-controled YAW is moving YAW angle setpoint
       if (yawType == RATE) {
@@ -269,17 +274,50 @@ static void stabilizerTask(void* param)
         if (imuHasBarometer()) {
           readBarometerData(&pressure, &temperature, &asl);
         }
-        positionEstimate(&estimatedPosition, asl, ALTHOLD_UPDATE_DT);
+        // positionEstimate(&estimatedPosition, asl, ALTHOLD_UPDATE_DT);
 
-        if (altHoldIsActive()) {
-          setpointZ_t setpoint;
-          altHoldGetNewSetPoint(&setpoint, &estimatedPosition);
-          positionControllerSetZTarget(&setpoint, ALTHOLD_UPDATE_DT);
+        // if (altHoldIsActive()) {
+        //   setpointZ_t setpoint;
+        //   altHoldGetNewSetPoint(&setpoint, &estimatedPosition);
+        //   positionControllerSetZTarget(&setpoint, ALTHOLD_UPDATE_DT);
 
-          positionControllerUpdate(&actuatorThrust, &estimatedPosition, ALTHOLD_UPDATE_DT);
+        //   positionControllerUpdate(&actuatorThrust, &estimatedPosition, ALTHOLD_UPDATE_DT);
+        // } else {
+        //   commanderGetThrust(&actuatorThrust);
+        // }
+
+        float x, y, z, yaw;
+        uint16_t last_time_in_ms;
+        positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+
+        trajectoryState_t trajectoryState;
+        trajectoryGetState(&trajectoryState);
+        if (last_time_in_ms > 500
+            || trajectoryState == TRAJECTORY_STATE_IDLE) {
+          actuatorThrust = 0;
         } else {
-          commanderGetThrust(&actuatorThrust);
+          pose_t poseEstimate;
+          poseEstimate.position.x = x;
+          poseEstimate.position.y = y;
+          poseEstimate.position.z = z;
+          poseEstimate.attitude.roll = eulerRollActual;
+          poseEstimate.attitude.pitch = eulerPitchActual;
+          poseEstimate.attitude.yaw = yaw; // use external yaw
+          // TODO: fuse with gyro yaw!
+
+          trajectoryPoint_t target;
+          trajectoryGetCurrentGoal(&target);
+
+          positionControllerMellingerUpdate(
+            &poseEstimate,
+            &target,
+            ALTHOLD_UPDATE_DT,
+            &eulerRollDesired,
+            &eulerPitchDesired,
+            &eulerYawDesired,
+            &actuatorThrust);
         }
+
 
         altHoldCounter = 0;
       }
