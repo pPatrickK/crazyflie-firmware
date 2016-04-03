@@ -113,6 +113,10 @@ void positionControllerMellingerUpdate(
     velocity.x = (poseEstimate->position.x - oldPosition.x) / dt;
     velocity.y = (poseEstimate->position.y - oldPosition.y) / dt;
     velocity.z = (poseEstimate->position.z - oldPosition.z) / dt;
+  } else {
+    velocity.x = 0;
+    velocity.y = 0;
+    velocity.z = 0;
   }
 
   // Position Error
@@ -153,7 +157,7 @@ void positionControllerMellingerUpdate(
 
   // Output
   *eulerRollDesired = -atan2(y_axis_desired.z, z_axis_desired.z) * 180.0 / M_PI;
-  *eulerPitchDesired = asin(x_axis_desired.z) * 180.0 / M_PI;
+  *eulerPitchDesired = -asin(x_axis_desired.z) * 180.0 / M_PI;
   *eulerYawDesired = target->yaw * 180.0 / M_PI;
   *thrustDesired = current_thrust;
 

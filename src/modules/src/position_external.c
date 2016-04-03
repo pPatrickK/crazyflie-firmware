@@ -54,11 +54,13 @@ struct data {
 
 // Global variables
 static bool isInit = false;
-static CRTPPacket p;
+// static CRTPPacket p;
+static struct data lastData;
 static uint64_t lastTime = 0;
 
 //Private functions
-static void positionExternalTask(void * prm);
+// static void positionExternalTask(void * prm);
+static void positionExternalCrtpCB(CRTPPacket* pk);
 
 void positionExternalInit(void)
 {
@@ -66,9 +68,12 @@ void positionExternalInit(void)
     return;
   }
 
+  crtpInit();
+  crtpRegisterPortCB(CRTP_PORT_POSEXT, positionExternalCrtpCB);
+
   //Start the positionExternal task
-  xTaskCreate(positionExternalTask, POSEXT_TASK_NAME,
-              POSEXT_TASK_STACKSIZE, NULL, POSEXT_TASK_PRI, NULL);
+  // xTaskCreate(positionExternalTask, POSEXT_TASK_NAME,
+  //             POSEXT_TASK_STACKSIZE, NULL, POSEXT_TASK_PRI, NULL);
 
   isInit = true;
   DEBUG_PRINT("posext. initialized.\n");
@@ -86,21 +91,36 @@ void positionExternalGetLastData(
   float* yaw,
   uint16_t* last_time_in_ms)
 {
-  struct data* d = (struct data*)&p.data[1];
-  *x = d->x;
-  *y = d->y;
-  *z = d->z;
-  *yaw = d->yaw;
-  *last_time_in_ms = xTaskGetTickCount() - lastTime;
-}
-
-void positionExternalTask(void * prm)
-{
-  crtpInitTaskQueue(CRTP_PORT_POSEXT);
-
-  while(1) {
-    crtpReceivePacketBlock(CRTP_PORT_POSEXT, &p);
-    lastTime = xTaskGetTickCount();
-    DEBUG_PRINT("Recv. posext.\n");
+  *x = lastData.x;
+  *y = lastData.y;
+  *z = lastData.z;
+  *yaw = lastData.yaw;
+  if (xTaskGetTickCount() - lastTime < 10 * 1000) {
+    *last_time_in_ms = xTaskGetTickCount() - lastTime;
+  } else {
+    *last_time_in_ms = 10 * 1000;
   }
 }
+
+static void positionExternalCrtpCB(CRTPPacket* pk)
+{
+  lastData = *((struct data*)pk->data);
+  lastTime = xTaskGetTickCount();
+}
+
+// void positionExternalTask(void * prm)
+// {
+//   crtpInitTaskQueue(CRTP_PORT_POSEXT);
+
+//   while(1) {
+//     crtpReceivePacketBlock(CRTP_PORT_POSEXT, &p);
+//     lastData = *((struct data*)&p.data[1]);
+//     lastTime = xTaskGetTickCount();
+//     DEBUG_PRINT("lastData: %f,%f,%f,%f\n", lastData.x, lastData.y, lastData.z, lastData.yaw);
+
+//     //answer
+//     // p.data[2] = ret;
+//     p.size = 1;
+//     crtpSendPacket(&p);
+//   }
+// }

@@ -54,6 +54,8 @@
 #include "trajectory.h"
 #include "position_controller_mellinger.h"
 
+#include "debug.h"
+
 
 /**
  * Defines in what divided update rate should the attitude
@@ -219,16 +221,81 @@ static void stabilizerTask(void* param)
       // commanderGetRPY(&eulerRollDesired, &eulerPitchDesired, &eulerYawDesired);
       // commanderGetRPYType(&rollType, &pitchType, &yawType);
 
-      // Rate-controled YAW is moving YAW angle setpoint
-      if (yawType == RATE) {
-        yawRateAngle -= eulerYawDesired/500.0;
-        while (yawRateAngle > 180.0)
-          yawRateAngle -= 360.0;
-        while (yawRateAngle < -180.0)
-          yawRateAngle += 360.0;
+      // 100HZ
+      if (++altHoldCounter >= ALTHOLD_UPDATE_RATE_DIVIDER)
+      {
+        if (imuHasBarometer()) {
+          readBarometerData(&pressure, &temperature, &asl);
+        }
+        // positionEstimate(&estimatedPosition, asl, ALTHOLD_UPDATE_DT);
 
-        eulerYawDesired = -yawRateAngle;
+        // if (altHoldIsActive()) {
+        //   setpointZ_t setpoint;
+        //   altHoldGetNewSetPoint(&setpoint, &estimatedPosition);
+        //   positionControllerSetZTarget(&setpoint, ALTHOLD_UPDATE_DT);
+
+        //   positionControllerUpdate(&actuatorThrust, &estimatedPosition, ALTHOLD_UPDATE_DT);
+        // } else {
+        //   commanderGetThrust(&actuatorThrust);
+        // }
+
+        float x, y, z, yaw;
+        uint16_t last_time_in_ms;
+        positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+        // DEBUG_PRINT("%f, %f, %f, %d\n", x, y, z, last_time_in_ms);
+
+        trajectoryState_t trajectoryState;
+        trajectoryGetState(&trajectoryState);
+        if (last_time_in_ms > 500
+            || trajectoryState == TRAJECTORY_STATE_IDLE) {
+          actuatorThrust = 0;
+          trajectorySetState(TRAJECTORY_STATE_IDLE);
+        } else {
+          pose_t poseEstimate;
+          poseEstimate.position.x = x;
+          poseEstimate.position.y = y;
+          poseEstimate.position.z = z;
+          poseEstimate.attitude.roll = eulerRollActual / 180.0 * M_PI;
+          poseEstimate.attitude.pitch = eulerPitchActual / 180.0 * M_PI;
+          poseEstimate.attitude.yaw = yaw; // use external yaw
+          // TODO: fuse with gyro yaw!
+
+          trajectoryPoint_t target;
+          // target.x = 0;
+          // target.y = 0;
+          // target.z = 0.5;
+          // target.velocity_x = 0;
+          // target.velocity_y = 0;
+          // target.velocity_z = 0;
+          // target.yaw = 0;
+
+          trajectoryGetCurrentGoal(&target);
+          DEBUG_PRINT("%f, %f, %f\n", target.x, target.y, target.z);
+
+          positionControllerMellingerUpdate(
+            &poseEstimate,
+            &target,
+            ALTHOLD_UPDATE_DT,
+            &eulerRollDesired,
+            &eulerPitchDesired,
+            &eulerYawDesired,
+            &actuatorThrust);
+        }
+
+
+        altHoldCounter = 0;
       }
+
+      // Rate-controled YAW is moving YAW angle setpoint
+      // if (yawType == RATE) {
+      //   yawRateAngle -= eulerYawDesired/500.0;
+      //   while (yawRateAngle > 180.0)
+      //     yawRateAngle -= 360.0;
+      //   while (yawRateAngle < -180.0)
+      //     yawRateAngle += 360.0;
+
+      //   eulerYawDesired = -yawRateAngle;
+      // }
 
       // 250HZ
       if (++attitudeCounter >= ATTITUDE_UPDATE_RATE_DIVIDER)
@@ -268,64 +335,15 @@ static void stabilizerTask(void* param)
 
       attitudeControllerGetActuatorOutput(&actuatorRoll, &actuatorPitch, &actuatorYaw);
 
-      // 100HZ
-      if (++altHoldCounter >= ALTHOLD_UPDATE_RATE_DIVIDER)
-      {
-        if (imuHasBarometer()) {
-          readBarometerData(&pressure, &temperature, &asl);
-        }
-        // positionEstimate(&estimatedPosition, asl, ALTHOLD_UPDATE_DT);
 
-        // if (altHoldIsActive()) {
-        //   setpointZ_t setpoint;
-        //   altHoldGetNewSetPoint(&setpoint, &estimatedPosition);
-        //   positionControllerSetZTarget(&setpoint, ALTHOLD_UPDATE_DT);
-
-        //   positionControllerUpdate(&actuatorThrust, &estimatedPosition, ALTHOLD_UPDATE_DT);
-        // } else {
-        //   commanderGetThrust(&actuatorThrust);
-        // }
-
-        float x, y, z, yaw;
-        uint16_t last_time_in_ms;
-        positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
-
-        trajectoryState_t trajectoryState;
-        trajectoryGetState(&trajectoryState);
-        if (last_time_in_ms > 500
-            || trajectoryState == TRAJECTORY_STATE_IDLE) {
-          actuatorThrust = 0;
-        } else {
-          pose_t poseEstimate;
-          poseEstimate.position.x = x;
-          poseEstimate.position.y = y;
-          poseEstimate.position.z = z;
-          poseEstimate.attitude.roll = eulerRollActual;
-          poseEstimate.attitude.pitch = eulerPitchActual;
-          poseEstimate.attitude.yaw = yaw; // use external yaw
-          // TODO: fuse with gyro yaw!
-
-          trajectoryPoint_t target;
-          trajectoryGetCurrentGoal(&target);
-
-          positionControllerMellingerUpdate(
-            &poseEstimate,
-            &target,
-            ALTHOLD_UPDATE_DT,
-            &eulerRollDesired,
-            &eulerPitchDesired,
-            &eulerYawDesired,
-            &actuatorThrust);
-        }
-
-
-        altHoldCounter = 0;
-      }
 
       /* Call out before performing thrust updates, if any functions would like to influence the thrust. */
-      stabilizerPreThrustUpdateCallOut();
+      // stabilizerPreThrustUpdateCallOut();
 
-      actuatorThrust /= sensfusion6GetInvThrustCompensationForTilt();
+      // actuatorThrust /= sensfusion6GetInvThrustCompensationForTilt();
+
+      // DEBUG_PRINT("Thrust: %d\n", actuatorThrust);
+      // actuatorThrust = 0;
 
       if (actuatorThrust > 0)
       {
@@ -337,6 +355,7 @@ static void stabilizerTask(void* param)
         distributePower(actuatorThrust, 0, 0, -actuatorYaw);
 #else
         distributePower(actuatorThrust, actuatorRoll, actuatorPitch, -actuatorYaw);
+        // distributePower(0,0,0,0);
 #endif
       }
       else
