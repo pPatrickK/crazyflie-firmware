@@ -49,6 +49,7 @@ enum TrajectoryCommand_e {
   COMMAND_RESET = 0,
   COMMAND_ADD   = 1,
   COMMAND_START = 2,
+  COMMAND_STATE = 3,
 };
 
 // struct data_reset {
@@ -66,6 +67,10 @@ struct data_add {
   int16_t yaw; // rad * 1000
 } __attribute__((packed));
 
+struct data_state {
+  uint8_t state;
+};
+
 
 #define MAX_TRAJECTORY_ENTRIES 100
 
@@ -82,12 +87,14 @@ static uint16_t numEntries = 0;
 static uint16_t currentEntry = 0;
 static struct trajectoryEntry lastValidTrajectoryEntry;
 static uint64_t startTime = 0;
+static trajectoryState_t state = TRAJECTORY_STATE_IDLE;
 
 //Private functions
 static void trajectoryTask(void * prm);
 static int trajectoryReset(void);
-static int trajectoryAdd(struct data_add* data);
+static int trajectoryAdd(const struct data_add* data);
 static int trajectoryStart(void);
+static int trajectoryState(const struct data_state* data);
 
 void trajectoryInit(void)
 {
@@ -149,6 +156,16 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
   }
 }
 
+void trajectoryGetState(trajectoryState_t* st)
+{
+  *st = state;
+}
+
+void trajectorySetState(trajectoryState_t st)
+{
+  state = st;
+}
+
 void trajectoryTask(void * prm)
 {
   int ret;
@@ -164,11 +181,13 @@ void trajectoryTask(void * prm)
         ret = trajectoryReset();
         break;
       case COMMAND_ADD:
-        ret = trajectoryAdd((struct data_add*)&p.data[1]);
+        ret = trajectoryAdd((const struct data_add*)&p.data[1]);
         break;
       case COMMAND_START:
         ret = trajectoryStart();
         break;
+      case COMMAND_STATE:
+        ret = trajectoryState((const struct data_state*)&p.data[1]);
       default:
         ret = ENOEXEC;
         break;
@@ -189,7 +208,7 @@ int trajectoryReset(void)
   return 0;
 }
 
-int trajectoryAdd(struct data_add* data)
+int trajectoryAdd(const struct data_add* data)
 {
   if (data->id < MAX_TRAJECTORY_ENTRIES) {
     trajectory[numEntries].time_from_start = data->time_from_start;
@@ -232,5 +251,11 @@ int trajectoryStart(void)
   startTime = xTaskGetTickCount();
   currentEntry = 0;
 
+  return 0;
+}
+
+int trajectoryState(const struct data_state* data)
+{
+  state = data->state;
   return 0;
 }

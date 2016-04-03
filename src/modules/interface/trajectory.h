@@ -48,5 +48,12 @@ typedef struct {
 // Sets the current goal of the active trajectory
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal);
 
+typedef enum {
+  TRAJECTORY_STATE_IDLE = 0,
+  TRAJECTORY_STATE_FLYING = 1,
+} trajectoryState_t;
+
+void trajectoryGetState(trajectoryState_t* state);
+void trajectorySetState(trajectoryState_t state);
 
 #endif /* __TRAJECTORY_H__ */
