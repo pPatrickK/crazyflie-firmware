@@ -40,23 +40,33 @@
 #include "crtp.h"
 #include "position_external.h"
 #include "debug.h"
+#include "num.h"
+#include "configblock.h"
 
 //#include "console.h"
 //#include "cfassert.h"
 
 // Private types
+typedef uint16_t fp16_t;
 struct data {
-  float x;
-  float y;
-  float z;
-  float yaw;
+  uint8_t startId;
+  uint8_t count; // 1 - 3
+  struct {
+    fp16_t x; // m
+    fp16_t y; // m
+    fp16_t z; // m
+    fp16_t yaw; // deg
+  } position[3];
 } __attribute__((packed));
 
 // Global variables
 static bool isInit = false;
-// static CRTPPacket p;
-static struct data lastData;
+static float lastX;
+static float lastY;
+static float lastZ;
+static float lastYaw;
 static uint64_t lastTime = 0;
+static uint8_t my_id;
 
 //Private functions
 // static void positionExternalTask(void * prm);
@@ -76,7 +86,9 @@ void positionExternalInit(void)
   //             POSEXT_TASK_STACKSIZE, NULL, POSEXT_TASK_PRI, NULL);
 
   isInit = true;
-  DEBUG_PRINT("posext. initialized.\n");
+  uint64_t address = configblockGetRadioAddress();
+  my_id = address & 0xFF;
+  DEBUG_PRINT("posext. initialized: %d\n", my_id);
 }
 
 bool positionExternalTest(void)
@@ -91,10 +103,10 @@ void positionExternalGetLastData(
   float* yaw,
   uint16_t* last_time_in_ms)
 {
-  *x = lastData.x;
-  *y = lastData.y;
-  *z = lastData.z;
-  *yaw = lastData.yaw;
+  *x = lastX;
+  *y = lastY;
+  *z = lastZ;
+  *yaw = lastYaw;
   if (xTaskGetTickCount() - lastTime < 10 * 1000) {
     *last_time_in_ms = xTaskGetTickCount() - lastTime;
   } else {
@@ -104,8 +116,20 @@ void positionExternalGetLastData(
 
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
-  lastData = *((struct data*)pk->data);
-  lastTime = xTaskGetTickCount();
+  struct data* d = ((struct data*)pk->data);
+  // DEBUG_PRINT("lD: %d,%d\n", d->startId, d->count);
+  // uint8_t my_id = 1;
+  if (d->startId <= my_id && d->startId + d->count > my_id) {
+    uint8_t i = my_id - d->startId;
+    lastX = half2single(d->position[i].x);
+    lastY = half2single(d->position[i].y);
+    lastZ = half2single(d->position[i].z);
+    lastYaw = half2single(d->position[i].yaw);
+    uint16_t dt = xTaskGetTickCount() - lastTime;
+    lastTime = xTaskGetTickCount();
+
+    // DEBUG_PRINT("lastData: %f,%f,%f,%f,%d\n", lastX, lastY, lastZ, lastYaw, dt);
+  }
 }
 
 // void positionExternalTask(void * prm)
