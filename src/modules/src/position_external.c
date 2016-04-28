@@ -125,10 +125,11 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
     lastY = half2single(d->position[i].y);
     lastZ = half2single(d->position[i].z);
     lastYaw = half2single(d->position[i].yaw);
-    uint16_t dt = xTaskGetTickCount() - lastTime;
-    lastTime = xTaskGetTickCount();
 
+    // uint16_t dt = xTaskGetTickCount() - lastTime;
     // DEBUG_PRINT("lastData: %f,%f,%f,%f,%d\n", lastX, lastY, lastZ, lastYaw, dt);
+
+    lastTime = xTaskGetTickCount();
   }
 }
 
