@@ -29,6 +29,8 @@
 #include "stabilizer_types.h"
 #include "trajectory.h"
 
+void positionControllerMellingerReset(void);
+
 void positionControllerMellingerUpdate(
   const pose_t* poseEstimate,       // current state
   const trajectoryPoint_t* target,  // target state

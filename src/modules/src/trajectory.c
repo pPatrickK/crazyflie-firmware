@@ -130,9 +130,10 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
       && currentEntry > 0) {
 
 
-    uint16_t timeSpan = trajectory[currentEntry].time_from_start - trajectory[currentEntry-1].time_from_start;
-    uint16_t dt = t - trajectory[currentEntry-1].time_from_start;
-    float factor = dt / timeSpan;
+    uint64_t timeSpan = trajectory[currentEntry].time_from_start - trajectory[currentEntry-1].time_from_start;
+    uint64_t dt = t - startTime - trajectory[currentEntry-1].time_from_start;
+    float factor = dt / (float)timeSpan;
+    // DEBUG_PRINT("factor: %f\n", factor);
 
     const trajectoryPoint_t* last = &trajectory[currentEntry-1].point;
     const trajectoryPoint_t* now = &trajectory[currentEntry].point;
