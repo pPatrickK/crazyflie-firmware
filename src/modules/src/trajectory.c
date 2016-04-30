@@ -133,7 +133,7 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
     uint64_t timeSpan = trajectory[currentEntry].time_from_start - trajectory[currentEntry-1].time_from_start;
     uint64_t dt = t - startTime - trajectory[currentEntry-1].time_from_start;
     float factor = dt / (float)timeSpan;
-    DEBUG_PRINT("factor: %f\n", factor);
+    // DEBUG_PRINT("factor: %f\n", factor);
 
     const trajectoryPoint_t* last = &trajectory[currentEntry-1].point;
     const trajectoryPoint_t* now = &trajectory[currentEntry].point;
@@ -174,7 +174,7 @@ void trajectoryTask(void * prm)
 
   while(1) {
     crtpReceivePacketBlock(CRTP_PORT_TRAJECTORY, &p);
-    DEBUG_PRINT("Recv. sth.\n");
+    // DEBUG_PRINT("Recv. sth.\n");
 
     switch(p.data[0])
     {
@@ -236,17 +236,17 @@ int trajectoryStart(void)
   }
 
   DEBUG_PRINT("trajectoryStart\n");
-  for (i = 0; i < numEntries; ++i) {
-    DEBUG_PRINT("%d, [%f,%f,%f], [%f,%f,%f], %f\n",
-      trajectory[i].time_from_start,
-      trajectory[i].point.x,
-      trajectory[i].point.y,
-      trajectory[i].point.z,
-      trajectory[i].point.velocity_x,
-      trajectory[i].point.velocity_y,
-      trajectory[i].point.velocity_z,
-      trajectory[i].point.yaw);
-  }
+  // for (i = 0; i < numEntries; ++i) {
+  //   DEBUG_PRINT("%d, [%f,%f,%f], [%f,%f,%f], %f\n",
+  //     trajectory[i].time_from_start,
+  //     trajectory[i].point.x,
+  //     trajectory[i].point.y,
+  //     trajectory[i].point.z,
+  //     trajectory[i].point.velocity_x,
+  //     trajectory[i].point.velocity_y,
+  //     trajectory[i].point.velocity_z,
+  //     trajectory[i].point.yaw);
+  // }
 
 
   startTime = xTaskGetTickCount();

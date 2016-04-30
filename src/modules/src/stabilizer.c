@@ -250,6 +250,7 @@ static void stabilizerTask(void* param)
             || trajectoryState == TRAJECTORY_STATE_IDLE) {
           actuatorThrust = 0;
           trajectorySetState(TRAJECTORY_STATE_IDLE);
+          positionControllerMellingerReset();
         } else {
           pose_t poseEstimate;
           poseEstimate.position.x = x;
@@ -270,7 +271,7 @@ static void stabilizerTask(void* param)
           // target.yaw = 0;
 
           trajectoryGetCurrentGoal(&target);
-          DEBUG_PRINT("%f, %f, %f\n", target.x, target.y, target.z);
+          // DEBUG_PRINT("%f, %f, %f\n", target.x, target.y, target.z);
 
           positionControllerMellingerUpdate(
             &poseEstimate,
