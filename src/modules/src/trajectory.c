@@ -40,16 +40,19 @@
 #include "crtp.h"
 #include "trajectory.h"
 #include "debug.h"
+#include "position_external.h"
 
 //#include "console.h"
 //#include "cfassert.h"
 
 // Private types
 enum TrajectoryCommand_e {
-  COMMAND_RESET = 0,
-  COMMAND_ADD   = 1,
-  COMMAND_START = 2,
-  COMMAND_STATE = 3,
+  COMMAND_RESET   = 0,
+  COMMAND_ADD     = 1,
+  COMMAND_START   = 2,
+  //COMMAND_STATE = 3,
+  COMMAND_TAKEOFF = 4,
+  COMMAND_LAND    = 5,
 };
 
 // struct data_reset {
@@ -71,6 +74,24 @@ struct data_state {
   uint8_t state;
 };
 
+struct data_takeoff {
+  float height; // m (absolute)
+  uint16_t time_from_start; // ms
+};
+
+struct data_land {
+  float height; // m (absolute)
+  uint16_t time_from_start; // ms
+};
+
+// enum state_e {
+//   STATE_IDLE       = 0,
+//   STATE_TAKING_OFF = 1,
+//   STATE_LANDING    = 2,
+//   STATE_FLYING     = 3,
+// };
+
+// static state_e state = STATE_IDLE;
 
 #define MAX_TRAJECTORY_ENTRIES 100
 
@@ -94,7 +115,10 @@ static void trajectoryTask(void * prm);
 static int trajectoryReset(void);
 static int trajectoryAdd(const struct data_add* data);
 static int trajectoryStart(void);
-static int trajectoryState(const struct data_state* data);
+// static int trajectoryState(const struct data_state* data);
+static int trajectoryTakeoff(const struct data_takeoff* data);
+static int trajectoryLand(const struct data_land* data);
+
 
 void trajectoryInit(void)
 {
@@ -154,8 +178,25 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
     goal->velocity_y = lastValidTrajectoryEntry.point.velocity_y;
     goal->velocity_z = lastValidTrajectoryEntry.point.velocity_z;
     goal->yaw = lastValidTrajectoryEntry.point.yaw;
+
+    if (state == TRAJECTORY_STATE_TAKING_OFF) {
+      state = TRAJECTORY_STATE_FLYING;
+    }
+    if (state == TRAJECTORY_STATE_LANDING) {
+      state = TRAJECTORY_STATE_IDLE;
+    }
   }
 }
+
+// void trajectoryIsIdle()
+// {
+//   return state == STATE_IDLE;
+// }
+
+// void trajectorySetIdle()
+// {
+//   state = STATE_IDLE;
+// }
 
 void trajectoryGetState(trajectoryState_t* st)
 {
@@ -187,8 +228,14 @@ void trajectoryTask(void * prm)
       case COMMAND_START:
         ret = trajectoryStart();
         break;
-      case COMMAND_STATE:
-        ret = trajectoryState((const struct data_state*)&p.data[1]);
+      // case COMMAND_STATE:
+      //   ret = trajectoryState((const struct data_state*)&p.data[1]);
+      case COMMAND_TAKEOFF:
+        ret = trajectoryTakeoff((const struct data_takeoff*)&p.data[1]);
+        break;
+      case COMMAND_LAND:
+        ret = trajectoryLand((const struct data_land*)&p.data[1]);
+        break;
       default:
         ret = ENOEXEC;
         break;
@@ -230,7 +277,7 @@ int trajectoryAdd(const struct data_add* data)
 
 int trajectoryStart(void)
 {
-  int i;
+  // int i;
   if (numEntries > 0) {
     lastValidTrajectoryEntry = trajectory[numEntries - 1];
   }
@@ -255,8 +302,81 @@ int trajectoryStart(void)
   return 0;
 }
 
-int trajectoryState(const struct data_state* data)
+// int trajectoryState(const struct data_state* data)
+// {
+//   state = data->state;
+//   return 0;
+// }
+
+
+int trajectoryTakeoff(const struct data_takeoff* data)
 {
-  state = data->state;
+  if (state != TRAJECTORY_STATE_IDLE) {
+    return 1;
+  }
+
+  float x, y, z, yaw;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+
+  numEntries = 2;
+  trajectory[0].time_from_start = 0;
+  trajectory[0].point.x = x;
+  trajectory[0].point.y = y;
+  trajectory[0].point.z = z;
+  trajectory[0].point.velocity_x = 0;
+  trajectory[0].point.velocity_y = 0;
+  trajectory[0].point.velocity_z = 0;
+  trajectory[0].point.yaw = yaw;
+
+  trajectory[1].time_from_start = data->time_from_start;
+  trajectory[1].point.x = x;
+  trajectory[1].point.y = y;
+  trajectory[1].point.z = data->height;
+  trajectory[1].point.velocity_x = 0;
+  trajectory[1].point.velocity_y = 0;
+  trajectory[1].point.velocity_z = 0;
+  trajectory[1].point.yaw = 0;
+
+  state = TRAJECTORY_STATE_TAKING_OFF;
+
+  trajectoryStart();
+
+  return 0;
+}
+
+int trajectoryLand(const struct data_land* data)
+{
+  if (state != TRAJECTORY_STATE_FLYING) {
+    return 1;
+  }
+
+  float x, y, z, yaw;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+
+  numEntries = 2;
+  trajectory[0].time_from_start = 0;
+  trajectory[0].point.x = x;
+  trajectory[0].point.y = y;
+  trajectory[0].point.z = z;
+  trajectory[0].point.velocity_x = 0;
+  trajectory[0].point.velocity_y = 0;
+  trajectory[0].point.velocity_z = 0;
+  trajectory[0].point.yaw = yaw;
+
+  trajectory[1].time_from_start = data->time_from_start;
+  trajectory[1].point.x = x;
+  trajectory[1].point.y = y;
+  trajectory[1].point.z = data->height;
+  trajectory[1].point.velocity_x = 0;
+  trajectory[1].point.velocity_y = 0;
+  trajectory[1].point.velocity_z = 0;
+  trajectory[1].point.yaw = 0;
+
+  state = TRAJECTORY_STATE_LANDING;
+
+  trajectoryStart();
+
   return 0;
 }
