@@ -116,6 +116,8 @@ static float pressure;    // pressure from barometer in bar
 static float asl;         // raw Altitude over Sea Level from pressure sensor, in meters. Has an offset.
 // static estimate_t estimatedPosition;
 
+static float fusedYaw = 0;
+static float lastYaw = 0;
 
 void stabilizerInit(void)
 {
@@ -243,6 +245,11 @@ static void stabilizerTask(void* param)
         uint16_t last_time_in_ms;
         positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
         // DEBUG_PRINT("%f, %f, %f, %d\n", x, y, z, last_time_in_ms);
+        const float alpha = 0.99;
+
+        // Fuse VICON yaw with gyro
+        fusedYaw = alpha * (fusedYaw + (eulerYawActual - lastYaw) / 180.0 * M_PI) + (1-alpha) * yaw;
+        lastYaw = eulerYawActual;
 
         trajectoryState_t trajectoryState;
         trajectoryGetState(&trajectoryState);
@@ -258,8 +265,8 @@ static void stabilizerTask(void* param)
           poseEstimate.position.z = z;
           poseEstimate.attitude.roll = eulerRollActual / 180.0 * M_PI;
           poseEstimate.attitude.pitch = eulerPitchActual / 180.0 * M_PI;
-          poseEstimate.attitude.yaw = yaw; // use external yaw
-          // TODO: fuse with gyro yaw!
+          poseEstimate.attitude.yaw = fusedYaw; //yaw; // use external yaw
+          // TODO: fuse with gyro yaw! (use fusedYaw)
 
           trajectoryPoint_t target;
           // target.x = 0;
@@ -312,7 +319,7 @@ static void stabilizerTask(void* param)
         // Adjust yaw if configured to do so
         stabilizerYawModeUpdate();
 
-        attitudeControllerCorrectAttitudePID(eulerRollActual, eulerPitchActual, eulerYawActual,
+        attitudeControllerCorrectAttitudePID(eulerRollActual, eulerPitchActual, fusedYaw * 180 / M_PI, /*eulerYawActual,*/
                                      eulerRollDesired, eulerPitchDesired, -eulerYawDesired,
                                      &rollRateDesired, &pitchRateDesired, &yawRateDesired);
         attitudeCounter = 0;

@@ -49,9 +49,8 @@
 // Private types
 typedef uint16_t fp16_t;
 struct data {
-  uint8_t startId;
-  uint8_t count; // 1 - 3
   struct {
+    uint8_t id;
     fp16_t x; // m
     fp16_t y; // m
     fp16_t z; // m
@@ -116,21 +115,25 @@ void positionExternalGetLastData(
 
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
+  int i;
   struct data* d = ((struct data*)pk->data);
   // DEBUG_PRINT("lD: %d,%d\n", d->startId, d->count);
   // uint8_t my_id = 1;
-  if (d->startId <= my_id && d->startId + d->count > my_id) {
-    uint8_t i = my_id - d->startId;
-    lastX = half2single(d->position[i].x);
-    lastY = half2single(d->position[i].y);
-    lastZ = half2single(d->position[i].z);
-    lastYaw = half2single(d->position[i].yaw);
+  // if (d->startId <= my_id && d->startId + d->count > my_id) {
+    // uint8_t i = my_id - d->startId;
+  for (i=0; i < 3; ++i) {
+    if (d->position[i].id == my_id) {
+      lastX = half2single(d->position[i].x);
+      lastY = half2single(d->position[i].y);
+      lastZ = half2single(d->position[i].z);
+      lastYaw = half2single(d->position[i].yaw);
 
-    // uint16_t dt = xTaskGetTickCount() - lastTime;
-    // DEBUG_PRINT("dt: %d\n", dt);
-    // DEBUG_PRINT("lastData: %f,%f,%f,%f,%d\n", lastX, lastY, lastZ, lastYaw, dt);
+      // uint16_t dt = xTaskGetTickCount() - lastTime;
+      // DEBUG_PRINT("dt: %d\n", dt);
+      // DEBUG_PRINT("lastData: %f,%f,%f,%f,%d\n", lastX, lastY, lastZ, lastYaw, dt);
 
-    lastTime = xTaskGetTickCount();
+      lastTime = xTaskGetTickCount();
+    }
   }
 }
 
