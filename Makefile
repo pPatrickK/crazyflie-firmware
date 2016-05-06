@@ -160,6 +160,7 @@ PROJ_OBJ_CF2 += platformservice.o sound_cf2.o extrx.o
 PROJ_OBJ += commander.o attitude_pid_controller.o sensfusion6.o stabilizer.o
 PROJ_OBJ += position_estimator_altitude.o position_controller_pid.o
 PROJ_OBJ += estimator_$(ESTIMATOR).o controller_$(CONTROLLER).o
+PROJ_OBJ += ekf.o
 PROJ_OBJ += sensors_$(SENSORS).o power_distribution_$(POWER_DISTRIBUTION).o
 
 
@@ -269,7 +270,7 @@ ifeq ($(PLATFORM), CF2)
 CFLAGS += $(INCLUDES_CF2) $(STFLAGS_CF2)
 endif
 
-CFLAGS += -Wall -fno-strict-aliasing $(C_PROFILE)
+CFLAGS += -std=c11 -Wall -fno-strict-aliasing $(C_PROFILE)
 # Compiler flags to generate dependency files:
 CFLAGS += -MD -MP -MF $(BIN)/dep/$(@).d -MQ $(@)
 #Permits to remove un-used functions and global variables from output file

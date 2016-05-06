@@ -80,6 +80,9 @@ typedef void (*Ledring12Effect)(uint8_t buffer[][3], bool reset);
 #define LINSCALE(domain_low, domain_high, codomain_low, codomain_high, value) ((codomain_high - codomain_low) / (domain_high - domain_low)) * (value - domain_low) + codomain_low
 #define SET_WHITE(dest, intensity) dest[0] = intensity; dest[1] = intensity; dest[2] = intensity;
 
+#define M_PI (3.14159265358979323846264338327950288)
+#define M_PI_2 (3.14159265358979323846264338327950288/2)
+
 static uint32_t effect = 6;
 static uint32_t neffect;
 static uint8_t headlightEnable = 0;
