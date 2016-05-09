@@ -40,6 +40,8 @@
 #include "sitaw.h"
 #include "controller.h"
 #include "power_distribution.h"
+#include "position_external.h"
+#include "SEGGER_RTT.h"
 
 static bool isInit;
 
@@ -63,6 +65,7 @@ void stabilizerInit(void)
 #if defined(SITAW_ENABLED)
   sitAwInit();
 #endif
+  positionExternalInit();
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
@@ -78,6 +81,7 @@ bool stabilizerTest(void)
   pass &= stateEstimatorTest();
   pass &= stateControllerTest();
   pass &= powerDistributionTest();
+  pass &= positionExternalTest();
 
   return pass;
 }
@@ -105,6 +109,26 @@ static void stabilizerTask(void* param)
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
 
     sensorsAcquire(&sensorData, tick);
+
+    if (RATE_DO_EXECUTE(IMU_RATE, tick)) {
+      // Here we do the print out for datacollection:
+      float x, y, z, yaw;
+      uint16_t last_time_in_ms;
+      positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+
+      // uint32_t time = xTaskGetTickCount();
+      uint16_t magic = 0xFBCF;
+
+      SEGGER_RTT_Write(0, (const char*)&magic, sizeof(magic));
+      SEGGER_RTT_Write(0, (const char*)&tick, sizeof(tick));
+      SEGGER_RTT_Write(0, (const char*)&sensorData.gyro, sizeof(sensorData.gyro));
+      SEGGER_RTT_Write(0, (const char*)&sensorData.acc, sizeof(sensorData.acc));
+      SEGGER_RTT_Write(0, (const char*)&x, sizeof(x));
+      SEGGER_RTT_Write(0, (const char*)&y, sizeof(y));
+      SEGGER_RTT_Write(0, (const char*)&z, sizeof(z));
+      SEGGER_RTT_Write(0, (const char*)&yaw, sizeof(yaw));
+      SEGGER_RTT_Write(0, (const char*)&last_time_in_ms, sizeof(last_time_in_ms));
+    }
 
     stateEstimator(&state, &sensorData, tick);
     commanderGetSetpoint(&setpoint, &state);
