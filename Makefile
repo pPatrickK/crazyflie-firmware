@@ -161,6 +161,7 @@ PROJ_OBJ += commander.o attitude_pid_controller.o sensfusion6.o stabilizer.o
 PROJ_OBJ += position_estimator_altitude.o position_controller_pid.o
 PROJ_OBJ += estimator_$(ESTIMATOR).o controller_$(CONTROLLER).o
 PROJ_OBJ += sensors_$(SENSORS).o power_distribution_$(POWER_DISTRIBUTION).o
+PROJ_OBJ += position_external.o
 
 
 # Deck Core
