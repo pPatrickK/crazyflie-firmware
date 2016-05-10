@@ -3,11 +3,7 @@
 #include <math.h>
 #include <string.h> // for memset()
 
-
-#define GRAV 9.81
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "mathconstants.h"
 
 #define AS_1D(x) (&(x)[0][0])
 

@@ -46,6 +46,7 @@
 #include "param.h"
 #include "log.h"
 #include "sound.h"
+#include "mathconstants.h"
 
 #define IMU_ENABLE_PRESSURE_LPS25H
 #define IMU_ENABLE_MAG_AK8963
@@ -79,8 +80,6 @@
 #define GYRO_VARIANCE_THRESHOLD_X (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Y (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Z (GYRO_VARIANCE_BASE)
-
-#define M_PI (3.14159265358979323846264338327950288)
 
 typedef struct
 {

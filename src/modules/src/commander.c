@@ -31,6 +31,7 @@
 #include "commander.h"
 #include "crtp.h"
 #include "configblock.h"
+#include "mathconstants.h"
 #include "param.h"
 #include "num.h"
 
