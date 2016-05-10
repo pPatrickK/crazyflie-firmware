@@ -33,6 +33,8 @@ struct ekf
 	//float temp2[EKF_N][EKF_N];
 };
 
+void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float const quat[4]);
+
 void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], float const gyro[3], float dt);
 
 void ekf_vicon(struct ekf const *ekf_prev, struct ekf *ekf, float const pos_vicon[3], float const quat_vicon[4]);

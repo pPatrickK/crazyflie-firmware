@@ -3,6 +3,7 @@
 #include <stdbool.h> // bool
 
 #include "ekf.h"
+#include "ekf_cov_init.h"
 #include "cholsl.c"
 #include "mexutil.h"
 
@@ -44,16 +45,12 @@ void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 block)
 }
 
 
-void ekf_init(struct ekf *ekf, struct vec pos, struct quat quat)
+void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float const quat[4])
 {
-	ekf->pos = pos;
-	ekf->vel = vzero();
-	ekf->quat = quat;
-	//ekf->bias_gyro = vzero();
-	//ekf->bias_acc = vzero();
-
-	ekf_mat_identity(ekf->P);
-	fzero(AS_1D(ekf->P), EKF_N * EKF_N);
+	ekf->pos = vloadf(pos);
+	ekf->vel = vloadf(vel);
+	ekf->quat = qloadf(quat);
+	memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
 }
 
 #include "addQ.h"
