@@ -151,7 +151,7 @@ PROJ_OBJ_CF2 += imu_cf2.o pm_f405.o syslink.o radiolink.o ow_syslink.o proximity
 PROJ_OBJ_CF2 += libdw1000.o libdw1000Spi.o
 
 # Modules
-PROJ_OBJ += system.o comm.o console.o pid.o crtpservice.o param.o mem.o
+PROJ_OBJ += system.o comm.o console.o pid.o crtpservice.o param.o mem.o segger.o
 PROJ_OBJ += log.o worker.o trigger.o sitaw.o queuemonitor.o
 PROJ_OBJ_CF1 += sound_cf1.o
 PROJ_OBJ_CF2 += platformservice.o sound_cf2.o extrx.o
@@ -162,6 +162,7 @@ PROJ_OBJ += position_estimator_altitude.o position_controller_pid.o
 PROJ_OBJ += estimator_$(ESTIMATOR).o controller_$(CONTROLLER).o
 PROJ_OBJ += ekf.o
 PROJ_OBJ += sensors_$(SENSORS).o power_distribution_$(POWER_DISTRIBUTION).o
+PROJ_OBJ += position_external.o
 
 
 # Deck Core
@@ -188,6 +189,7 @@ PROJ_OBJ_CF2 += exptest.o
 # Utilities
 PROJ_OBJ += filter.o cpuid.o cfassert.o  eprintf.o crc.o num.o debug.o
 PROJ_OBJ += version.o FreeRTOS-openocd.o
+PROJ_OBJ += SEGGER_RTT.o
 PROJ_OBJ_CF1 += configblockflash.o
 PROJ_OBJ_CF2 += configblockeeprom.o
 
