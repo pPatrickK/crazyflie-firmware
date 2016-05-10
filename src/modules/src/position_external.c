@@ -37,15 +37,15 @@ struct data {
   float x; //m
   float y; //m
   float z; //m
-  float yaw; //deg
+  float q0;
+  float q1;
+  float q2;
+  float q3;
 } __attribute__((packed));
 
 // Global variables
 static bool isInit = false;
-static float lastX;
-static float lastY;
-static float lastZ;
-static float lastYaw;
+static struct data lastData;
 static uint64_t lastTime = 0;
 
 //Private functions
@@ -72,13 +72,19 @@ void positionExternalGetLastData(
   float* x,
   float* y,
   float* z,
-  float* yaw,
+  float* q0,
+  float* q1,
+  float* q2,
+  float* q3,
   uint16_t* last_time_in_ms)
 {
-  *x = lastX;
-  *y = lastY;
-  *z = lastZ;
-  *yaw = lastYaw;
+  *x = lastData.x;
+  *y = lastData.y;
+  *z = lastData.z;
+  *q0 = lastData.q0;
+  *q1 = lastData.q1;
+  *q2 = lastData.q2;
+  *q3 = lastData.q3;
   if (xTaskGetTickCount() - lastTime < 10 * 1000) {
     *last_time_in_ms = xTaskGetTickCount() - lastTime;
   } else {
@@ -89,9 +95,6 @@ void positionExternalGetLastData(
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
   struct data* d = ((struct data*)pk->data);
-  lastX = d->x;
-  lastY = d->y;
-  lastZ = d->z;
-  lastYaw = d->yaw;
+  lastData = *d;
   lastTime = xTaskGetTickCount();
 }

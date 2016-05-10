@@ -110,23 +110,26 @@ static void stabilizerTask(void* param)
 
     sensorsAcquire(&sensorData, tick);
 
-    if (RATE_DO_EXECUTE(IMU_RATE, tick)) {
+    if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
       // Here we do the print out for datacollection:
-      float x, y, z, yaw;
+      float x, y, z, q0, q1, q2, q3;
       uint16_t last_time_in_ms;
-      positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+      positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
-      // uint32_t time = xTaskGetTickCount();
+      uint32_t time = xTaskGetTickCount();
       uint16_t magic = 0xFBCF;
 
       SEGGER_RTT_Write(0, (const char*)&magic, sizeof(magic));
-      SEGGER_RTT_Write(0, (const char*)&tick, sizeof(tick));
+      SEGGER_RTT_Write(0, (const char*)&time, sizeof(tick));
       SEGGER_RTT_Write(0, (const char*)&sensorData.gyro, sizeof(sensorData.gyro));
       SEGGER_RTT_Write(0, (const char*)&sensorData.acc, sizeof(sensorData.acc));
       SEGGER_RTT_Write(0, (const char*)&x, sizeof(x));
       SEGGER_RTT_Write(0, (const char*)&y, sizeof(y));
       SEGGER_RTT_Write(0, (const char*)&z, sizeof(z));
-      SEGGER_RTT_Write(0, (const char*)&yaw, sizeof(yaw));
+      SEGGER_RTT_Write(0, (const char*)&q0, sizeof(q0));
+      SEGGER_RTT_Write(0, (const char*)&q1, sizeof(q1));
+      SEGGER_RTT_Write(0, (const char*)&q2, sizeof(q2));
+      SEGGER_RTT_Write(0, (const char*)&q3, sizeof(q3));
       SEGGER_RTT_Write(0, (const char*)&last_time_in_ms, sizeof(last_time_in_ms));
     }
 

@@ -33,7 +33,10 @@ void positionExternalGetLastData(
   float* x,
   float* y,
   float* z,
-  float* yaw,
+  float* q0,
+  float* q1,
+  float* q2,
+  float* q3,
   uint16_t* last_time_in_ms);
 
 #endif /* POSITION_EXTERNAL_H_ */
