@@ -162,7 +162,7 @@ PROJ_OBJ += position_estimator_altitude.o position_controller_pid.o
 PROJ_OBJ += estimator_$(ESTIMATOR).o controller_$(CONTROLLER).o
 PROJ_OBJ += ekf.o
 PROJ_OBJ += sensors_$(SENSORS).o power_distribution_$(POWER_DISTRIBUTION).o
-PROJ_OBJ += position_external.o
+PROJ_OBJ += position_external_bringup.o
 PROJ_OBJ += trajectory.o
 PROJ_OBJ += position_controller_mellinger.o
 
