@@ -31,7 +31,7 @@
 #include "task.h"
 
 #include "crtp.h"
-#include "position_external.h"
+#include "position_external_bringup.h"
 
 bool positionExternalBringupFresh = false;
 
