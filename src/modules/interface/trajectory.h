@@ -58,4 +58,5 @@ typedef enum {
 void trajectoryGetState(trajectoryState_t* state);
 void trajectorySetState(trajectoryState_t state);
 
+
 #endif /* __TRAJECTORY_H__ */
