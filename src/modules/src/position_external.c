@@ -33,7 +33,7 @@
 #include "crtp.h"
 #include "position_external.h"
 
-bool positionExternalFresh = false;
+bool positionExternalBringupFresh = false;
 
 struct data {
   float x; //m
@@ -51,26 +51,26 @@ static struct data lastData;
 static uint64_t lastTime = 0;
 
 //Private functions
-static void positionExternalCrtpCB(CRTPPacket* pk);
+static void positionExternalBringupCrtpCB(CRTPPacket* pk);
 
-void positionExternalInit(void)
+void positionExternalBringupInit(void)
 {
   if(isInit) {
     return;
   }
 
   crtpInit();
-  crtpRegisterPortCB(CRTP_PORT_POSEXT, positionExternalCrtpCB);
+  crtpRegisterPortCB(CRTP_PORT_POSEXT_BRINGUP, positionExternalBringupCrtpCB);
 
   isInit = true;
 }
 
-bool positionExternalTest(void)
+bool positionExternalBringupTest(void)
 {
   return isInit;
 }
 
-void positionExternalGetLastData(
+void positionExternalBringupGetLastData(
   float* x,
   float* y,
   float* z,
@@ -94,10 +94,10 @@ void positionExternalGetLastData(
   }
 }
 
-static void positionExternalCrtpCB(CRTPPacket* pk)
+static void positionExternalBringupCrtpCB(CRTPPacket* pk)
 {
   struct data* d = ((struct data*)pk->data);
   lastData = *d;
   lastTime = xTaskGetTickCount();
-  positionExternalFresh = true;
+  positionExternalBringupFresh = true;
 }

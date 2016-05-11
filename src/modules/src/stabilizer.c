@@ -70,7 +70,7 @@ void stabilizerInit(void)
 #if defined(SITAW_ENABLED)
   sitAwInit();
 #endif
-  positionExternalInit();
+  positionExternalBringupInit();
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
@@ -86,7 +86,7 @@ bool stabilizerTest(void)
   pass &= stateEstimatorTest();
   pass &= stateControllerTest();
   pass &= powerDistributionTest();
-  pass &= positionExternalTest();
+  pass &= positionExternalBringupTest();
 
   return pass;
 }
@@ -119,7 +119,7 @@ static void stabilizerTask(void* param)
   // {
   //     float x, y, z, q0, q1, q2, q3;
   //     uint16_t last_time_in_ms;
-  //     positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  //     positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
   //     if (last_time_in_ms <= 10) {
   //       float pos[3] = {x, y, z};
   //       float vel[3] = {0, 0, 0};
@@ -153,10 +153,10 @@ static void stabilizerTask(void* param)
 
       float x, y, z, q0, q1, q2, q3;
       uint16_t last_time_in_ms;
-      positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+      positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
       // check if new vicon data available
-      // if (positionExternalFresh) {
+      // if (positionExternalBringupFresh) {
       //   float pos_vicon[3] = {x, y, z};
       //   float quat_vicon[4] = {q0, q1, q2, q3};
 
@@ -166,7 +166,7 @@ static void stabilizerTask(void* param)
       //   ekf_front = ekf_back;
       //   ekf_back = ekf_tmp;
 
-      //   positionExternalFresh = false;
+      //   positionExternalBringupFresh = false;
       // }
 
       // Here we do the print out for datacollection:
