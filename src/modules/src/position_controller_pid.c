@@ -33,6 +33,7 @@
 #include "pid.h"
 #include "num.h"
 #include "position_controller.h"
+#include "mathconstants.h"
 
 struct pidInit_s {
   float kp;

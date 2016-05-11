@@ -272,7 +272,7 @@ ifeq ($(PLATFORM), CF2)
 CFLAGS += $(INCLUDES_CF2) $(STFLAGS_CF2)
 endif
 
-CFLAGS += -std=c11 -Wall -fno-strict-aliasing $(C_PROFILE)
+CFLAGS += -std=gnu11 -Wall -fno-strict-aliasing $(C_PROFILE)
 # Compiler flags to generate dependency files:
 CFLAGS += -MD -MP -MF $(BIN)/dep/$(@).d -MQ $(@)
 #Permits to remove un-used functions and global variables from output file
