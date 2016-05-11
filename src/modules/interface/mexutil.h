@@ -6,8 +6,8 @@
 #include <mex.h>
 #define MEXUTIL_PRINTF mexPrintf
 #else
-#include <stdio.h>
-#define MEXUTIL_PRINTF printf
+//#include <stdio.h>
+#define MEXUTIL_PRINTF
 #endif
 
 #define mxPrintVec(VAR) MEXUTIL_PRINTF("%s: (%f, %f, %f)\n", #VAR, (VAR).x, (VAR).y, (VAR).z);

@@ -39,4 +39,6 @@ void positionExternalGetLastData(
   float* q3,
   uint16_t* last_time_in_ms);
 
+extern bool positionExternalFresh;
+
 #endif /* POSITION_EXTERNAL_H_ */

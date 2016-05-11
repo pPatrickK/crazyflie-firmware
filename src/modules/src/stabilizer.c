@@ -43,6 +43,8 @@
 #include "position_external.h"
 #include "SEGGER_RTT.h"
 
+#include "ekf.h"
+
 static bool isInit;
 
 // State variables for the stabilizer
@@ -50,6 +52,9 @@ static setpoint_t setpoint;
 static sensorData_t sensorData;
 static state_t state;
 static control_t control;
+
+static struct ekf ekfa;
+static struct ekf ekfb;
 
 static void stabilizerTask(void* param);
 
@@ -94,6 +99,10 @@ static void stabilizerTask(void* param)
 {
   uint32_t tick = 0;
   uint32_t lastWakeTime;
+  struct ekf *ekf_front = &ekfa;
+  struct ekf *ekf_back = &ekfb;
+  struct ekf *ekf_tmp;
+
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
 
   //Wait for the system to be fully started to start stabilization loop
@@ -105,24 +114,70 @@ static void stabilizerTask(void* param)
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
   }
 
+  // initialize ekf
+  // while(true)
+  // {
+  //     float x, y, z, q0, q1, q2, q3;
+  //     uint16_t last_time_in_ms;
+  //     positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  //     if (last_time_in_ms <= 10) {
+  //       float pos[3] = {x, y, z};
+  //       float vel[3] = {0, 0, 0};
+  //       float quat[4] = {q0, q1, q2, q3};
+
+  //       ekf_init(ekf_back, pos, vel, quat);
+  //       break;
+  //     }
+  //     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
+  // }
+
+  float pos[3] = {0, 0, 0};
+  float vel[3] = {0, 0, 0};
+  float quat[4] = {0, 0, 0, 1};
+
+  ekf_init(ekf_back, pos, vel, quat);
+
   while(1) {
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
 
     sensorsAcquire(&sensorData, tick);
 
     if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
-      // Here we do the print out for datacollection:
+      float acc[3] = {sensorData.acc.y * GRAV, -sensorData.acc.x * GRAV, sensorData.acc.z * GRAV};
+      float gyro[3] = {sensorData.gyro.y * M_PI / 180.0, -sensorData.gyro.x * M_PI / 180.0, sensorData.gyro.z * M_PI / 180.0};
+      ekf_imu(ekf_back, ekf_front, acc, gyro, 1.0 / RATE_500_HZ);
+      // swap ptr
+      ekf_tmp = ekf_front;
+      ekf_front = ekf_back;
+      ekf_back = ekf_tmp;
+
       float x, y, z, q0, q1, q2, q3;
       uint16_t last_time_in_ms;
       positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
+      // check if new vicon data available
+      // if (positionExternalFresh) {
+      //   float pos_vicon[3] = {x, y, z};
+      //   float quat_vicon[4] = {q0, q1, q2, q3};
+
+      //   ekf_vicon(ekf_back, ekf_front, pos_vicon, quat_vicon);
+      //   // swap ptr
+      //   ekf_tmp = ekf_front;
+      //   ekf_front = ekf_back;
+      //   ekf_back = ekf_tmp;
+
+      //   positionExternalFresh = false;
+      // }
+
+      // Here we do the print out for datacollection:
       uint32_t time = xTaskGetTickCount();
       uint16_t magic = 0xFBCF;
 
       SEGGER_RTT_Write(0, (const char*)&magic, sizeof(magic));
       SEGGER_RTT_Write(0, (const char*)&time, sizeof(tick));
-      SEGGER_RTT_Write(0, (const char*)&sensorData.gyro, sizeof(sensorData.gyro));
-      SEGGER_RTT_Write(0, (const char*)&sensorData.acc, sizeof(sensorData.acc));
+      SEGGER_RTT_Write(0, (const char*)&ekf_back->pos, sizeof(ekf_back->pos));
+      // SEGGER_RTT_Write(0, (const char*)&sensorData.gyro, sizeof(sensorData.gyro));
+      // SEGGER_RTT_Write(0, (const char*)&sensorData.acc, sizeof(sensorData.acc));
       SEGGER_RTT_Write(0, (const char*)&x, sizeof(x));
       SEGGER_RTT_Write(0, (const char*)&y, sizeof(y));
       SEGGER_RTT_Write(0, (const char*)&z, sizeof(z));

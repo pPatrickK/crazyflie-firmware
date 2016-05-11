@@ -33,6 +33,8 @@
 #include "crtp.h"
 #include "position_external.h"
 
+bool positionExternalFresh = false;
+
 struct data {
   float x; //m
   float y; //m
@@ -97,4 +99,5 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
   struct data* d = ((struct data*)pk->data);
   lastData = *d;
   lastTime = xTaskGetTickCount();
+  positionExternalFresh = true;
 }

@@ -7,7 +7,7 @@
 #include "cholsl.c"
 #include "mexutil.h"
 
-// NOTE: this code depends on a strong optimizing compiler 
+// NOTE: this code depends on a strong optimizing compiler
 // because it passes and returns multi-word structs by value.
 
 // measured constants
@@ -73,26 +73,37 @@ void copyEKF(float const src[EKF_N][EKF_N], float dst[EKF_N][EKF_N]) {
 
 void dynamic_matrix(struct quat const q, struct vec const omega, struct vec const acc, float const dt, float F[EKF_N][EKF_N])
 {
+	static struct mat33 C_eq;
+	static struct mat33 w_sk;
+	static struct mat33 a_sk;
+	static struct mat33 Ca3;
+	static struct mat33 A;
+	static struct mat33 B;
+	static struct mat33 D;
+	static struct mat33 E;
+	static struct mat33 FF;
+	static struct mat33 C;
+
 	float const dt_p2_2 = dt * dt * 0.5;
 	float const dt_p3_6 = dt_p2_2 * dt / 3.0;
 	float const dt_p4_24 = dt_p3_6 * dt * 0.25;
 	//float const dt_p5_120 = dt_p4_24 * dt * 0.2;
 
-	struct mat33 const C_eq = quat2rotmat(qinv(q));
-	struct mat33 const w_sk = crossmat(omega);
-	struct mat33 const a_sk = crossmat(acc);
+	C_eq = quat2rotmat(qinv(q));
+	w_sk = crossmat(omega);
+	a_sk = crossmat(acc);
 	// TEMP DEBUG
 	//struct vec acc_nograv = vsub(acc, qvrot(q, mkvec(0,0,GRAV)));
 	//struct mat33 const a_sk = crossmat(acc_nograv);
 
 	// TODO S.Weiss doesn't subtract gravity from the accelerations here, is that right?
-	struct mat33 const Ca3 = mmult(C_eq, a_sk);
-	struct mat33 const A = mmult(Ca3, maddridge(mscale(  dt_p3_6, w_sk), -dt_p2_2)); // position by quaternion
-	struct mat33 const B = mmult(Ca3, maddridge(mscale(-dt_p4_24, w_sk),  dt_p3_6)); // position by gyro bias
-	struct mat33 const D = mscale(-1.0f, A); // velocity by gyro bias
-	struct mat33 const E = maddridge(mscale(-dt, w_sk), 1.0f); // quat by quat
-	struct mat33 const FF = maddridge(mscale(dt_p2_2, w_sk), -dt); // quat by gyro bias 
-	struct mat33 const C = mmult(Ca3, FF); // velocity by quat
+	Ca3 = mmult(C_eq, a_sk);
+	A = mmult(Ca3, maddridge(mscale(  dt_p3_6, w_sk), -dt_p2_2)); // position by quaternion
+	B = mmult(Ca3, maddridge(mscale(-dt_p4_24, w_sk),  dt_p3_6)); // position by gyro bias
+	D = mscale(-1.0f, A); // velocity by gyro bias
+	E = maddridge(mscale(-dt, w_sk), 1.0f); // quat by quat
+	FF = maddridge(mscale(dt_p2_2, w_sk), -dt); // quat by gyro bias
+	C = mmult(Ca3, FF); // velocity by quat
 
 	eyeN(AS_1D(F), EKF_N);
 
@@ -153,11 +164,11 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 
 	//-------------------------- update covariance --------------------------//
 	// TODO should use old quat??
-	float F[EKF_N][EKF_N];
+	static float F[EKF_N][EKF_N];
 	dynamic_matrix(ekf->quat, omega, acc_imu, dt, F);
 
 	// Pnew = F P Ft + Q
-	float PFt[EKF_N][EKF_N];
+	static float PFt[EKF_N][EKF_N];
 	ZEROARR(PFt);
 	SGEMM2D('n', 't', EKF_N, EKF_N, EKF_N, 1.0, ekf_prev->P, F, 0.0, PFt);
 	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_N, 1.0, F, PFt, 0.0, ekf->P);
@@ -194,44 +205,44 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 	// TODO this matrix is just identity blocks
 	// we should be able to hand-code the multiplication to be much more efficient
-	float H[EKF_M][EKF_N];
+	static float H[EKF_M][EKF_N];
 	ZEROARR(H);
 	set_H_block33(H, 0, 0, eye());
 	set_H_block33(H, 3, 6, eye());
 
 	// S = H P H' + R  :  innovation
 
-	float PHt[EKF_N][EKF_M];
+	static float PHt[EKF_N][EKF_M];
 	ZEROARR(PHt);
 	SGEMM2D('n', 't', EKF_N, EKF_M, EKF_N, 1.0, old->P, H, 0.0, PHt);
 
-	float S[EKF_M][EKF_M];
+	static float S[EKF_M][EKF_M];
 	ZEROARR(S);
 	SGEMM2D('n', 'n', EKF_M, EKF_M, EKF_N, 1.0, H, PHt, 0.0, S);
 	checknan("S", AS_1D(S), EKF_M * EKF_M);
 
 	// diag only, no cov
-	float const Rdiag[EKF_M] = 
+	float const Rdiag[EKF_M] =
 		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
-	float R[EKF_M][EKF_M];
+	static float R[EKF_M][EKF_M];
 	ZEROARR(R);
-	for (int i = 0; i < EKF_M; ++i) { 
+	for (int i = 0; i < EKF_M; ++i) {
 		S[i][i] += Rdiag[i];
 		R[i][i] = Rdiag[i];
 	}
 
 	// K = P H' S^-1   :  gain
 
-	float Sinv[EKF_M][EKF_M];
-	float scratch[EKF_M];
+	static float Sinv[EKF_M][EKF_M];
+	static float scratch[EKF_M];
 	cholsl(AS_1D(S), AS_1D(Sinv), scratch, EKF_M);
 	checknan("S^-1", AS_1D(Sinv), EKF_M * EKF_M);
 
-	float HtSinv[EKF_N][EKF_M];
+	static float HtSinv[EKF_N][EKF_M];
 	ZEROARR(HtSinv);
 	SGEMM2D('t', 'n', EKF_N, EKF_M, EKF_M, 1.0, H, Sinv, 0.0, HtSinv);
 
-	float K[EKF_N][EKF_M];
+	static float K[EKF_N][EKF_M];
 	ZEROARR(K);
 	SGEMM2D('n', 'n', EKF_N, EKF_M, EKF_N, 1.0, old->P, HtSinv, 0.0, K);
 	checknan("K", AS_1D(K), EKF_N * EKF_M);
@@ -239,7 +250,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 	// K residual : correction
 
-	float correction[EKF_N];
+	static float correction[EKF_N];
 	ZEROARR(correction);
 	sgemm('n', 'n', EKF_N, 1, EKF_M, 1.0, AS_1D(K), residual, 0.0, correction);
 
@@ -249,10 +260,10 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	new->quat = qnormalized(qqmul(old->quat, error_quat));
 	// TODO biases, if we use dem
 
-	
+
 	// Pnew = (I - KH) P (I - KH)^T + KRK^T  :  covariance update
 
-	float RKt[EKF_M][EKF_N];
+	static float RKt[EKF_M][EKF_N];
 	ZEROARR(RKt);
 	SGEMM2D('n', 't', EKF_M, EKF_N, EKF_M, 1.0, R, K, 0.0, RKt);
 
@@ -261,13 +272,13 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	checknan("KRK^T", AS_1D(new->P), EKF_N * EKF_N);
 
 	// I - KH
-	float IMKH[EKF_N][EKF_N];
+	static float IMKH[EKF_N][EKF_N];
 	eyeN(AS_1D(IMKH), EKF_N);
 	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_M, -1.0, K, H, 1.0, IMKH);
 	checknan("I-KH", AS_1D(IMKH), EKF_N * EKF_N);
 	checknan("old->P", AS_1D(old->P), EKF_N * EKF_N);
 
-	float PIMKHt[EKF_N][EKF_N];
+	static float PIMKHt[EKF_N][EKF_N];
 	ZEROARR(PIMKHt);
 	SGEMM2D('n', 't', EKF_N, EKF_N, EKF_N, 1.0, old->P, IMKH, 0.0, PIMKHt);
 	checknan("P(I-KH)^T", AS_1D(PIMKHt), EKF_N * EKF_N);
@@ -415,7 +426,7 @@ int main()
 	//back->gyro_var = 0.0;
 	//back->bias_acc_var = 0.0;
 	//back->bias_gyro_var = 0.0;
-	
+
 	// acceleration only
 	ekf_init(back, vzero(), qeye());
 	ekf_init(front, vzero(), qeye());
