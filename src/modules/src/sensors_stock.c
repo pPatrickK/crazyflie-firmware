@@ -32,9 +32,11 @@
   #include "lps25h.h"
 #endif
 
-#include "param.h"
+// #include "param.h"
 
-static point_t position;
+// static point_t position;
+
+#include "position_external.h"
 
 #define IMU_RATE RATE_500_HZ
 #define BARO_RATE RATE_100_HZ
@@ -42,6 +44,7 @@ static point_t position;
 void sensorsInit(void)
 {
  imu6Init();
+ positionExternalInit();
 }
 
 bool sensorsTest(void)
@@ -49,6 +52,7 @@ bool sensorsTest(void)
  bool pass = true;
 
  pass &= imu6Test();
+ pass &= positionExternalTest();
 
  return pass;
 }
@@ -70,9 +74,26 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
                  &sensors->baro.asl);
 #endif
     // Experimental: receive the position from parameters
-    if (position.timestamp) {
-      sensors->position = position;
-    }
+    // if (position.timestamp) {
+    //   sensors->position = position;
+    // }
+  }
+
+  float x, y, z, yaw;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(
+    &x, &y, &z, &yaw, &last_time_in_ms);
+
+  sensors->position.timestamp = tick - last_time_in_ms;
+  sensors->position.x = x;
+  sensors->position.y = y;
+  sensors->position.z = z;
+  sensors->external_yaw = yaw;
+
+  if (last_time_in_ms > 500) {
+    sensors->valid = false;
+  } else {
+    sensors->valid = true;
   }
 }
 
@@ -83,9 +104,9 @@ bool sensorsAreCalibrated()
   return imu6IsCalibrated();
 }
 
-PARAM_GROUP_START(lps)
-PARAM_ADD(PARAM_UINT32, t, &position.timestamp)
-PARAM_ADD(PARAM_FLOAT, x, &position.x)
-PARAM_ADD(PARAM_FLOAT, y, &position.y)
-PARAM_ADD(PARAM_FLOAT, z, &position.z)
-PARAM_GROUP_STOP(sensorfusion6)
+// PARAM_GROUP_START(lps)
+// PARAM_ADD(PARAM_UINT32, t, &position.timestamp)
+// PARAM_ADD(PARAM_FLOAT, x, &position.x)
+// PARAM_ADD(PARAM_FLOAT, y, &position.y)
+// PARAM_ADD(PARAM_FLOAT, z, &position.z)
+// PARAM_GROUP_STOP(sensorfusion6)

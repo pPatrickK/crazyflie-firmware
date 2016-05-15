@@ -4,6 +4,7 @@
 
 #include "sensfusion6.h"
 #include "position_estimator.h"
+#include "mathconstants.h"
 
 #define ATTITUDE_UPDATE_RATE RATE_250_HZ
 #define ATTITUDE_UPDATE_DT 1.0/ATTITUDE_UPDATE_RATE
@@ -48,5 +49,9 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
     } else {
       positionEstimate(state, sensorData->baro.asl, POS_UPDATE_DT);
     }
+
+    // Fuse VICON yaw with gyro
+    const float alpha = 0.99;
+    state->attitude.yaw = alpha * state->attitude.yaw  + (1-alpha) * sensorData->external_yaw * 180.0 / M_PI;
   }
 }

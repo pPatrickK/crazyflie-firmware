@@ -34,6 +34,7 @@
 #include "mathconstants.h"
 #include "param.h"
 #include "num.h"
+#include "trajectory.h"
 
 #define MIN_THRUST  1000
 #define MAX_THRUST  60000
@@ -85,6 +86,8 @@ static RPYType stabilizationModeYaw   = RATE;  // Current stabilization type of 
 
 static YawModeType yawMode = DEFUALT_YAW_MODE; // Yaw mode configuration
 static bool carefreeResetFront;             // Reset what is front in carefree mode
+
+static bool enablePosCtrl = false;
 
 static void commanderCrtpCB(CRTPPacket* pk);
 static void commanderCachSelectorUpdate(void);
@@ -302,52 +305,77 @@ uint32_t commanderGetInactivityTime(void)
 
 void commanderGetSetpoint(setpoint_t *setpoint, const state_t *state)
 {
-  // Thrust
-  uint16_t rawThrust = commanderGetActiveThrust();
+  if (enablePosCtrl)
+  {
+      // update setpoint
+      trajectoryPoint_t goal;
+      trajectoryGetCurrentGoal(&goal);
 
-  if (thrustLocked || (rawThrust < MIN_THRUST)) {
-    setpoint->thrust = 0;
-  } else {
-    setpoint->thrust = min(rawThrust, MAX_THRUST);
+      setpoint->position.x = goal.x;
+      setpoint->position.y = goal.y;
+      setpoint->position.z = goal.z;
+      setpoint->velocity.x = goal.velocity_x;
+      setpoint->velocity.y = goal.velocity_y;
+      setpoint->velocity.z = goal.velocity_z;
+      setpoint->attitude.yaw = goal.yaw;
+      setpoint->mode.x = modeAbs;
+      setpoint->mode.y = modeAbs;
+      setpoint->mode.z = modeAbs;
+      setpoint->mode.roll = modeDisable;
+      setpoint->mode.pitch = modeDisable;
+      setpoint->mode.yaw = modeAbs;
+      setpoint->enablePosCtrl = true;
   }
+  else
+  {
+    // Thrust
+    uint16_t rawThrust = commanderGetActiveThrust();
 
-  if (altHoldMode) {
-    setpoint->thrust = 0;
-    setpoint->mode.z = modeDisable;
+    if (thrustLocked || (rawThrust < MIN_THRUST)) {
+      setpoint->thrust = 0;
+    } else {
+      setpoint->thrust = min(rawThrust, MAX_THRUST);
+    }
 
-    setpoint->velocity.z = ((float) rawThrust - 32767.f) / 32767.f;
-  } else {
-    setpoint->mode.z = modeDisable;
+    if (altHoldMode) {
+      setpoint->thrust = 0;
+      setpoint->mode.z = modeDisable;
+
+      setpoint->velocity.z = ((float) rawThrust - 32767.f) / 32767.f;
+    } else {
+      setpoint->mode.z = modeDisable;
+    }
+
+    // roll/pitch
+    if (posHoldMode) {
+      setpoint->mode.x = modeVelocity;
+      setpoint->mode.y = modeVelocity;
+      setpoint->mode.roll = modeDisable;
+      setpoint->mode.pitch = modeDisable;
+
+      setpoint->velocity.x = commanderGetActivePitch()/30.0f;
+      setpoint->velocity.y = commanderGetActiveRoll()/30.0f;
+      setpoint->attitude.roll  = 0;
+      setpoint->attitude.pitch = 0;
+    } else {
+      setpoint->mode.x = modeDisable;
+      setpoint->mode.y = modeDisable;
+      setpoint->mode.roll = modeAbs;
+      setpoint->mode.pitch = modeAbs;
+
+      setpoint->velocity.x = 0;
+      setpoint->velocity.y = 0;
+      setpoint->attitude.roll  = commanderGetActiveRoll();
+      setpoint->attitude.pitch = commanderGetActivePitch();
+    }
+
+    // Yaw
+    setpoint->attitudeRate.yaw  = commanderGetActiveYaw();
+    yawModeUpdate(setpoint, state);
+
+    setpoint->mode.yaw = modeVelocity;
+    setpoint->enablePosCtrl = false;
   }
-
-  // roll/pitch
-  if (posHoldMode) {
-    setpoint->mode.x = modeVelocity;
-    setpoint->mode.y = modeVelocity;
-    setpoint->mode.roll = modeDisable;
-    setpoint->mode.pitch = modeDisable;
-
-    setpoint->velocity.x = commanderGetActivePitch()/30.0f;
-    setpoint->velocity.y = commanderGetActiveRoll()/30.0f;
-    setpoint->attitude.roll  = 0;
-    setpoint->attitude.pitch = 0;
-  } else {
-    setpoint->mode.x = modeDisable;
-    setpoint->mode.y = modeDisable;
-    setpoint->mode.roll = modeAbs;
-    setpoint->mode.pitch = modeAbs;
-
-    setpoint->velocity.x = 0;
-    setpoint->velocity.y = 0;
-    setpoint->attitude.roll  = commanderGetActiveRoll();
-    setpoint->attitude.pitch = commanderGetActivePitch();
-  }
-
-  // Yaw
-  setpoint->attitudeRate.yaw  = commanderGetActiveYaw();
-  yawModeUpdate(setpoint, state);
-
-  setpoint->mode.yaw = modeVelocity;
 }
 
 // Params for flight modes
@@ -359,4 +387,5 @@ PARAM_ADD(PARAM_UINT8, yawRst, &carefreeResetFront)
 PARAM_ADD(PARAM_UINT8, stabModeRoll, &stabilizationModeRoll)
 PARAM_ADD(PARAM_UINT8, stabModePitch, &stabilizationModePitch)
 PARAM_ADD(PARAM_UINT8, stabModeYaw, &stabilizationModeYaw)
+PARAM_ADD(PARAM_UINT8, posCtrl, &enablePosCtrl)
 PARAM_GROUP_STOP(flightmode)

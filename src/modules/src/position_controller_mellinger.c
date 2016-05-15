@@ -31,7 +31,9 @@
 #include "param.h"
 // #include "pid.h"
 // #include "num.h"
-#include "position_controller_mellinger.h"
+#include "position_controller.h"
+
+#define DT 0.01
 
 typedef struct {
   float x;
@@ -75,9 +77,6 @@ static void cross(
   c->z = a->x * b->y - a->y * b->x;
 }
 
-static vector3f oldPosition;
-
-static bool firstUpdate = true;
 
 static const float g = 9.81;
 static const float mass = 0.030;
@@ -97,24 +96,19 @@ static float i_error_y = 0;
 static float i_error_z = 0;
 
 
-void positionControllerMellingerReset(void)
+void positionControllerReset(void)
 {
   i_error_x = 0;
   i_error_y = 0;
   i_error_z = 0;
 }
 
-void positionControllerMellingerUpdate(
-  const pose_t* poseEstimate,       // current state
-  const trajectoryPoint_t* target,  // target state
-  float dt,                         // dt since last call [s]
-  float* eulerRollDesired,          // output [deg]
-  float* eulerPitchDesired,         // output [deg]
-  float* eulerYawDesired,           // output [deg]
-  uint16_t* thrustDesired           // output
-  )
+void positionController(
+  float *thrust,
+  attitude_t *attitude,
+  const state_t *state,
+  const setpoint_t *setpoint)
 {
-  vector3f velocity;
   vector3f r_error;
   vector3f v_error;
   vector3f target_thrust;
@@ -125,30 +119,18 @@ void positionControllerMellingerUpdate(
   vector3f y_axis_desired;
   vector3f x_c_des;
 
-  // Current velocity
-  if (!firstUpdate
-      && dt > 0) {
-    velocity.x = (poseEstimate->position.x - oldPosition.x) / dt;
-    velocity.y = (poseEstimate->position.y - oldPosition.y) / dt;
-    velocity.z = (poseEstimate->position.z - oldPosition.z) / dt;
-  } else {
-    velocity.x = 0;
-    velocity.y = 0;
-    velocity.z = 0;
-  }
-
   // Position Error
-  r_error.x = target->x - poseEstimate->position.x;
-  r_error.y = target->y - poseEstimate->position.y;
-  r_error.z = target->z - poseEstimate->position.z;
+  r_error.x = setpoint->position.x - state->position.x;
+  r_error.y = setpoint->position.y - state->position.y;
+  r_error.z = setpoint->position.z - state->position.z;
 
   // Velocity Error
-  v_error.x = target->velocity_x - velocity.x;
-  v_error.y = target->velocity_y - velocity.y;
-  v_error.z = target->velocity_z - velocity.z;
+  v_error.x = setpoint->velocity.x - state->velocity.x;
+  v_error.y = setpoint->velocity.y - state->velocity.y;
+  v_error.z = setpoint->velocity.z - state->velocity.z;
 
   // Integral Error
-  i_error_z += r_error.z * dt;
+  i_error_z += r_error.z * DT;
   if (i_error_z < -0.5) {
     i_error_z = -0.5;
   }
@@ -156,7 +138,7 @@ void positionControllerMellingerUpdate(
     i_error_z = 0.5;
   }
 
-  i_error_x += r_error.x * dt;
+  i_error_x += r_error.x * DT;
   if (i_error_x < -0.5) {
     i_error_x = -0.5;
   }
@@ -164,7 +146,7 @@ void positionControllerMellingerUpdate(
     i_error_x = 0.5;
   }
 
-  i_error_y += r_error.y * dt;
+  i_error_y += r_error.y * DT;
   if (i_error_y < -0.5) {
     i_error_y = -0.5;
   }
@@ -178,9 +160,9 @@ void positionControllerMellingerUpdate(
   target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
   // Z-Axis
-  z_axis.x = -sin(poseEstimate->attitude.pitch) * cos(poseEstimate->attitude.roll);
-  z_axis.y = sin(poseEstimate->attitude.roll);
-  z_axis.z = cos(poseEstimate->attitude.pitch) * cos(poseEstimate->attitude.roll);
+  z_axis.x = -sin(state->attitude.pitch / 180 * M_PI) * cos(state->attitude.roll / 180 * M_PI);
+  z_axis.y = sin(state->attitude.roll) / 180 * M_PI;
+  z_axis.z = cos(state->attitude.pitch / 180 * M_PI) * cos(state->attitude.roll / 180 * M_PI);
 
   // Current thrust
   current_thrust = massThrust * dot(&target_thrust, &z_axis);
@@ -190,8 +172,8 @@ void positionControllerMellingerUpdate(
   normalize(&z_axis_desired);
 
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
-  x_c_des.x = cos(target->yaw);
-  x_c_des.y = sin(target->yaw);
+  x_c_des.x = cos(setpoint->attitude.yaw / 180 * M_PI);
+  x_c_des.y = sin(setpoint->attitude.yaw / 180 * M_PI);
   x_c_des.z = 0;
   cross(&z_axis_desired, &x_c_des, &y_axis_desired);
   normalize(&y_axis_desired);
@@ -203,16 +185,10 @@ void positionControllerMellingerUpdate(
   // cross(&z_axis_desired, &x_axis_desired, &y_axis_desired);
 
   // Output
-  *eulerRollDesired = atan2(y_axis_desired.z, z_axis_desired.z) * 180.0 / M_PI;
-  *eulerPitchDesired = asin(x_axis_desired.z) * 180.0 / M_PI;
-  *eulerYawDesired = target->yaw * 180.0 / M_PI; // assuming we have direct control!
-  *thrustDesired = current_thrust;
-
-  // update state
-  oldPosition.x = poseEstimate->position.x;
-  oldPosition.y = poseEstimate->position.y;
-  oldPosition.z = poseEstimate->position.z;
-  firstUpdate = false;
+  attitude->roll = atan2(y_axis_desired.z, z_axis_desired.z) * 180.0 / M_PI;
+  attitude->pitch = asin(x_axis_desired.z) * 180.0 / M_PI;
+  attitude->yaw = setpoint->attitude.yaw;
+  *thrust = current_thrust;
 }
 
 PARAM_GROUP_START(ctrlMel)

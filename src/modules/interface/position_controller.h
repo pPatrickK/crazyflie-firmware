@@ -33,4 +33,6 @@
 void positionController(float *thrust, attitude_t *attitude, const state_t *state,
                                                              const setpoint_t *setpoint);
 
+void positionControllerReset(void);
+
 #endif /* POSITION_CONTROLLER_H_ */

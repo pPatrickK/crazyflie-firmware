@@ -5,6 +5,7 @@
 #include "attitude_controller.h"
 #include "sensfusion6.h"
 #include "position_controller.h"
+#include "trajectory.h"
 
 #include "log.h"
 
@@ -47,8 +48,10 @@ void stateController(control_t *control, const sensorData_t *sensors,
     }
   }
 
-  if (RATE_DO_EXECUTE(POSITION_RATE, tick)) {
-    positionController(&actuatorThrust, &attitudeDesired, state, setpoint);
+  if (setpoint->enablePosCtrl) {
+    if (RATE_DO_EXECUTE(POSITION_RATE, tick)) {
+      positionController(&actuatorThrust, &attitudeDesired, state, setpoint);
+    }
   }
 
   if (RATE_DO_EXECUTE(ATTITUDE_RATE, tick)) {
@@ -83,9 +86,17 @@ void stateController(control_t *control, const sensorData_t *sensors,
     control->yaw = -control->yaw;
   }
 
-  control->thrust = actuatorThrust / sensfusion6GetInvThrustCompensationForTilt();
+  if (!setpoint->enablePosCtrl) {
+    control->thrust = actuatorThrust / sensfusion6GetInvThrustCompensationForTilt();
+  }
 
-  if (control->thrust == 0)
+  trajectoryState_t trajectoryState;
+  trajectoryGetState(&trajectoryState);
+
+  if (control->thrust == 0
+      || ( setpoint->enablePosCtrl &&
+         ( !sensors->valid
+          || trajectoryState == TRAJECTORY_STATE_IDLE)))
   {
     control->thrust = 0;
     control->roll = 0;
@@ -93,6 +104,8 @@ void stateController(control_t *control, const sensorData_t *sensors,
     control->yaw = 0;
 
     attitudeControllerResetAllPID();
+    positionControllerReset();
+    trajectorySetState(TRAJECTORY_STATE_IDLE);
 
     // Reset the calculated YAW angle for rate control
     attitudeDesired.yaw = state->attitude.yaw;

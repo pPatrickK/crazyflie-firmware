@@ -44,6 +44,7 @@
 #include "SEGGER_RTT.h"
 
 #include "ekf.h"
+#include "trajectory.h"
 
 static bool isInit;
 
@@ -71,6 +72,7 @@ void stabilizerInit(void)
   sitAwInit();
 #endif
   positionExternalBringupInit();
+  trajectoryInit();
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
@@ -87,6 +89,7 @@ bool stabilizerTest(void)
   pass &= stateControllerTest();
   pass &= powerDistributionTest();
   pass &= positionExternalBringupTest();
+  pass &= trajectoryTest();
 
   return pass;
 }
@@ -191,7 +194,9 @@ static void stabilizerTask(void* param)
     stateEstimator(&state, &sensorData, tick);
     commanderGetSetpoint(&setpoint, &state);
 
-    sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
+    // TODO: Disabled for now to avoid any side-effects
+    //       Check if we can enable this again.
+    // sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
 
     stateController(&control, &sensorData, &state, &setpoint, tick);
     powerDistribution(&control);

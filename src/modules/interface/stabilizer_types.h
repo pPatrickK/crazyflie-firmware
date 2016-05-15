@@ -38,9 +38,9 @@
 typedef struct attitude_s {
   uint32_t timestamp;  // Timestamp when the data was computed
 
-  float roll;
-  float pitch;
-  float yaw;
+  float roll;   // deg
+  float pitch;  // deg
+  float yaw;    // deg
 } attitude_t;
 
 /* x,y,z vector */
@@ -52,9 +52,9 @@ struct vec3_s {
   float z;
 };
 
-typedef struct vec3_s point_t;
-typedef struct vec3_s velocity_t;
-typedef struct vec3_s acc_t;
+typedef struct vec3_s point_t;    // m
+typedef struct vec3_s velocity_t; // m/s
+typedef struct vec3_s acc_t;      // m/s^2
 
 /* Orientation as a quaternion */
 typedef struct quaternion_s {
@@ -88,6 +88,8 @@ typedef struct sensorData_s {
   Axis3f mag;
   baro_t baro;
   point_t position;
+  float external_yaw;
+  bool valid;
 } sensorData_t;
 
 typedef struct state_s {
@@ -125,6 +127,7 @@ typedef struct setpoint_s {
     mode_t pitch;
     mode_t yaw;
   } mode;
+  bool enablePosCtrl;
 } setpoint_t;
 
 /** Estimate of position */
