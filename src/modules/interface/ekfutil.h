@@ -120,6 +120,10 @@ inline void vstoref(struct vec v, float *f)
 {
 	f[0] = v.x; f[1] = v.y; f[2] = v.z;
 }
+float const *vmem(struct vec const *v)
+{
+	return (float const *)v;
+}
 
 // comparison
 inline bool veq(struct vec a, struct vec b)
