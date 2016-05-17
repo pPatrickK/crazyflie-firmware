@@ -24,6 +24,7 @@
  * attitude_pid_controller.c: Attitude controler using PID correctors
  */
 #include <stdbool.h>
+#include <math.h>
 
 #include "FreeRTOS.h"
 
@@ -111,12 +112,18 @@ void attitudeControllerCorrectAttitudePID(
   *pitchRateDesired = pidUpdate(&pidPitch, eulerPitchActual, true);
 
   // Update PID for yaw axis
-  float yawError;
-  yawError = eulerYawDesired - eulerYawActual;
-  if (yawError > 180.0)
-    yawError -= 360.0;
-  else if (yawError < -180.0)
-    yawError += 360.0;
+
+  float eulerYawDesiredRad = eulerYawDesired / 180.0 * M_PI;
+  float eulerYawActualRad = eulerYawActual / 180.0 * M_PI;
+  // TODO: replace with more efficient version!
+  float yawErrorRad = atan2(sin(eulerYawDesiredRad - eulerYawActualRad), cos(eulerYawDesiredRad - eulerYawActualRad));
+  float yawError = yawErrorRad / M_PI * 180.0;
+  // float yawError;
+  // yawError = eulerYawDesired - eulerYawActual;
+  // if (yawError > 180.0)
+  //   yawError -= 360.0;
+  // else if (yawError < -180.0)
+  //   yawError += 360.0;
   pidSetError(&pidYaw, yawError);
   *yawRateDesired = pidUpdate(&pidYaw, eulerYawActual, false);
 }

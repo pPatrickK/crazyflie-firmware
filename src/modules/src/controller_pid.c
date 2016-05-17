@@ -88,6 +88,8 @@ void stateController(control_t *control, const sensorData_t *sensors,
 
   if (!setpoint->enablePosCtrl) {
     control->thrust = actuatorThrust / sensfusion6GetInvThrustCompensationForTilt();
+  } else {
+    control->thrust = actuatorThrust;
   }
 
   trajectoryState_t trajectoryState;
