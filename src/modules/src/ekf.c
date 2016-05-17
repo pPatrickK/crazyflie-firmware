@@ -28,6 +28,19 @@ void ekf_set_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const
 	set_block33(blockptr, EKF_N, block);
 }
 
+void ekf_mult_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *a, struct mat33 const *b)
+{
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			float accum = 0;
+			for (int k = 0; k < 3; ++k) {
+				accum += a->m[i][k] * b->m[k][j];
+			}
+			m[row + i][col + j] = accum;
+		}
+	}
+}
+
 void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &h[row][col];
@@ -99,21 +112,21 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 	//struct mat33 const a_sk = crossmat(acc_nograv);
 
 	// TODO S.Weiss doesn't subtract gravity from the accelerations here, is that right?
-	struct mat33 Ca3 = mmult(C_eq, a_sk);
+	struct mat33 Ca3;
+	mmultp(&C_eq, &a_sk, &Ca3);
 
-	struct mat33 A = mmult(Ca3, aXplusbI(dt_p3_6, &w_sk, -dt_p2_2)); // position by quaternion
+	struct mat33 A = aXplusbI(dt_p3_6, &w_sk, -dt_p2_2); // position by quaternion
 	struct mat33 E = aXplusbI(-dt, &w_sk, 1.0f); // quat by quat
 	struct mat33 FF = aXplusbI(dt_p2_2, &w_sk, -dt); // quat by gyro bias
-	struct mat33 C = mmult(Ca3, FF); // velocity by quat
 
 	eyeN(AS_1D(F), EKF_N);
 
 	//ekf_set_block33(F, 0, 3, eyescl(dt));
 	F[0][3] = F[1][4] = F[2][5] = dt;
 
-	ekf_set_block33(F, 0, 6, &A);
+	ekf_mult_block33(F, 0, 6, &Ca3, &A);
 
-	ekf_set_block33(F, 3, 6, &C);
+	ekf_mult_block33(F, 3, 6, &Ca3, &FF);
 
 	ekf_set_block33(F, 6, 6, &E);
 }

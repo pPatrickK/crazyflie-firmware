@@ -181,6 +181,18 @@ inline struct mat33 mmult(struct mat33 a, struct mat33 b) {
 	}
 	return ab;
 }
+// just the very simple ops needed for ekf
+inline struct mat33 mmultp(struct mat33 const *a, struct mat33 const *b, struct mat33 *ab) {
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			float accum = 0;
+			for (int k = 0; k < 3; ++k) {
+				accum += a->m[i][k] * b->m[k][j];
+			}
+			ab->m[i][j] = accum;
+		}
+	}
+}
 inline struct mat33 mscale(float s, struct mat33 a) {
 	// TODO make sure it gets optimized into one loop of 9, not a nested loop
 	struct mat33 sa;
