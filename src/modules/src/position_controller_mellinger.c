@@ -160,9 +160,9 @@ void positionController(
   target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
   // Z-Axis
-  z_axis.x = -sin(state->attitude.pitch / 180 * M_PI) * cos(state->attitude.roll / 180 * M_PI);
-  z_axis.y = sin(state->attitude.roll) / 180 * M_PI;
-  z_axis.z = cos(state->attitude.pitch / 180 * M_PI) * cos(state->attitude.roll / 180 * M_PI);
+  z_axis.x = -sin(state->attitude.pitch / 180.0 * M_PI) * cos(state->attitude.roll / 180.0 * M_PI);
+  z_axis.y = sin(state->attitude.roll / 180.0 * M_PI);
+  z_axis.z = cos(state->attitude.pitch / 180.0 * M_PI) * cos(state->attitude.roll / 180.0 * M_PI);
 
   // Current thrust
   current_thrust = massThrust * dot(&target_thrust, &z_axis);

@@ -7,10 +7,13 @@
 #include "mathconstants.h"
 
 #define ATTITUDE_UPDATE_RATE RATE_250_HZ
-#define ATTITUDE_UPDATE_DT 1.0/ATTITUDE_UPDATE_RATE
+#define ATTITUDE_UPDATE_DT (1.0/ATTITUDE_UPDATE_RATE)
 
 #define POS_UPDATE_RATE RATE_100_HZ
-#define POS_UPDATE_DT 1.0/POS_UPDATE_RATE
+#define POS_UPDATE_DT (1.0/POS_UPDATE_RATE)
+
+static struct vec3_s oldPosition;
+static bool firstUpdate = true;
 
 void stateEstimatorInit(void)
 {
@@ -53,5 +56,16 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
     // Fuse VICON yaw with gyro
     const float alpha = 0.99;
     state->attitude.yaw = alpha * state->attitude.yaw  + (1-alpha) * sensorData->external_yaw * 180.0 / M_PI;
+
+    // Update velocity
+    if (!firstUpdate) {
+      state->velocity.x = (sensorData->position.x - oldPosition.x) / POS_UPDATE_DT;
+      state->velocity.y = (sensorData->position.y - oldPosition.y) / POS_UPDATE_DT;
+      state->velocity.z = (sensorData->position.z - oldPosition.z) / POS_UPDATE_DT;
+    }
+
+    // update state
+    oldPosition = sensorData->position;
+    firstUpdate = false;
   }
 }
