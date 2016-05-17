@@ -15,3 +15,8 @@ version.c
 *.gch
 
 /generated-test/**
+
+*.swp
+*.eps
+modinc
+modsrc

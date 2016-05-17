@@ -1,13 +1,18 @@
 #pragma once
 
 #include <math.h>
-#include <string.h> // for memset()
 
 #include "mathconstants.h"
 
 #define AS_1D(x) (&(x)[0][0])
 
-#define ZEROARR(a) memset(a, 0, sizeof(a));
+#define ZEROARR(a) \
+do { \
+	unsigned char *ac = (unsigned char *)a; \
+	for (int i = 0; i < sizeof(a); ++i) { \
+		ac[i] = 0; \
+	} \
+} while(false);
 
 inline void fzero(float *f, int sz)
 {
@@ -120,7 +125,7 @@ inline void vstoref(struct vec v, float *f)
 {
 	f[0] = v.x; f[1] = v.y; f[2] = v.z;
 }
-float const *vmem(struct vec const *v)
+inline float const *vmem(struct vec const *v)
 {
 	return (float const *)v;
 }
@@ -185,6 +190,9 @@ inline struct mat33 mscale(float s, struct mat33 a) {
 		}
 	}
 	return sa;
+}
+inline struct mat33 mneg(struct mat33 a) {
+	return mscale(-1.0, a);
 }
 inline struct mat33 maddridge(struct mat33 a, float d) {
 	a.m[0][0] += d;

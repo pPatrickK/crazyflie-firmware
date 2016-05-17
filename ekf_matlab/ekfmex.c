@@ -88,18 +88,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
 	ekf_init(back, pos_init, vmem(&vel_init), quat_init);
 
-	for (int i = 0; i < EKF_N; ++i) {
-		for (int j = 0; j < EKF_N; ++j) {
-			back->P[j][i] = P[i * EKF_N + j];
-		}
-	}
-
 	int const IMU_HZ = 500;
-	int const VICON_SKIP = 3; // vicon comes at approx 100 hz. skip 10 to get 10 hz.
+	int const VICON_TAKE_1_PER = 10; // vicon comes at approx 100 hz. skip 10 to get 10 hz.
 	//int const VICON_HZ = IMU_HZ / VICON_SKIP;
 	int vicon_tick = 0;
-	int vicon_skipped = 0;
-	int prev_vicon = 0;
+	int n_vicons = 0;
 
 	int const P_dim = EKF_N * EKF_N;
 	int const P_size = P_dim * sizeof(float);
@@ -116,36 +109,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		// flip
 		struct ekf *temp = front; front = back; back = temp;
 
-		// all dis complexity to deal with fact that vicon doesn't change when sitting still
-		// but we still want to do an EKF update at normal rate to correct IMU drift
-		++vicon_tick;
 		bool changed = (i > 0) && vneq(vload(pos + 3*i), vload(pos + 3*i - 3));
-		bool stale = (vicon_tick - prev_vicon) > (2 * VICON_SKIP); // extra slop for jitter
 		if (changed) {
-			if (vicon_skipped == (VICON_SKIP - 1)) {
-				//mexPrintf("vicon due to change\n");
+			if ((vicon_tick % VICON_TAKE_1_PER) == 0) {
 				ekf_vicon_d(back, front, pos + 3*i, quat + 4*i);
-				// flip again
 				struct ekf *temp = front; front = back; back = temp;
-				vicon_skipped = 0;
-				prev_vicon = vicon_tick;
+				++n_vicons;
 			}
-			else {
-				++vicon_skipped;
-			}
+			++vicon_tick;
 		}
-		/*
-		else {
-			if (stale) {
-				mexPrintf("vicon due to staleness\n");
-				ekf_vicon_d(back, front, pos + 3*i, quat + 4*i);
-				// flip again
-				struct ekf *temp = front; front = back; back = temp;
-				vicon_skipped = 0;
-				prev_vicon = vicon_tick;
-			}
-		}
-		*/
-				
 	}
+	mexPrintf("n vicons C: %d\n", n_vicons);
 }

@@ -42,17 +42,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	struct vec nw  = vload(mxGetPr(prhs[6]));
 	struct vec nbw = vload(mxGetPr(prhs[7]));
 
-    plhs[0] = mxCreateDoubleMatrix(15, 15, mxREAL);
+    plhs[0] = mxCreateDoubleMatrix(EKF_N, EKF_N, mxREAL);
 	double *Q  = mxGetPr(plhs[0]);
 
 	float Qf[EKF_N][EKF_N];
-	for (int i = 0; i < EKF_N; ++i) {
-		for (int j = 0; j < EKF_N; ++j) {
-			Qf[i][j] = 0;
-		}
-	}
+	ZEROARR(Qf);
 
-	addQ(dt, q, ew, ea, na, nba, nw, nbw, Qf);
+	addQ(dt, q, ew, ea, Qf);
 	for (int i = 0; i < EKF_N; ++i) {
 		for (int j = 0; j < EKF_N; ++j) {
 			Q[j * EKF_N + i] = Qf[i][j]; // row- to column-major

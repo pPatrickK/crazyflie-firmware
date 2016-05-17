@@ -1,9 +1,9 @@
 %B = 8000; % something weird with initial data
 B = 12000;
-E = length(t);
+E = length(t)-2000;
 sel = @(x) x(:,B:E);
 dt = (t(2) - t(1)) / 1000;
-IMU_AHEAD = 18;
+IMU_AHEAD = 50;
 
 t = t(B:E);
 

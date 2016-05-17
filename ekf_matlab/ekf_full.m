@@ -22,7 +22,7 @@ nbw = nba / 10;
 
 %P = blkdiag(eye(9), 0.01 * eye(6));
 P = load('Pinit_imuvis.mat');
-P = P.Pinit(1:15, 1:15);
+P = P.Pinit(1:9, 1:9);
 % TEMP not using different var Z for synth. data
 R = diag([VICON_VAR_XY VICON_VAR_XY VICON_VAR_XY VICON_VAR_Q VICON_VAR_Q VICON_VAR_Q]);
 
@@ -41,25 +41,29 @@ bw = ba;
 
 
 IMU_HZ = 500;
-VICON_HZ = 20;
+VICON_HZ = 18;
 VICON_SKIP = floor(IMU_HZ / VICON_HZ);
 vicon_tick = 0;
 
 npts = size(acc, 2);
+n_vicons = 0;
 for i=1:npts    
     omega = gyro(:,i);% - bw;
     acc_imu = acc(:,i);% - ba;
 
     %[p, v, q, P] = ekf_imu_mex(p, v, q, P, omega, acc_imu, dt);
-	F = dynamic_matrix(q, omega, acc_imu, dt);
-    [p, v, q] = propagate(p, v, q, omega, acc_imu, dt);    
-    P = F * P * F' + calcQ_mex(dt, q, omega, acc_imu, sqrt(na), sqrt(nba), sqrt(nw), sqrt(nbw));
-    P = (P + P') / 2;
+	F = dynamic_matrix_mex(q, omega, acc_imu, dt);
+    [p, v, q] = propagate(p, v, q, omega, acc_imu, dt);
+    Q = calcQ_mex(dt, q, omega, acc_imu, sqrt(na), sqrt(nba), sqrt(nw), sqrt(nbw));
+    P = F * P * F' + Q;
+    %P = (P + P') / 2;
     %assert_close(p, p2);
 	%assert_close(v, v2);
 	%assert_close(q, q2);
     
-    assert(issymmetric(P));
+    %if ~issymmetric(P)
+    %    assert(issymmetric(P));
+    %end
     
     p_out(:,i) = p;
     q_out(:,i) = q;
@@ -73,14 +77,16 @@ for i=1:npts
     vicon_tick = vicon_tick + 1;
     if mod(vicon_tick, VICON_SKIP) == 0
 		%[p, v, q, P, dbg2] = vicon_update_mex(p, v, q, P, R, pos(:,i), quat(:,i));
-		[p, v, q, P, dbg] = vicon_update(p, v, q, P, R, pos(:,i), quat(:,i));
-		%assert_close(dbg, dbg2');
+		[p, v, q, P, dbg] = vicon_update_mex(p, v, q, P, R, pos(:,i), quat(:,i));
+		n_vicons = n_vicons + 1;
+        %assert_close(dbg, dbg2');
 		%assert_close(p, p2);
 		%assert_close(v, v2);
 		%assert_close(q, q2);
 		%assert_close(P, P2);
 	end
 end
+n_vicons_decomposed = n_vicons
 end
 
 function assert_close(a, b)

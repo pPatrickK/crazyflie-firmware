@@ -56,6 +56,7 @@ static control_t control;
 
 static struct ekf ekfa;
 static struct ekf ekfb;
+struct vec ekf_est_pos;
 
 static void stabilizerTask(void* param);
 
@@ -148,7 +149,7 @@ static void stabilizerTask(void* param)
     if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
       float acc[3] = {sensorData.acc.y * GRAV, -sensorData.acc.x * GRAV, sensorData.acc.z * GRAV};
       float gyro[3] = {sensorData.gyro.y * M_PI / 180.0, -sensorData.gyro.x * M_PI / 180.0, sensorData.gyro.z * M_PI / 180.0};
-      ekf_imu(ekf_back, ekf_front, acc, gyro, 1.0 / RATE_500_HZ);
+      //ekf_imu(ekf_back, ekf_front, acc, gyro, 1.0 / RATE_500_HZ);
       // swap ptr
       ekf_tmp = ekf_front;
       ekf_front = ekf_back;
@@ -159,18 +160,20 @@ static void stabilizerTask(void* param)
       positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
       // check if new vicon data available
-      // if (positionExternalBringupFresh) {
-      //   float pos_vicon[3] = {x, y, z};
-      //   float quat_vicon[4] = {q0, q1, q2, q3};
+      if (positionExternalBringupFresh) {
+        float pos_vicon[3] = {x, y, z};
+        float quat_vicon[4] = {q0, q1, q2, q3};
 
-      //   ekf_vicon(ekf_back, ekf_front, pos_vicon, quat_vicon);
-      //   // swap ptr
-      //   ekf_tmp = ekf_front;
-      //   ekf_front = ekf_back;
-      //   ekf_back = ekf_tmp;
+        //ekf_vicon(ekf_back, ekf_front, pos_vicon, quat_vicon);
+        // swap ptr
+        ekf_tmp = ekf_front;
+        ekf_front = ekf_back;
+        ekf_back = ekf_tmp;
 
-      //   positionExternalBringupFresh = false;
-      // }
+        positionExternalBringupFresh = false;
+      }
+
+	  ekf_est_pos = ekf_back->pos;
 
       // Here we do the print out for datacollection:
       uint32_t time = xTaskGetTickCount();
@@ -239,6 +242,12 @@ LOG_ADD(LOG_FLOAT, x, &sensorData.mag.x)
 LOG_ADD(LOG_FLOAT, y, &sensorData.mag.y)
 LOG_ADD(LOG_FLOAT, z, &sensorData.mag.z)
 LOG_GROUP_STOP(mag)
+
+LOG_GROUP_START(ekf_estimate)
+LOG_ADD(LOG_FLOAT, x, &ekf_est_pos.x)
+LOG_ADD(LOG_FLOAT, y, &ekf_est_pos.y)
+LOG_ADD(LOG_FLOAT, z, &ekf_est_pos.z)
+LOG_GROUP_STOP(ekf_estimate)
 
 LOG_GROUP_START(controller)
 LOG_ADD(LOG_INT16, ctr_yaw, &control.yaw)

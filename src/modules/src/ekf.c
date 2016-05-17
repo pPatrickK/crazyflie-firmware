@@ -1,6 +1,7 @@
 #include <math.h>
 #include <float.h>
 #include <stdbool.h> // bool
+#include <string.h>  // memcpy 
 
 #include "ekf.h"
 #include "ekf_cov_init.h"
@@ -9,17 +10,6 @@
 
 // NOTE: this code depends on a strong optimizing compiler
 // because it passes and returns multi-word structs by value.
-
-// measured constants
-#define VICON_VAR_XY 1.5e-9
-#define VICON_VAR_Z  1.0e-8
-#define VICON_VAR_Q  4.5e-6
-#define GYRO_VAR_XYZ 0.2e-6
-#define ACC_VAR_XY   1.5e-5
-#define ACC_VAR_Z    3.9e-5
-// the accelerometer variance in z was quite a bit higher
-// but to keep the code simple for now we just average them
-#define ACC_VAR_XYZ  2.4e-3
 
 
 // TODO move to impl
@@ -99,8 +89,6 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 	// TODO S.Weiss doesn't subtract gravity from the accelerations here, is that right?
 	Ca3 = mmult(C_eq, a_sk);
 	A = mmult(Ca3, maddridge(mscale(  dt_p3_6, w_sk), -dt_p2_2)); // position by quaternion
-	B = mmult(Ca3, maddridge(mscale(-dt_p4_24, w_sk),  dt_p3_6)); // position by gyro bias
-	D = mscale(-1.0f, A); // velocity by gyro bias
 	E = maddridge(mscale(-dt, w_sk), 1.0f); // quat by quat
 	FF = maddridge(mscale(dt_p2_2, w_sk), -dt); // quat by gyro bias
 	C = mmult(Ca3, FF); // velocity by quat
@@ -109,15 +97,10 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 
 	ekf_set_block33(F, 0, 3, eyescl(dt));
 	ekf_set_block33(F, 0, 6, A);
-	ekf_set_block33(F, 0, 9, B);
-	ekf_set_block33(F, 0, 12, mscale(-dt_p2_2, C_eq));
 
 	ekf_set_block33(F, 3, 6, C);
-	ekf_set_block33(F, 3, 9, D);
-	ekf_set_block33(F, 3, 12, mscale(-dt, C_eq));
 
 	ekf_set_block33(F, 6, 6, E);
-	ekf_set_block33(F, 6, 9, FF);
 }
 
 static void symmetricize(float a[EKF_N][EKF_N])
@@ -172,11 +155,8 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	ZEROARR(PFt);
 	SGEMM2D('n', 't', EKF_N, EKF_N, EKF_N, 1.0, ekf_prev->P, F, 0.0, PFt);
 	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_N, 1.0, F, PFt, 0.0, ekf->P);
-	addQ(dt, ekf->quat, omega, acc_imu, 
-		vrepeat(sqrt(ACC_VAR_XYZ)), vrepeat(sqrt(6e-4)), // S.Weiss - TODO constantize
-		vrepeat(sqrt(GYRO_VAR_XYZ)), vrepeat(sqrt((6e-4)/10)),
-		ekf->P);
-	symmetricize(ekf->P);
+	addQ(dt, ekf->quat, omega, acc_imu, ekf->P);
+	//symmetricize(ekf->P);
 	checknan("P", AS_1D(ekf->P), EKF_N * EKF_N);
 }
 

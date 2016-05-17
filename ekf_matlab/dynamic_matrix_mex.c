@@ -34,7 +34,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	struct vec ea  = vload(mxGetPr(prhs[2]));
 	double dt      = *mxGetPr(prhs[3]);
 
-    plhs[0] = mxCreateDoubleMatrix(15, 15, mxREAL);
+    plhs[0] = mxCreateDoubleMatrix(EKF_N, EKF_N, mxREAL);
 	double *F  = mxGetPr(plhs[0]);
 
 	float Ff[EKF_N][EKF_N];
