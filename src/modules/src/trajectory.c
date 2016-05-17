@@ -27,6 +27,7 @@
 
 // #include <string.h>
 #include <errno.h>
+#include <math.h>
 // #include <stdint.h>
 // #include <stdbool.h>
 
@@ -168,7 +169,9 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
     goal->velocity_x = last->velocity_x + (now->velocity_x - last->velocity_x) * factor;
     goal->velocity_y = last->velocity_y + (now->velocity_y - last->velocity_y) * factor;
     goal->velocity_z = last->velocity_z + (now->velocity_z - last->velocity_z) * factor;
-    goal->yaw = last->yaw + (now->yaw - last->yaw) * factor;
+    // TODO: replace with more efficient version!
+    float diffYaw = atan2(sin(now->yaw - last->yaw), cos(now->yaw - last->yaw));
+    goal->yaw = last->yaw + diffYaw * factor;
   } else {
     // set to last valid entry
     goal->x = lastValidTrajectoryEntry.point.x;
