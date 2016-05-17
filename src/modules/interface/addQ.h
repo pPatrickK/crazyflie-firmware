@@ -5,7 +5,7 @@
 
 #define EKF_DISTURBANCE (6)
 
-static void set_G_block33(float G[EKF_N][EKF_DISTURBANCE], int row, int col, struct mat33 block)
+static void set_G_block33(float G[EKF_N][EKF_DISTURBANCE], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &G[row][col];
 	set_block33(blockptr, EKF_DISTURBANCE, block);
@@ -21,8 +21,10 @@ void addQ(double dt, struct quat q, struct vec ew, struct vec ea, float Q[EKF_N]
 
 	static float G[EKF_N][EKF_DISTURBANCE];
 	ZEROARR(G);
-	set_G_block33(G, 6, 0, eyescl(-1));
-	set_G_block33(G, 3, 3, mneg(quat2rotmat(qinv(q))));
+	struct mat33 quat_by_gyro = eyescl(-1);
+	struct mat33 vel_by_acc = mneg(quat2rotmat(qinv(q)));
+	set_G_block33(G, 6, 0, &quat_by_gyro);
+	set_G_block33(G, 3, 3, &vel_by_acc);
 
 	static float QGt[EKF_DISTURBANCE][EKF_N];
 	ZEROARR(QGt);

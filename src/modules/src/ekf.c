@@ -22,13 +22,13 @@ void ekf_mat_identity(float m[EKF_N][EKF_N])
 	}
 }
 
-void ekf_set_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 block)
+void ekf_set_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &m[row][col];
 	set_block33(blockptr, EKF_N, block);
 }
 
-void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 block)
+void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &h[row][col];
 	set_block33(blockptr, EKF_N, block);
@@ -61,46 +61,61 @@ void copyEKF(float const src[EKF_N][EKF_N], float dst[EKF_N][EKF_N]) {
 	}
 }
 
+// IT'S 2016 and GCC FUCKING SUCKS at OPTIMIZING my PASS-BY-VALUE 3x3 MATRIX LIBRARY!!!
+// I'M FRUSTRATED!!!!!!!!!!!!!!!!!
+
+struct mat33 aXplusbI(float a, struct mat33 const *X, float b)
+{
+	struct mat33 m;
+
+	m.m[0][0] = a * X->m[0][0] + b;
+	m.m[0][1] = a * X->m[0][1];
+	m.m[0][2] = a * X->m[0][2];
+	
+	m.m[1][0] = a * X->m[1][0];
+	m.m[1][1] = a * X->m[1][1] + b;
+	m.m[1][2] = a * X->m[1][2];
+
+	m.m[2][0] = a * X->m[2][0];
+	m.m[2][1] = a * X->m[2][1];
+	m.m[2][2] = a * X->m[2][2] + b;
+
+	return m;
+}
+
 void dynamic_matrix(struct quat const q, struct vec const omega, struct vec const acc, float const dt, float F[EKF_N][EKF_N])
 {
-	static struct mat33 C_eq;
-	static struct mat33 w_sk;
-	static struct mat33 a_sk;
-	static struct mat33 Ca3;
-	static struct mat33 A;
-	static struct mat33 B;
-	static struct mat33 D;
-	static struct mat33 E;
-	static struct mat33 FF;
-	static struct mat33 C;
 
 	float const dt_p2_2 = dt * dt * 0.5;
 	float const dt_p3_6 = dt_p2_2 * dt / 3.0;
 	float const dt_p4_24 = dt_p3_6 * dt * 0.25;
 	//float const dt_p5_120 = dt_p4_24 * dt * 0.2;
 
-	C_eq = quat2rotmat(qinv(q));
-	w_sk = crossmat(omega);
-	a_sk = crossmat(acc);
+	struct mat33 C_eq = quat2rotmat(qinv(q));
+	struct mat33 w_sk = crossmat(omega);
+	struct mat33 a_sk = crossmat(acc);
 	// TEMP DEBUG
 	//struct vec acc_nograv = vsub(acc, qvrot(q, mkvec(0,0,GRAV)));
 	//struct mat33 const a_sk = crossmat(acc_nograv);
 
 	// TODO S.Weiss doesn't subtract gravity from the accelerations here, is that right?
-	Ca3 = mmult(C_eq, a_sk);
-	A = mmult(Ca3, maddridge(mscale(  dt_p3_6, w_sk), -dt_p2_2)); // position by quaternion
-	E = maddridge(mscale(-dt, w_sk), 1.0f); // quat by quat
-	FF = maddridge(mscale(dt_p2_2, w_sk), -dt); // quat by gyro bias
-	C = mmult(Ca3, FF); // velocity by quat
+	struct mat33 Ca3 = mmult(C_eq, a_sk);
+
+	struct mat33 A = mmult(Ca3, aXplusbI(dt_p3_6, &w_sk, -dt_p2_2)); // position by quaternion
+	struct mat33 E = aXplusbI(-dt, &w_sk, 1.0f); // quat by quat
+	struct mat33 FF = aXplusbI(dt_p2_2, &w_sk, -dt); // quat by gyro bias
+	struct mat33 C = mmult(Ca3, FF); // velocity by quat
 
 	eyeN(AS_1D(F), EKF_N);
 
-	ekf_set_block33(F, 0, 3, eyescl(dt));
-	ekf_set_block33(F, 0, 6, A);
+	//ekf_set_block33(F, 0, 3, eyescl(dt));
+	F[0][3] = F[1][4] = F[2][5] = dt;
 
-	ekf_set_block33(F, 3, 6, C);
+	ekf_set_block33(F, 0, 6, &A);
 
-	ekf_set_block33(F, 6, 6, E);
+	ekf_set_block33(F, 3, 6, &C);
+
+	ekf_set_block33(F, 6, 6, &E);
 }
 
 static void symmetricize(float a[EKF_N][EKF_N])
@@ -187,8 +202,9 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	// we should be able to hand-code the multiplication to be much more efficient
 	static float H[EKF_M][EKF_N];
 	ZEROARR(H);
-	set_H_block33(H, 0, 0, eye());
-	set_H_block33(H, 3, 6, eye());
+	struct mat33 meye = eye();
+	set_H_block33(H, 0, 0, &meye);
+	set_H_block33(H, 3, 6, &meye);
 
 	// S = H P H' + R  :  innovation
 
@@ -408,8 +424,10 @@ int main()
 	//back->bias_gyro_var = 0.0;
 
 	// acceleration only
-	ekf_init(back, vzero(), qeye());
-	ekf_init(front, vzero(), qeye());
+	float zeros[4] = {0, 0, 0, 0};
+	struct quat q = qeye();
+	ekf_init(back,  zeros, zeros, (float *)&q);
+	ekf_init(front, zeros, zeros, (float *)&q);
 	float dt = 1.0 / 100.0;
 	float acc[3] = {0, 0, 1 + GRAV};
 	float gyro[3] = {0, 0, 0};

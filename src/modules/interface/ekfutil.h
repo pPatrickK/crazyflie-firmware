@@ -150,7 +150,7 @@ struct mat33 {
 // constructors
 inline struct mat33 mzero() {
 	struct mat33 m;
-	fzero(AS_1D(m.m), 9);
+	ZEROARR(m.m);
 	return m;
 }
 inline struct mat33 diag(float a, float b, float c) {
@@ -194,6 +194,11 @@ inline struct mat33 mscale(float s, struct mat33 a) {
 inline struct mat33 mneg(struct mat33 a) {
 	return mscale(-1.0, a);
 }
+inline void maddridgei(struct mat33 *a, float d) {
+	a->m[0][0] += d;
+	a->m[1][1] += d;
+	a->m[2][2] += d;
+}
 inline struct mat33 maddridge(struct mat33 a, float d) {
 	a.m[0][0] += d;
 	a.m[1][1] += d;
@@ -215,10 +220,10 @@ inline struct mat33 crossmat(struct vec v) {
 	return m;
 }
 // set a 3x3 block within a big matrix
-inline void set_block33(float *block, int stride, struct mat33 m) {
+inline void set_block33(float *block, int stride, struct mat33 const *m) {
 	for (int i = 0; i < 3; ++i) {
 		for (int j = 0; j < 3; ++j) {
-			block[j] = m.m[i][j];
+			block[j] = m->m[i][j];
 		}
 		block += stride;
 	}
