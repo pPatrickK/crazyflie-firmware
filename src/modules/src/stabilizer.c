@@ -52,11 +52,13 @@ static bool isInit;
 static setpoint_t setpoint;
 static sensorData_t sensorData;
 static state_t state;
+static float roll_rad, pitch_rad, yaw_rad;
 static control_t control;
 
 static struct ekf ekfa;
 static struct ekf ekfb;
 struct vec ekf_est_pos;
+struct vec ekf_est_rpy;
 
 static void stabilizerTask(void* param);
 
@@ -149,7 +151,7 @@ static void stabilizerTask(void* param)
     if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
       float acc[3] = {sensorData.acc.y * GRAV, -sensorData.acc.x * GRAV, sensorData.acc.z * GRAV};
       float gyro[3] = {sensorData.gyro.y * M_PI / 180.0, -sensorData.gyro.x * M_PI / 180.0, sensorData.gyro.z * M_PI / 180.0};
-      //ekf_imu(ekf_back, ekf_front, acc, gyro, 1.0 / RATE_500_HZ);
+      ekf_imu(ekf_back, ekf_front, acc, gyro, 1.0 / RATE_500_HZ);
       // swap ptr
       ekf_tmp = ekf_front;
       ekf_front = ekf_back;
@@ -164,7 +166,7 @@ static void stabilizerTask(void* param)
         float pos_vicon[3] = {x, y, z};
         float quat_vicon[4] = {q0, q1, q2, q3};
 
-        //ekf_vicon(ekf_back, ekf_front, pos_vicon, quat_vicon);
+        ekf_vicon(ekf_back, ekf_front, pos_vicon, quat_vicon);
         // swap ptr
         ekf_tmp = ekf_front;
         ekf_front = ekf_back;
@@ -174,6 +176,7 @@ static void stabilizerTask(void* param)
       }
 
 	  ekf_est_pos = ekf_back->pos;
+	  ekf_est_rpy = quat2rpy(ekf_back->quat);
 
       // Here we do the print out for datacollection:
       uint32_t time = xTaskGetTickCount();
@@ -197,6 +200,10 @@ static void stabilizerTask(void* param)
     stateEstimator(&state, &sensorData, tick);
     commanderGetSetpoint(&setpoint, &state);
 
+	roll_rad = radians(state.attitude.roll);
+	pitch_rad = radians(state.attitude.pitch);
+	yaw_rad = radians(state.attitude.yaw);
+
     // TODO: Disabled for now to avoid any side-effects
     //       Check if we can enable this again.
     // sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
@@ -218,6 +225,9 @@ LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
+LOG_ADD(LOG_FLOAT, roll_rad, &roll_rad)
+LOG_ADD(LOG_FLOAT, pitch_rad, &pitch_rad)
+LOG_ADD(LOG_FLOAT, yaw_rad, &yaw_rad)
 LOG_ADD(LOG_UINT16, thrust, &control.thrust)
 LOG_GROUP_STOP(stabilizer)
 
@@ -247,6 +257,9 @@ LOG_GROUP_START(ekf_estimate)
 LOG_ADD(LOG_FLOAT, x, &ekf_est_pos.x)
 LOG_ADD(LOG_FLOAT, y, &ekf_est_pos.y)
 LOG_ADD(LOG_FLOAT, z, &ekf_est_pos.z)
+LOG_ADD(LOG_FLOAT, roll, &ekf_est_rpy.x)
+LOG_ADD(LOG_FLOAT, pitch, &ekf_est_rpy.y)
+LOG_ADD(LOG_FLOAT, yaw, &ekf_est_rpy.z)
 LOG_GROUP_STOP(ekf_estimate)
 
 LOG_GROUP_START(controller)

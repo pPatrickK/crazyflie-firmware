@@ -283,6 +283,13 @@ inline struct quat qrpy_small(struct vec rpy) {
 		return quatvw(vscl(w/2, rpy), w);
 	}
 }
+inline struct vec quat2rpy(struct quat q) {
+	struct vec v;
+	v.x = atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (fsqr(q.x) + fsqr(q.y))); // roll
+	v.y = asin(2 * (q.w * q.y - q.x * q.z)); // pitch
+	v.z = atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (fsqr(q.y) + fsqr(q.z))); // yaw
+	return v;
+}
 
 inline struct quat qload(double const *d)
 {
