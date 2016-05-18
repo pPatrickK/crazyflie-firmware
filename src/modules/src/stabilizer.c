@@ -185,7 +185,7 @@ static void stabilizerTask(void* param)
       }
 
 	  ekf_est_pos = ekf_back->pos;
-	  ekf_est_rpy = quat2rpy(qinv(ekf_back->quat));
+	  ekf_est_rpy = quat2rpy(ekf_back->quat);
 
       // Here we do the print out for datacollection:
       uint32_t time = xTaskGetTickCount();
