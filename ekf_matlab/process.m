@@ -3,7 +3,7 @@ B = 12000;
 E = length(t)-2000;
 sel = @(x) x(:,B:E);
 dt = (t(2) - t(1)) / 1000;
-IMU_AHEAD = 50;
+IMU_AHEAD = 10;
 
 t = t(B:E);
 
