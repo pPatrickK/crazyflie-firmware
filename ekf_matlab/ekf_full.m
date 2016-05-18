@@ -20,9 +20,9 @@ nw = rep3(GYRO_VAR_XYZ);
 nbw = nba / 10;
 
 
-%P = blkdiag(eye(9), 0.01 * eye(6));
-P = load('Pinit_imuvis.mat');
-P = P.Pinit(1:9, 1:9);
+P = blkdiag(eye(9));
+%P = load('Pinit_imuvis.mat');
+%P = P.Pinit(1:9, 1:9);
 % TEMP not using different var Z for synth. data
 R = diag([VICON_VAR_XY VICON_VAR_XY VICON_VAR_XY VICON_VAR_Q VICON_VAR_Q VICON_VAR_Q]);
 
@@ -41,7 +41,7 @@ bw = ba;
 
 
 IMU_HZ = 500;
-VICON_HZ = 18;
+VICON_HZ = 10;
 VICON_SKIP = floor(IMU_HZ / VICON_HZ);
 vicon_tick = 0;
 
@@ -52,7 +52,7 @@ for i=1:npts
     acc_imu = acc(:,i);% - ba;
 
     %[p, v, q, P] = ekf_imu_mex(p, v, q, P, omega, acc_imu, dt);
-	F = dynamic_matrix_mex(q, omega, acc_imu, dt);
+	F = dynamic_matrix(q, omega, acc_imu, dt);
     [p, v, q] = propagate(p, v, q, omega, acc_imu, dt);
     Q = calcQ_mex(dt, q, omega, acc_imu, sqrt(na), sqrt(nba), sqrt(nw), sqrt(nbw));
     P = F * P * F' + Q;
@@ -72,12 +72,16 @@ for i=1:npts
     bw_out(:,i) = bw;
     ba_out(:,i) = ba;
 
-    
+
     % vicon update - rate limited
     vicon_tick = vicon_tick + 1;
     if mod(vicon_tick, VICON_SKIP) == 0
+        if i > 3500
+            sfad = 0;
+        end
+    
 		%[p, v, q, P, dbg2] = vicon_update_mex(p, v, q, P, R, pos(:,i), quat(:,i));
-		[p, v, q, P, dbg] = vicon_update_mex(p, v, q, P, R, pos(:,i), quat(:,i));
+		[p, v, q, P, dbg] = vicon_update(p, v, q, P, R, pos(:,i), quat(:,i));
 		n_vicons = n_vicons + 1;
         %assert_close(dbg, dbg2');
 		%assert_close(p, p2);
@@ -95,9 +99,9 @@ function assert_close(a, b)
 end
 
 function [p, v, q] = propagate(p, v, q, omega, acc, dt)
-    q = qnorm(qinv(quat_gyro_update(qinv(q), omega, dt)));
+    q = qnorm(quat_gyro_update(q, omega, dt));
     
-    acc_world = qvrot(qinv(q), acc);
+    acc_world = qvrot(q, acc);
     acc_world(3) = acc_world(3) - 9.81;
         
     v = v + dt * acc_world;
@@ -110,7 +114,7 @@ function [p, v, q, P, dbg] = vicon_update(p, v, q, P, R, p_vicon, q_vicon)
     err_pos = p_vicon - p;
     residual = [err_pos; err_quat];
 
-    H = zeros(6, 15);
+    H = zeros(6, 9);
     H(1:3,1:3) = eye(3);
     H(4:6,7:9) = eye(3);
     
@@ -128,7 +132,7 @@ function [p, v, q, P, dbg] = vicon_update(p, v, q, P, R, p_vicon, q_vicon)
     %bw = bw + correction(10:12);
     %ba = ba + correction(13:15);
 
-    IMKH = eye(15) - K * H;
+    IMKH = eye(9) - K * H;
     P = IMKH * P * IMKH' + K * R * K';
     %P = 0.5 * (P + P'); % TODO: need this?
 end
@@ -178,7 +182,7 @@ function F = dynamic_matrix(q, omega, acc_imu, dt)
 	dt_p4_24 = dt_p3_6 * dt * 0.25;
 	dt_p5_120 = dt_p4_24 * dt * 0.2;
 
-	C_eq = quat2rot(qinv(q));
+	C_eq = quat2rot(q);
 	w_sk = skew(omega);
 	a_sk = skew(acc_imu);
 
@@ -191,16 +195,16 @@ function F = dynamic_matrix(q, omega, acc_imu, dt)
 	FF = -dt * eye3 + dt_p2_2 * w_sk;% - dt_p3_6 * (w_sk * w_sk);
 	C = Ca3 * FF;
 
-	F = eye(15);
+	F = eye(9);
 	F(1:3,4:6)   = dt * eye(3);
 	F(1:3,7:9)   = A;
-	F(1:3,10:12) = B;
-	F(1:3,13:15) = -dt_p2_2 * C_eq;
+	%F(1:3,10:12) = B;
+	%F(1:3,13:15) = -dt_p2_2 * C_eq;
 
 	F(4:6,7:9)   = C;
-	F(4:6,10:12) = D;
-	F(4:6,13:15) = -dt * C_eq;
+	%F(4:6,10:12) = D;
+	%F(4:6,13:15) = -dt * C_eq;
 
 	F(7:9,7:9)   = E;
-	F(7:9,10:12) = FF;
+	%F(7:9,10:12) = FF;
 end

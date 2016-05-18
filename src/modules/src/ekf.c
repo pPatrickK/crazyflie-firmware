@@ -53,7 +53,8 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 	ekf->pos = vloadf(pos);
 	ekf->vel = vloadf(vel);
 	ekf->quat = qloadf(quat);
-	memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
+	//memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
+	eyeN(AS_1D(ekf->P), EKF_N);
 }
 
 #include "addQ.h"
@@ -104,7 +105,7 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 	float const dt_p4_24 = dt_p3_6 * dt * 0.25;
 	//float const dt_p5_120 = dt_p4_24 * dt * 0.2;
 
-	struct mat33 C_eq = quat2rotmat(qinv(q));
+	struct mat33 C_eq = quat2rotmat(q);
 	struct mat33 w_sk = crossmat(omega);
 	struct mat33 a_sk = crossmat(acc);
 	// TEMP DEBUG
@@ -161,12 +162,12 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	// TODO only normalize every N steps to save computation?
 	//struct vec const omega = vsub(vloadf(gyro), ekf->bias_gyro);
 	struct vec const omega = vloadf(gyro);
-	ekf->quat = qnormalized(qinv(quat_gyro_update(qinv(ekf_prev->quat), omega, dt)));
+	ekf->quat = qnormalized(quat_gyro_update(ekf_prev->quat, omega, dt));
 
 	// compute true acceleration
 	//struct vec const acc_imu = vsub(float2vec(acc), ekf->bias_acc);
 	struct vec const acc_imu = vloadf(acc);
-    struct vec acc_world = qvrot(qinv(ekf->quat), acc_imu);
+    struct vec acc_world = qvrot(ekf->quat, acc_imu);
     acc_world.z -= GRAV;
 
 	// propagate position + velocity
