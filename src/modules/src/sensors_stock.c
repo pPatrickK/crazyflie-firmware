@@ -90,11 +90,11 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
   sensors->position.z = z;
   sensors->external_yaw = yaw;
 
-  if (last_time_in_ms > 500) {
-    sensors->valid = false;
-  } else {
-    sensors->valid = true;
-  }
+  // if (last_time_in_ms > 500) {
+  //   sensors->valid = false;
+  // } else {
+  //   sensors->valid = true;
+  // }
 }
 
 bool sensorsAreCalibrated()

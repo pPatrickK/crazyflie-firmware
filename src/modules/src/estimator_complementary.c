@@ -36,11 +36,11 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
     sensfusion6UpdateQ(sensorData->gyro.x, sensorData->gyro.y, sensorData->gyro.z,
                        sensorData->acc.x, sensorData->acc.y, sensorData->acc.z,
                        ATTITUDE_UPDATE_DT);
-    float yaw;
-    sensfusion6GetEulerRPY(&state->attitude.roll, &state->attitude.pitch, &yaw);
+    // float yaw;
+    sensfusion6GetEulerRPY(&state->attitude.roll, &state->attitude.pitch, &state->attitude.yaw);
 
-    state->attitude.yaw += (yaw - oldYaw);
-    oldYaw = yaw;
+    // state->attitude.yaw += (yaw - oldYaw);
+    // oldYaw = yaw;
 
     state->acc.z = sensfusion6GetAccZWithoutGravity(sensorData->acc.x,
                                                     sensorData->acc.y,
@@ -59,10 +59,10 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
     }
 
     // Fuse VICON yaw with gyro
-    const float alpha = 0.99;
-    float yaw1 = state->attitude.yaw;
-    float yaw2 = sensorData->external_yaw * 180.0 / M_PI;
-    state->attitude.yaw = alpha * yaw1  + (1-alpha) * yaw2;
+    // const float alpha = 0.99;
+    // float yaw1 = state->attitude.yaw;
+    // float yaw2 = sensorData->external_yaw * 180.0 / M_PI;
+    // state->attitude.yaw = alpha * yaw1  + (1-alpha) * yaw2;
 
     // Update velocity
     if (!firstUpdate) {

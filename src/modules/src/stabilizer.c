@@ -45,6 +45,7 @@
 
 #include "ekf.h"
 #include "trajectory.h"
+#include "debug.h"
 
 static bool isInit;
 
@@ -121,27 +122,28 @@ static void stabilizerTask(void* param)
   }
 
   // initialize ekf
-  // while(true)
-  // {
-  //     float x, y, z, q0, q1, q2, q3;
-  //     uint16_t last_time_in_ms;
-  //     positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-  //     if (last_time_in_ms <= 10) {
-  //       float pos[3] = {x, y, z};
-  //       float vel[3] = {0, 0, 0};
-  //       float quat[4] = {q0, q1, q2, q3};
+  while(true)
+  {
+      float x, y, z, q0, q1, q2, q3;
+      uint16_t last_time_in_ms;
+      positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+      if (last_time_in_ms <= 10) {
+        float pos[3] = {x, y, z};
+        float vel[3] = {0, 0, 0};
+        float quat[4] = {q0, q1, q2, q3};
 
-  //       ekf_init(ekf_back, pos, vel, quat);
-  //       break;
-  //     }
-  //     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
-  // }
+        ekf_init(ekf_back, pos, vel, quat);
+        break;
+      }
+      vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
+  }
 
-  float pos[3] = {0, 0, 0};
-  float vel[3] = {0, 0, 0};
-  float quat[4] = {0, 0, 0, 1};
+  DEBUG_PRINT("ekf initialized!\n");
 
-  ekf_init(ekf_back, pos, vel, quat);
+  // float pos[3] = {0, 0, 0};
+  // float vel[3] = {0, 0, 0};
+  // float quat[4] = {0, 0, 0, 1};
+  // ekf_init(ekf_back, pos, vel, quat);
 
   while(1) {
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
@@ -149,8 +151,8 @@ static void stabilizerTask(void* param)
     sensorsAcquire(&sensorData, tick);
 
     if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
-      float acc[3] = {sensorData.acc.y * GRAV, -sensorData.acc.x * GRAV, sensorData.acc.z * GRAV};
-      float gyro[3] = {sensorData.gyro.y * M_PI / 180.0, -sensorData.gyro.x * M_PI / 180.0, sensorData.gyro.z * M_PI / 180.0};
+      float acc[3] = {sensorData.acc.x * GRAV, sensorData.acc.y * GRAV, sensorData.acc.z * GRAV};
+      float gyro[3] = {sensorData.gyro.x * M_PI / 180.0, sensorData.gyro.y * M_PI / 180.0, sensorData.gyro.z * M_PI / 180.0};
       ekf_imu(ekf_back, ekf_front, acc, gyro, 1.0 / RATE_500_HZ);
       // swap ptr
       ekf_tmp = ekf_front;
@@ -160,6 +162,13 @@ static void stabilizerTask(void* param)
       float x, y, z, q0, q1, q2, q3;
       uint16_t last_time_in_ms;
       positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+
+      sensorData.valid = last_time_in_ms < 1000;
+      struct quat quat_tmp = mkquat(q0, q1, q2, q3);
+      struct vec tmp = quat2rpy(quat_tmp);
+      sensorData.external_yaw = tmp.z;
+
+      //DEBUG_PRINT("quat: %f,%f,%f,%f; %f\n", quat_tmp.x, quat_tmp.y, quat_tmp.z, quat_tmp.w, degrees(tmp.z));
 
       // check if new vicon data available
       if (positionExternalBringupFresh) {
@@ -176,37 +185,54 @@ static void stabilizerTask(void* param)
       }
 
 	  ekf_est_pos = ekf_back->pos;
-	  ekf_est_rpy = quat2rpy(ekf_back->quat);
+	  ekf_est_rpy = quat2rpy(qinv(ekf_back->quat));
 
       // Here we do the print out for datacollection:
       uint32_t time = xTaskGetTickCount();
       uint16_t magic = 0xFBCF;
 
-      SEGGER_RTT_Write(0, (const char*)&magic, sizeof(magic));
-      SEGGER_RTT_Write(0, (const char*)&time, sizeof(tick));
-      SEGGER_RTT_Write(0, (const char*)&ekf_back->pos, sizeof(ekf_back->pos));
-      // SEGGER_RTT_Write(0, (const char*)&sensorData.gyro, sizeof(sensorData.gyro));
-      // SEGGER_RTT_Write(0, (const char*)&sensorData.acc, sizeof(sensorData.acc));
-      SEGGER_RTT_Write(0, (const char*)&x, sizeof(x));
-      SEGGER_RTT_Write(0, (const char*)&y, sizeof(y));
-      SEGGER_RTT_Write(0, (const char*)&z, sizeof(z));
-      SEGGER_RTT_Write(0, (const char*)&q0, sizeof(q0));
-      SEGGER_RTT_Write(0, (const char*)&q1, sizeof(q1));
-      SEGGER_RTT_Write(0, (const char*)&q2, sizeof(q2));
-      SEGGER_RTT_Write(0, (const char*)&q3, sizeof(q3));
-      SEGGER_RTT_Write(0, (const char*)&last_time_in_ms, sizeof(last_time_in_ms));
+      // SEGGER_RTT_Write(0, (const char*)&magic, sizeof(magic));
+      // SEGGER_RTT_Write(0, (const char*)&time, sizeof(tick));
+      // SEGGER_RTT_Write(0, (const char*)&ekf_back->pos, sizeof(ekf_back->pos));
+      // // SEGGER_RTT_Write(0, (const char*)&sensorData.gyro, sizeof(sensorData.gyro));
+      // // SEGGER_RTT_Write(0, (const char*)&sensorData.acc, sizeof(sensorData.acc));
+      // SEGGER_RTT_Write(0, (const char*)&x, sizeof(x));
+      // SEGGER_RTT_Write(0, (const char*)&y, sizeof(y));
+      // SEGGER_RTT_Write(0, (const char*)&z, sizeof(z));
+      // SEGGER_RTT_Write(0, (const char*)&q0, sizeof(q0));
+      // SEGGER_RTT_Write(0, (const char*)&q1, sizeof(q1));
+      // SEGGER_RTT_Write(0, (const char*)&q2, sizeof(q2));
+      // SEGGER_RTT_Write(0, (const char*)&q3, sizeof(q3));
+      // SEGGER_RTT_Write(0, (const char*)&last_time_in_ms, sizeof(last_time_in_ms));
     }
 
-    stateEstimator(&state, &sensorData, tick);
-    commanderGetSetpoint(&setpoint, &state);
 
-	roll_rad = radians(state.attitude.roll);
-	pitch_rad = radians(state.attitude.pitch);
-	yaw_rad = radians(state.attitude.yaw);
+
+    stateEstimator(&state, &sensorData, tick);
+
+    // HACK: update state from ekf
+    roll_rad = radians(state.attitude.roll);
+    pitch_rad = radians(state.attitude.pitch);
+    yaw_rad = radians(state.attitude.yaw);
+
+    state.position.x = ekf_back->pos.x;
+    state.position.y = ekf_back->pos.y;
+    state.position.z = ekf_back->pos.z;
+    state.velocity.x = ekf_back->vel.x;
+    state.velocity.y = ekf_back->vel.y;
+    state.velocity.z = ekf_back->vel.z;
+
+    state.attitude.roll = degrees(ekf_est_rpy.x);
+    state.attitude.pitch = -degrees(ekf_est_rpy.y);
+    state.attitude.yaw = degrees(ekf_est_rpy.z);
+
+    commanderGetSetpoint(&setpoint, &state);
 
     // TODO: Disabled for now to avoid any side-effects
     //       Check if we can enable this again.
     // sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
+
+
 
     stateController(&control, &sensorData, &state, &setpoint, tick);
     powerDistribution(&control);
