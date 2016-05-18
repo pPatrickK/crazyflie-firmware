@@ -1,34 +1,20 @@
 #include <math.h>
-#include <float.h>
 #include <stdbool.h> // bool
-#include <string.h>  // memcpy 
 
+#include "cholsl.h"
 #include "ekf.h"
-#include "ekf_cov_init.h"
-#include "cholsl.c"
 #include "mexutil.h"
 
-// NOTE: this code depends on a strong optimizing compiler
-// because it passes and returns multi-word structs by value.
 
+// ------ utility functions for manipulating blocks of the EKF matrices ------
 
-// TODO move to impl
-
-void ekf_mat_identity(float m[EKF_N][EKF_N])
-{
-	fzero(AS_1D(m), EKF_N * EKF_N);
-	for (int i = 0; i < EKF_N; ++i) {
-		m[i][i] = 1;
-	}
-}
-
-void ekf_set_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *block)
+void set_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &m[row][col];
 	set_block33(blockptr, EKF_N, block);
 }
 
-void ekf_mult_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *a, struct mat33 const *b)
+void mult_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *a, struct mat33 const *b)
 {
 	for (int i = 0; i < 3; ++i) {
 		for (int j = 0; j < 3; ++j) {
@@ -47,7 +33,15 @@ void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 const *
 	set_block33(blockptr, EKF_N, block);
 }
 
+static void set_G_block33(float G[EKF_N][EKF_DISTURBANCE], int row, int col, struct mat33 const *block)
+{
+	float *blockptr = &G[row][col];
+	set_block33(blockptr, EKF_DISTURBANCE, block);
+}
 
+// -------------------------- EKF implementation -----------------------------
+
+// initialize the EKF struct
 void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float const quat[4])
 {
 	ekf->pos = vloadf(pos);
@@ -57,52 +51,11 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 	eyeN(AS_1D(ekf->P), EKF_N);
 }
 
-#include "addQ.h"
-
-void zeroEKF(float m[EKF_N][EKF_N]) {
-	for (int i = 0; i < EKF_N; ++i) {
-		for (int j = 0; j < EKF_N; ++j) {
-			m[i][j] = 0;
-		}
-	}
-}
-
-void copyEKF(float const src[EKF_N][EKF_N], float dst[EKF_N][EKF_N]) {
-	for (int i = 0; i < EKF_N; ++i) {
-		for (int j = 0; j < EKF_N; ++j) {
-			dst[i][j] = src[i][j];
-		}
-	}
-}
-
-// IT'S 2016 and GCC FUCKING SUCKS at OPTIMIZING my PASS-BY-VALUE 3x3 MATRIX LIBRARY!!!
-// I'M FRUSTRATED!!!!!!!!!!!!!!!!!
-
-struct mat33 aXplusbI(float a, struct mat33 const *X, float b)
-{
-	struct mat33 m;
-
-	m.m[0][0] = a * X->m[0][0] + b;
-	m.m[0][1] = a * X->m[0][1];
-	m.m[0][2] = a * X->m[0][2];
-	
-	m.m[1][0] = a * X->m[1][0];
-	m.m[1][1] = a * X->m[1][1] + b;
-	m.m[1][2] = a * X->m[1][2];
-
-	m.m[2][0] = a * X->m[2][0];
-	m.m[2][1] = a * X->m[2][1];
-	m.m[2][2] = a * X->m[2][2] + b;
-
-	return m;
-}
-
 void dynamic_matrix(struct quat const q, struct vec const omega, struct vec const acc, float const dt, float F[EKF_N][EKF_N])
 {
-
 	float const dt_p2_2 = dt * dt * 0.5;
 	float const dt_p3_6 = dt_p2_2 * dt / 3.0;
-	float const dt_p4_24 = dt_p3_6 * dt * 0.25;
+	//float const dt_p4_24 = dt_p3_6 * dt * 0.25;
 	//float const dt_p5_120 = dt_p4_24 * dt * 0.2;
 
 	struct mat33 C_eq = quat2rotmat(q);
@@ -122,16 +75,17 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 
 	eyeN(AS_1D(F), EKF_N);
 
-	//ekf_set_block33(F, 0, 3, eyescl(dt));
+	//set_K_block33(F, 0, 3, eyescl(dt));
 	F[0][3] = F[1][4] = F[2][5] = dt;
 
-	ekf_mult_block33(F, 0, 6, &Ca3, &A);
+	mult_K_block33(F, 0, 6, &Ca3, &A);
 
-	ekf_mult_block33(F, 3, 6, &Ca3, &FF);
+	mult_K_block33(F, 3, 6, &Ca3, &FF);
 
-	ekf_set_block33(F, 6, 6, &E);
+	set_K_block33(F, 6, 6, &E);
 }
 
+/* currently unused
 static void symmetricize(float a[EKF_N][EKF_N])
 {
 	for (int i = 0; i < EKF_N; ++i) {
@@ -141,6 +95,35 @@ static void symmetricize(float a[EKF_N][EKF_N])
 			a[j][i] = mean;
 		}
 	}
+}
+*/
+
+void addQ(double dt, struct quat q, struct vec ew, struct vec ea, float Q[EKF_N][EKF_N])
+{
+	// optimize diagonal mmult or maybe A Diag A' ?
+	static float Qdiag[EKF_DISTURBANCE][EKF_DISTURBANCE];
+	ZEROARR(Qdiag);
+	Qdiag[0][0] = Qdiag[1][1] = Qdiag[2][2] = GYRO_VAR_XYZ;
+	Qdiag[3][3] = Qdiag[4][4] = Qdiag[5][5] = ACC_VAR_XYZ;
+
+	static float G[EKF_N][EKF_DISTURBANCE];
+	ZEROARR(G);
+	struct mat33 quat_by_gyro = eyescl(-1);
+	struct mat33 vel_by_acc = mneg(quat2rotmat(qinv(q)));
+	set_G_block33(G, 6, 0, &quat_by_gyro);
+	set_G_block33(G, 3, 3, &vel_by_acc);
+
+	static float QGt[EKF_DISTURBANCE][EKF_N];
+	ZEROARR(QGt);
+	SGEMM2D('n', 't', EKF_DISTURBANCE, EKF_N, EKF_DISTURBANCE, 1.0, Qdiag, G, 0.0, QGt);
+
+	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_DISTURBANCE, dt, G, QGt, 1.0, Q);
+
+	// debug only
+	//float Qd[EKF_N][EKF_N];
+	//ZEROARR(Qd);
+	//SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_DISTURBANCE, 1.0, G, QGt, 0.0, Qd);
+	//checksym("Q", AS_1D(Qd), EKF_N);
 }
 
 void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], float const gyro[3], float dt)
@@ -187,14 +170,6 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	addQ(dt, ekf->quat, omega, acc_imu, ekf->P);
 	//symmetricize(ekf->P);
 	checknan("P", AS_1D(ekf->P), EKF_N * EKF_N);
-}
-
-
-void ekf_imu_d(struct ekf const *ekf_prev, struct ekf *ekf, double const acc[3], double const gyro[3], float dt)
-{
-	float accf[3] = { acc[0], acc[1], acc[2] };
-	float gyrof[3] = { gyro[0], gyro[1], gyro[2] };
-	ekf_imu(ekf_prev, ekf, accf, gyrof, dt);
 }
 
 void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3], float const quat_vicon[4])//, double *debug)
@@ -298,66 +273,6 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	checknan("P-New", AS_1D(new->P), EKF_N * EKF_N);
 }
 
-/*
-// TODO timestamp, buffer search
-void ekf_vicon_old(struct ekf *ekf, float pos[3], float quat[4])
-{
-	struct vec pos_vicon = float2vec(pos);
-	struct quat quat_vicon = mkquat(quat[0], quat[1], quat[2], quat[3]);
-
-	// error quaternion
-	struct quat q_residual = qqmul(qinv(ekf->quat), quat_vicon);
-	struct vec err_quat = vdiv(q_residual.v, (2 * q_residual.w));
-
-	// construct residual - will cast to float[6] later
-	struct vec residual[2];
-	residual[0] = vsub(pos_vicon, ekf->pos);
-	residual[1] = err_quat;
-	checknan("residual", (float const *)&residual, 6);
-
-	// S = H P H' + R  :  innovation
-	// H is constant
-	SGEMM2D('n', 't', EKF_N, EKF_M, EKF_N, 1.0, ekf->P, ekf->H, 0.0, ekf->temp);
-	SGEMM2D('n', 'n', EKF_M, EKF_M, EKF_N, 1.0, ekf->H, ekf->temp, 0.0, ekf->S);
-	for (int i = 0; i < EKF_M; ++i) { ekf->S[i][i] += ekf->R[i][i]; } // diag only, no cov
-	checknan("S", AS_1D(ekf->S), EKF_M * EKF_M);
-
-	// K = P H' S^-1   :  gain
-	float scratch[EKF_M];
-	cholsl(AS_1D(ekf->S), AS_1D(ekf->temp), scratch, EKF_M);
-	checknan("S^1", AS_1D(ekf->temp), EKF_M * EKF_M);
-	SGEMM2D('t', 'n', EKF_N, EKF_M, EKF_M, 1.0, ekf->H, ekf->temp, 0.0, ekf->temp2);
-	checknan("temp2", AS_1D(ekf->temp2), EKF_N * EKF_M);
-	SGEMM2D('n', 'n', EKF_N, EKF_M, EKF_N, 1.0, ekf->P, ekf->temp2, 0.0, ekf->K);
-	checknan("K", AS_1D(ekf->K), EKF_N * EKF_M);
-
-	// compute and apply correction
-	float correction[EKF_N];
-	sgemm('n', 'n', EKF_N, 1, EKF_M, 1.0, AS_1D(ekf->K), (float const *)&residual, 0.0, correction);
-	vaddi(&ekf->pos, float2vec(correction + 0));
-	vaddi(&ekf->vel, float2vec(correction + 3));
-	struct quat error_quat = qrpy_small(float2vec(correction + 6));
-	ekf->quat = qnormalized(qqmul(ekf->quat, error_quat));
-	vaddi(&ekf->bias_gyro, float2vec(correction + 9));
-	vaddi(&ekf->bias_acc, float2vec(correction + 12));
-
-	// covariance update
-	// Pnew = (I - KH) P (I - KH)^T + KRK^T
-	//SGEMM2D('n', 't', EKF_M, EKF_N, EKF_M, 1.0, ekf->R, ekf->K, 0.0, ekf->temp2);
-	//SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_M, 1.0, ekf->K, ekf->temp2, 0.0, ekf->P);
-	//eyeN(AS_1D(ekf->temp), EKF_N);
-	//SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_M, -1.0, ekf->K, ekf->H, 1.0, ekf->temp);
-	//SGEMM2D('n', 't', EKF_N, EKF_N, EKF_N, 1.0, ekf->P, ekf->temp, 0.0, ekf->temp2);
-	//SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_N, 1.0, ekf->temp, ekf->temp2, 1.0, ekf->P);
-}
-*/
-
-void ekf_vicon_d(struct ekf const *old, struct ekf *new, double const pos[3], double const quat[4])//, double *debug)
-{
-	float posf[] = { pos[0], pos[1], pos[2] };
-	float quatf[] = { quat[0], quat[1], quat[2], quat[3] };
-	ekf_vicon(old, new, posf, quatf);
-}
 
 #ifdef EKFTEST
 

@@ -2,7 +2,7 @@
 #include <math.h>
 
 #define CHOLSL_FLOAT double
-#include "cholsl.c"
+#include "cholsl.h"
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {

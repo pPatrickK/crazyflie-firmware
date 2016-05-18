@@ -18,6 +18,20 @@ outputs:
 	b_w  3xN b_a  3xN
 */
 
+void ekf_imu_d(struct ekf const *ekf_prev, struct ekf *ekf, double const acc[3], double const gyro[3], float dt)
+{
+	float accf[3] = { acc[0], acc[1], acc[2] };
+	float gyrof[3] = { gyro[0], gyro[1], gyro[2] };
+	ekf_imu(ekf_prev, ekf, accf, gyrof, dt);
+}
+
+void ekf_vicon_d(struct ekf const *old, struct ekf *new, double const pos[3], double const quat[4])//, double *debug)
+{
+	float posf[] = { pos[0], pos[1], pos[2] };
+	float quatf[] = { quat[0], quat[1], quat[2], quat[3] };
+	ekf_vicon(old, new, posf, quatf);
+}
+
 mxArray *create3D(mwSize d1, mwSize d2, mwSize d3)
 {
 	mwSize dims[] = { d1, d2, d3 };

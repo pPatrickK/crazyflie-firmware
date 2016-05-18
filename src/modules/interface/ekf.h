@@ -14,8 +14,9 @@
 // but only 3 degrees of freedom. Also, it keeps the EKF quantities close to 0,
 // which is a good thing [citation needed].
 
-#define EKF_N 9
-#define EKF_M 6
+#define EKF_N 9           // state dimension
+#define EKF_M 6           // measurement dimension
+#define EKF_DISTURBANCE 6 // control (IMU) noise dimension
 
 struct ekf
 {

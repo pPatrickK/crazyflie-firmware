@@ -22,6 +22,21 @@ outputs:
 	debug   
 */
 
+static inline void d2f(double const *d, float *f, int n)
+{
+	for (int i = 0; i < n; ++i) {
+		f[i] = d[i];
+	}
+}
+
+static inline void f2d(float const *f, double *d, int n)
+{
+	for (int i = 0; i < n; ++i) {
+		d[i] = f[i];
+	}
+}
+
+
 #ifdef MATLAB_MEX_FILE 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {

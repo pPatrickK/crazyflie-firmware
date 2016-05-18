@@ -33,6 +33,7 @@ static void checknan(char const *name, float const *f, int n)
 #endif
 }
 
+/* currently unused
 static void checksym(char const *name, float const *f, int n)
 {
 #ifdef MATLAB_MEX_FILE
@@ -49,3 +50,4 @@ static void checksym(char const *name, float const *f, int n)
 	}
 #endif
 }
+*/

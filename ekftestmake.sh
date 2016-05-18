@@ -1,0 +1,1 @@
+clang -Wall -Wextra -pedantic -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wsign-promo -Wstrict-overflow=5 -Wundef -Wno-variadic-macros -Wno-parentheses -fdiagnostics-show-option -Wno-unused-parameter -DEKFTEST -std=gnu11 -Isrc/modules/interface src/modules/src/ekf.c -lm

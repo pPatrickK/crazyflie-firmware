@@ -1,6 +1,10 @@
+#pragma once
+
 #ifndef CHOLSL_FLOAT
 #define CHOLSL_FLOAT float
 #endif
+
+#include <math.h>
 
 static int choldc1(CHOLSL_FLOAT * a, CHOLSL_FLOAT * p, int n) {
     int i,j,k;

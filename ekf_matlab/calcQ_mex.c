@@ -1,6 +1,5 @@
 #include "mex.h"
-#include "ekf.h"
-#include "addQ.h"
+#include "ekf.c"
 #include <string.h> // memcpy
 
 /*
