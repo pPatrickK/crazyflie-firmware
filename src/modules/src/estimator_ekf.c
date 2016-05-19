@@ -63,6 +63,8 @@ static struct vec3_s ekf2vec(struct vec v)
 void stateEstimatorInit(void)
 {
 	// Initialization is lazy within the state estimator main function
+	float init[] = {0, 0, 0, 1};
+	ekf_init(ekf_back, init, init, init);
 }
 
 bool stateEstimatorTest(void)
@@ -74,6 +76,7 @@ bool stateEstimatorTest(void)
 void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32_t tick)
 {
 	// lazy initialization - need a Vicon measurement for initial position
+	/*
 	if (!initialized) {
 		if (!sensorData->valid) {
 			return;
@@ -91,6 +94,7 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 		ekf_init(ekf_back, pos, vel, quat);
 		initialized = true;
 	}
+	*/
 
 	// rate limit
 	if (!RATE_DO_EXECUTE(ATTITUDE_UPDATE_RATE, tick)) {
@@ -123,6 +127,6 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 
 	struct vec rpy = quat2rpy(ekf_back->quat);
 	state->attitude.roll = degrees(rpy.x);
-	state->attitude.pitch = degrees(rpy.y);
+	state->attitude.pitch = -degrees(rpy.y);
 	state->attitude.yaw = degrees(rpy.z);
 }
