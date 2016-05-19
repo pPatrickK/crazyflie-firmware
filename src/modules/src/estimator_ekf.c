@@ -45,6 +45,7 @@ static void ekf_flip()
 	ekf_back = ekf_temp;
 }
 static bool initialized = false;
+static bool virst_vicon = false;
 
 // TODO change EKF funcs to take struct vec, 
 // then make a function that wraps positionExternalBringupGetLastData
@@ -62,39 +63,34 @@ static struct vec3_s ekf2vec(struct vec v)
 
 void stateEstimatorInit(void)
 {
-	// Initialization is lazy within the state estimator main function
+	// Initialize to 0 so gyro integration still works without Vicon
 	float init[] = {0, 0, 0, 1};
 	ekf_init(ekf_back, init, init, init);
+	initialized = true;
 }
 
 bool stateEstimatorTest(void)
 {
-	// Nothing to test
-	return true; 
+	// Nothing to test...
+	return initialized; 
 }
 
 void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32_t tick)
 {
-	// lazy initialization - need a Vicon measurement for initial position
-	/*
-	if (!initialized) {
-		if (!sensorData->valid) {
-			return;
-		}
+	// lazy initialization
+	if (!first_vicon && sensorData->valid) {
 		// TODO get Vicon from sensorData_t instead of this function call
 		float x, y, z, q0, q1, q2, q3;
 		uint16_t last_time_in_ms;
 		positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-		if (last_time_in_ms > 10) {
-			return;
+		if (last_time_in_ms <= 10) {
+			float pos[3] = {x, y, z};
+			float vel[3] = {0, 0, 0};
+			float quat[4] = {q0, q1, q2, q3};
+			ekf_init(ekf_back, pos, vel, quat);
+			first_vicon = true;
 		}
-		float pos[3] = {x, y, z};
-		float vel[3] = {0, 0, 0};
-		float quat[4] = {q0, q1, q2, q3};
-		ekf_init(ekf_back, pos, vel, quat);
-		initialized = true;
 	}
-	*/
 
 	// rate limit
 	if (!RATE_DO_EXECUTE(ATTITUDE_UPDATE_RATE, tick)) {

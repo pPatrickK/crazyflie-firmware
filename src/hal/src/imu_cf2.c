@@ -73,7 +73,7 @@
 #define GYRO_MIN_BIAS_TIMEOUT_MS    M2T(1*1000)
 
 // Number of samples used in variance calculation. Changing this effects the threshold
-#define IMU_NBR_OF_BIAS_SAMPLES  1024
+#define IMU_NBR_OF_BIAS_SAMPLES  128
 
 // Variance threshold to take zero bias for gyro
 #define GYRO_VARIANCE_BASE        2000
