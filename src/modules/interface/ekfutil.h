@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math.h>
+#include <stdbool.h> 
 
 #include "mathconstants.h"
 
