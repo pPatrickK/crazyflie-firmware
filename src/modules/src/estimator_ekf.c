@@ -22,7 +22,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * EKF author: 
+ * EKF author:
  * James Preiss
  * University of Southern California
  *
@@ -45,9 +45,9 @@ static void ekf_flip()
 	ekf_back = ekf_temp;
 }
 static bool initialized = false;
-static bool virst_vicon = false;
+static bool first_vicon = false;
 
-// TODO change EKF funcs to take struct vec, 
+// TODO change EKF funcs to take struct vec,
 // then make a function that wraps positionExternalBringupGetLastData
 
 #define ATTITUDE_UPDATE_RATE RATE_500_HZ
@@ -72,24 +72,17 @@ void stateEstimatorInit(void)
 bool stateEstimatorTest(void)
 {
 	// Nothing to test...
-	return initialized; 
+	return initialized;
 }
 
 void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32_t tick)
 {
 	// lazy initialization
 	if (!first_vicon && sensorData->valid) {
-		// TODO get Vicon from sensorData_t instead of this function call
-		float x, y, z, q0, q1, q2, q3;
-		uint16_t last_time_in_ms;
-		positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-		if (last_time_in_ms <= 10) {
-			float pos[3] = {x, y, z};
-			float vel[3] = {0, 0, 0};
-			float quat[4] = {q0, q1, q2, q3};
-			ekf_init(ekf_back, pos, vel, quat);
-			first_vicon = true;
-		}
+		float pos[3] = {sensorData->position.x, sensorData->position.y, sensorData->position.z};
+		float vel[3] = {0, 0, 0};
+		ekf_init(ekf_back, pos, vel, sensorData->quaternion.q_arr);
+		first_vicon = true;
 	}
 
 	// rate limit
@@ -105,19 +98,13 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 
 	// check if new vicon data available
 	if (positionExternalBringupFresh) {
-
-		float x, y, z, q0, q1, q2, q3;
-		uint16_t last_time_in_ms;
-		positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-
-		float pos_vicon[3] = {x, y, z};
-		float quat_vicon[4] = {q0, q1, q2, q3};
-		ekf_vicon(ekf_back, ekf_front, pos_vicon, quat_vicon);
+		float pos_vicon[3] = {sensorData->position.x, sensorData->position.y, sensorData->position.z};
+		ekf_vicon(ekf_back, ekf_front, pos_vicon, sensorData->quaternion.q_arr);
 		ekf_flip();
 
 		positionExternalBringupFresh = false;
 	}
-	
+
 	state->position = ekf2vec(ekf_back->pos);
 	state->velocity = ekf2vec(ekf_back->vel);
 

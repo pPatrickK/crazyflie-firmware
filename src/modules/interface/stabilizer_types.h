@@ -73,6 +73,7 @@ typedef struct quaternion_s {
       float z;
       float w;
     };
+    float q_arr[4];
   };
 } quaternion_t;
 
@@ -88,7 +89,7 @@ typedef struct sensorData_s {
   Axis3f mag;
   baro_t baro;
   point_t position;
-  float external_yaw;
+  quaternion_t quaternion;
   bool valid;
 } sensorData_t;
 

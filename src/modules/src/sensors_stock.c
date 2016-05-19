@@ -37,6 +37,7 @@
 // static point_t position;
 
 #include "position_external.h"
+#include "position_external_bringup.h"
 
 #define IMU_RATE RATE_500_HZ
 #define BARO_RATE RATE_100_HZ
@@ -79,22 +80,24 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
     // }
   }
 
-  float x, y, z, yaw;
+  float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
-  positionExternalGetLastData(
-    &x, &y, &z, &yaw, &last_time_in_ms);
+  positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
   sensors->position.timestamp = tick - last_time_in_ms;
   sensors->position.x = x;
   sensors->position.y = y;
   sensors->position.z = z;
-  sensors->external_yaw = yaw;
+  sensors->quaternion.q0 = q0;
+  sensors->quaternion.q1 = q1;
+  sensors->quaternion.q2 = q2;
+  sensors->quaternion.q3 = q3;
 
-  // if (last_time_in_ms > 500) {
-  //   sensors->valid = false;
-  // } else {
-  //   sensors->valid = true;
-  // }
+  if (last_time_in_ms > 500) {
+    sensors->valid = false;
+  } else {
+    sensors->valid = true;
+  }
 }
 
 bool sensorsAreCalibrated()
