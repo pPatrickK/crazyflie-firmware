@@ -112,7 +112,7 @@ static void stabilizerTask(void* param)
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
   }
 
-  // TODO before refactoring, this task used to wait 
+  // TODO before refactoring, this task used to wait
   // for a Vicon reading to initialize the EKF before entering its main loop.
   // Now the EKF does lazy-initialization. Do we still need to care about it here?
 
@@ -148,6 +148,9 @@ LOG_ADD(LOG_FLOAT, roll_rad, &roll_rad)
 LOG_ADD(LOG_FLOAT, pitch_rad, &pitch_rad)
 LOG_ADD(LOG_FLOAT, yaw_rad, &yaw_rad)
 LOG_ADD(LOG_UINT16, thrust, &control.thrust)
+LOG_ADD(LOG_FLOAT, x, &state.position.x)
+LOG_ADD(LOG_FLOAT, y, &state.position.y)
+LOG_ADD(LOG_FLOAT, z, &state.position.z)
 LOG_GROUP_STOP(stabilizer)
 
 LOG_GROUP_START(acc)
