@@ -86,11 +86,13 @@ void stateController(control_t *control, const sensorData_t *sensors,
     control->yaw = -control->yaw;
   }
 
-  if (!setpoint->enablePosCtrl) {
-    control->thrust = actuatorThrust / sensfusion6GetInvThrustCompensationForTilt();
-  } else {
+  // Disable thrust compensation in all cases; this only works if the complementary state
+  //  estimator is enabled.
+  // if (!setpoint->enablePosCtrl) {
+    // control->thrust = actuatorThrust / sensfusion6GetInvThrustCompensationForTilt();
+  // } else {
     control->thrust = actuatorThrust;
-  }
+  // }
 
   trajectoryState_t trajectoryState;
   trajectoryGetState(&trajectoryState);
