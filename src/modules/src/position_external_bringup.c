@@ -32,23 +32,36 @@
 
 #include "crtp.h"
 #include "position_external_bringup.h"
+#include "debug.h"
+#include "num.h"
+#include "configblock.h"
 
 bool positionExternalBringupFresh = false;
 
+// Private types
+typedef uint16_t fp16_t;
 struct data {
-  float x; //m
-  float y; //m
-  float z; //m
-  float q0;
-  float q1;
-  float q2;
-  float q3;
-} __attribute__((packed));
+  struct {
+    uint8_t id;
+    fp16_t x; // m
+    fp16_t y; // m
+    fp16_t z; // m
+    int16_t quat[4]; //Quaternion; TODO: find more compact way to store this
+                      // each component between -1 and 1
+  } pose[2];
+};
 
 // Global variables
 static bool isInit = false;
-static struct data lastData;
+static float lastX;
+static float lastY;
+static float lastZ;
+static float lastQ0;
+static float lastQ1;
+static float lastQ2;
+static float lastQ3;
 static uint64_t lastTime = 0;
+static uint8_t my_id;
 
 //Private functions
 static void positionExternalBringupCrtpCB(CRTPPacket* pk);
@@ -63,6 +76,10 @@ void positionExternalBringupInit(void)
   crtpRegisterPortCB(CRTP_PORT_POSEXT_BRINGUP, positionExternalBringupCrtpCB);
 
   isInit = true;
+
+  uint64_t address = configblockGetRadioAddress();
+  my_id = address & 0xFF;
+  DEBUG_PRINT("posextbrinup. initialized: %d\n", my_id);
 }
 
 bool positionExternalBringupTest(void)
@@ -80,13 +97,13 @@ void positionExternalBringupGetLastData(
   float* q3,
   uint16_t* last_time_in_ms)
 {
-  *x = lastData.x;
-  *y = lastData.y;
-  *z = lastData.z;
-  *q0 = lastData.q0;
-  *q1 = lastData.q1;
-  *q2 = lastData.q2;
-  *q3 = lastData.q3;
+  *x = lastX;
+  *y = lastY;
+  *z = lastZ;
+  *q0 = lastQ0;
+  *q1 = lastQ1;
+  *q2 = lastQ2;
+  *q3 = lastQ3;
   if (xTaskGetTickCount() - lastTime < 10 * 1000) {
     *last_time_in_ms = xTaskGetTickCount() - lastTime;
   } else {
@@ -97,7 +114,18 @@ void positionExternalBringupGetLastData(
 static void positionExternalBringupCrtpCB(CRTPPacket* pk)
 {
   struct data* d = ((struct data*)pk->data);
-  lastData = *d;
-  lastTime = xTaskGetTickCount();
-  positionExternalBringupFresh = true;
+  for (int i=0; i < 2; ++i) {
+    if (d->pose[i].id == my_id) {
+      lastX = half2single(d->pose[i].x);
+      lastY = half2single(d->pose[i].y);
+      lastZ = half2single(d->pose[i].z);
+      lastQ0 = d->pose[i].quat[0] / 32768.0;
+      lastQ1 = d->pose[i].quat[1] / 32768.0;
+      lastQ2 = d->pose[i].quat[2] / 32768.0;
+      lastQ3 = d->pose[i].quat[3] / 32768.0;
+
+      lastTime = xTaskGetTickCount();
+      positionExternalBringupFresh = true;
+    }
+  }
 }

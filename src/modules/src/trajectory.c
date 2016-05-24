@@ -42,6 +42,7 @@
 #include "trajectory.h"
 #include "debug.h"
 #include "position_external.h"
+#include "position_external_bringup.h"
 
 //#include "console.h"
 //#include "cfassert.h"
@@ -318,9 +319,9 @@ int trajectoryTakeoff(const struct data_takeoff* data)
     return 1;
   }
 
-  float x, y, z, yaw;
+  float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+  positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
   numEntries = 2;
   trajectory[0].time_from_start = 0;
@@ -330,7 +331,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
   trajectory[0].point.velocity_x = 0;
   trajectory[0].point.velocity_y = 0;
   trajectory[0].point.velocity_z = 0;
-  trajectory[0].point.yaw = yaw;
+  trajectory[0].point.yaw = 0;
 
   trajectory[1].time_from_start = data->time_from_start;
   trajectory[1].point.x = x;
@@ -354,9 +355,9 @@ int trajectoryLand(const struct data_land* data)
     return 1;
   }
 
-  float x, y, z, yaw;
+  float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &yaw, &last_time_in_ms);
+  positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
   numEntries = 2;
   trajectory[0].time_from_start = 0;
@@ -366,7 +367,7 @@ int trajectoryLand(const struct data_land* data)
   trajectory[0].point.velocity_x = 0;
   trajectory[0].point.velocity_y = 0;
   trajectory[0].point.velocity_z = 0;
-  trajectory[0].point.yaw = yaw;
+  trajectory[0].point.yaw = 0;
 
   trajectory[1].time_from_start = data->time_from_start;
   trajectory[1].point.x = x;
