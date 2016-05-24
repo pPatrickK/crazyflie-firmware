@@ -286,6 +286,16 @@ static inline struct vec quat2rpy(struct quat q) {
 	return v;
 }
 
+// This is not tested!
+static inline struct quat rpy2quat(struct vec rpy) {
+	return mkquat(
+		cos(rpy.x / 2.0) * cos(rpy.y / 2.0) * cos(rpy.x / 2.0) + sin(rpy.x / 2.0) * sin(rpy.y / 2.0) * sin(rpy.z / 2.0),
+		sin(rpy.x / 2.0) * cos(rpy.y / 2.0) * cos(rpy.x / 2.0) - cos(rpy.x / 2.0) * sin(rpy.y / 2.0) * sin(rpy.z / 2.0),
+		cos(rpy.x / 2.0) * sin(rpy.y / 2.0) * cos(rpy.x / 2.0) + sin(rpy.x / 2.0) * cos(rpy.y / 2.0) * sin(rpy.z / 2.0),
+		cos(rpy.x / 2.0) * cos(rpy.y / 2.0) * sin(rpy.x / 2.0) - sin(rpy.x / 2.0) * sin(rpy.y / 2.0) * cos(rpy.z / 2.0)
+		);
+}
+
 static inline struct quat qload(double const *d)
 {
 	return mkquat(d[0], d[1], d[2], d[3]);
