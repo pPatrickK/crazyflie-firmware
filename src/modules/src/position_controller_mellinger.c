@@ -79,7 +79,7 @@ static void cross(
 
 
 static const float g = 9.81;
-static const float mass = 0.035;
+static const float mass = 0.030;
 
 static float kp_xy = 0.2;
 static float kd_xy = 0.1;
