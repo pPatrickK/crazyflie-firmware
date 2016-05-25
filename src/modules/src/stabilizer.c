@@ -38,9 +38,10 @@
 #include "estimator.h"
 #include "commander.h"
 #include "sitaw.h"
-#include "controller.h"
+// #include "controller.h"
 #include "power_distribution.h"
 #include "position_external_bringup.h"
+#include "position_controller.h"
 #include "SEGGER_RTT.h"
 
 #include "trajectory.h"
@@ -57,6 +58,11 @@ static control_t control;
 
 static void stabilizerTask(void* param);
 
+static float m_roll;
+static float m_pitch;
+static float m_yaw;
+
+
 void stabilizerInit(void)
 {
   if(isInit)
@@ -64,7 +70,7 @@ void stabilizerInit(void)
 
   sensorsInit();
   stateEstimatorInit();
-  stateControllerInit();
+  // stateControllerInit();
   powerDistributionInit();
 #if defined(SITAW_ENABLED)
   sitAwInit();
@@ -84,7 +90,7 @@ bool stabilizerTest(void)
 
   pass &= sensorsTest();
   pass &= stateEstimatorTest();
-  pass &= stateControllerTest();
+  // pass &= stateControllerTest();
   pass &= powerDistributionTest();
   pass &= positionExternalBringupTest();
   pass &= trajectoryTest();
@@ -127,7 +133,46 @@ static void stabilizerTask(void* param)
     //       Check if we can enable this again.
     // sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
 
-    stateController(&control, &sensorData, &state, &setpoint, tick);
+    // stateController(&control, &sensorData, &state, &setpoint, tick);
+    if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
+      // Rate-controled YAW is moving YAW angle setpoint
+      if (setpoint.mode.yaw == modeVelocity) {
+         setpoint.attitude.yaw += setpoint.attitudeRate.yaw/500.0;
+        while (setpoint.attitude.yaw > 180.0)
+          setpoint.attitude.yaw -= 360.0;
+        while (setpoint.attitude.yaw < -180.0)
+          setpoint.attitude.yaw+= 360.0;
+      }
+
+      positionControllerMellinger(&control, &state, &setpoint);
+
+      trajectoryState_t trajectoryState;
+      trajectoryGetState(&trajectoryState);
+
+      if (!setpoint.enablePosCtrl) {
+        control.thrust = setpoint.thrust;
+      }
+
+      m_roll = control.roll;
+      m_pitch = control.pitch;
+      m_yaw = control.yaw;
+
+      if (control.thrust == 0
+          || ( setpoint.enablePosCtrl &&
+             ( !sensorData.valid
+              || trajectoryState == TRAJECTORY_STATE_IDLE)))
+      {
+        control.thrust = 0;
+        control.roll = 0;
+        control.pitch = 0;
+        control.yaw = 0;
+
+        // attitudeControllerResetAllPID();
+        positionControllerReset();
+        trajectorySetState(TRAJECTORY_STATE_IDLE);
+        // setpoint.attitude.yaw = state.attitude.yaw;
+      }
+    }
     powerDistribution(&control);
 
     tick++;
@@ -138,6 +183,7 @@ LOG_GROUP_START(ctrltarget)
 LOG_ADD(LOG_FLOAT, roll, &setpoint.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &setpoint.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &setpoint.attitudeRate.yaw)
+LOG_ADD(LOG_FLOAT, yawAngle, &setpoint.attitude.yaw)
 LOG_GROUP_STOP(ctrltarget)
 
 LOG_GROUP_START(stabilizer)
@@ -178,3 +224,10 @@ LOG_GROUP_STOP(mag)
 LOG_GROUP_START(controller)
 LOG_ADD(LOG_INT16, ctr_yaw, &control.yaw)
 LOG_GROUP_STOP(controller)
+
+LOG_GROUP_START(mot)
+LOG_ADD(LOG_FLOAT, m_pitch, &m_pitch)
+LOG_ADD(LOG_FLOAT, m_roll, &m_roll)
+LOG_ADD(LOG_FLOAT, m_yaw, &m_yaw)
+LOG_GROUP_STOP(mot)
+

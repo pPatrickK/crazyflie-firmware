@@ -94,9 +94,10 @@ typedef struct sensorData_s {
 } sensorData_t;
 
 typedef struct state_s {
-  attitude_t attitude;
-  point_t position;
-  velocity_t velocity;
+  attitude_t attitude; // deg
+  attitude_t attitudeRate; // rad/s
+  point_t position; // m
+  velocity_t velocity; // m/s
   acc_t acc;
 } state_t;
 
@@ -115,7 +116,7 @@ typedef enum mode_e {
 
 typedef struct setpoint_s {
   attitude_t attitude;
-  attitude_t attitudeRate;
+  attitude_t attitudeRate; // rad/s
   float thrust;
   point_t position;
   velocity_t velocity;

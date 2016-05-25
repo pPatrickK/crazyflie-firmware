@@ -47,6 +47,10 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
                                                     sensorData->acc.z);
 
     positionUpdateVelocity(state->acc.z, ATTITUDE_UPDATE_DT);
+
+    state->attitudeRate.roll = sensorData->gyro.x / 180.0 * M_PI;
+    state->attitudeRate.pitch = -sensorData->gyro.y / 180.0 * M_PI;
+    state->attitudeRate.yaw = sensorData->gyro.z / 180.0 * M_PI;
   }
 
   if (RATE_DO_EXECUTE(POS_UPDATE_RATE, tick)) {
