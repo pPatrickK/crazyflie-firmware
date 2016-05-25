@@ -102,7 +102,7 @@ static float kR_z  = 7000;
 
 // "D" part for moment
 static float kw_xy = 3000;
-static float kw_z = 50;
+static float kw_z = 3000;
 
 
 
@@ -217,9 +217,9 @@ void positionControllerMellinger(
   eR.z = y_axis_desired.y * cos(theta) * sin(psi) - cos(phi) * (x_axis_desired.y * cos(psi) - x_axis_desired.x * sin(psi) + y_axis_desired.z * sin(theta)) + cos(psi) * (y_axis_desired.x * cos(theta) + y_axis_desired.y * sin(phi) * sin(theta)) - sin(phi) * (x_axis_desired.z + y_axis_desired.x * sin(psi) * sin(theta));
 
   // ew
-  ew.x = setpoint->attitudeRate.roll - state->attitudeRate.roll;
-  ew.y = setpoint->attitudeRate.pitch - state->attitudeRate.pitch;
-  ew.z = setpoint->attitudeRate.yaw - state->attitudeRate.yaw;
+  ew.x = /*setpoint->attitudeRate.roll*/0 - state->attitudeRate.roll;
+  ew.y = /*setpoint->attitudeRate.pitch*/0 - state->attitudeRate.pitch;
+  ew.z = /*setpoint->attitudeRate.yaw*/0 - state->attitudeRate.yaw;
 
   // Moment:
   M.x = -kR_xy * eR.x + kw_xy * ew.x;

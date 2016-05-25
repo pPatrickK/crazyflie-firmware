@@ -137,12 +137,14 @@ static void stabilizerTask(void* param)
     if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
       // Rate-controled YAW is moving YAW angle setpoint
       if (setpoint.mode.yaw == modeVelocity) {
-         setpoint.attitude.yaw += setpoint.attitudeRate.yaw/500.0;
+         setpoint.attitude.yaw -= setpoint.attitudeRate.yaw/500.0;
         while (setpoint.attitude.yaw > 180.0)
           setpoint.attitude.yaw -= 360.0;
         while (setpoint.attitude.yaw < -180.0)
           setpoint.attitude.yaw+= 360.0;
       }
+
+      // setpoint.attitude.yaw = 0;
 
       positionControllerMellinger(&control, &state, &setpoint);
 
@@ -170,7 +172,7 @@ static void stabilizerTask(void* param)
         // attitudeControllerResetAllPID();
         positionControllerReset();
         trajectorySetState(TRAJECTORY_STATE_IDLE);
-        // setpoint.attitude.yaw = state.attitude.yaw;
+        setpoint.attitude.yaw = state.attitude.yaw;
       }
     }
     powerDistribution(&control);
