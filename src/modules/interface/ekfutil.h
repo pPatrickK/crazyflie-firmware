@@ -143,6 +143,45 @@ static inline struct mat33 eyescl(float a) {
 static inline struct mat33 eye() {
 	return eyescl(1.0f);
 }
+static inline struct mat33 mcolumns(struct vec a, struct vec b, struct vec c)
+{
+	struct mat33 m;
+	m.m[0][0] = a.x;
+	m.m[1][0] = a.y;
+	m.m[2][0] = a.z;
+
+	m.m[0][1] = b.x;
+	m.m[1][1] = b.y;
+	m.m[2][1] = b.z;
+
+	m.m[0][2] = c.x;
+	m.m[1][2] = c.y;
+	m.m[2][2] = c.z;
+
+	return m;
+}
+
+static inline struct mat33 mtranspose(struct mat33 m)
+{
+	struct mat33 mt;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			mt.m[i][j] = m.m[j][i];
+		}
+	}
+	return mt;
+}
+
+static inline struct mat33 msub(struct mat33 a, struct mat33 b)
+{
+	struct mat33 c;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			c.m[i][j] = a.m[i][j] - b.m[i][j];
+		}
+	}
+	return c;
+}
 
 // just the very simple ops needed for ekf
 static inline struct mat33 mmult(struct mat33 a, struct mat33 b) {
