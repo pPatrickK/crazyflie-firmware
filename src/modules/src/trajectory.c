@@ -334,8 +334,8 @@ int trajectoryTakeoff(const struct data_takeoff* data)
   trajectory[0].point.yaw = 0;
 
   trajectory[1].time_from_start = data->time_from_start;
-  trajectory[1].point.x = x;
-  trajectory[1].point.y = y;
+  trajectory[1].point.x = 0;
+  trajectory[1].point.y = 0;
   trajectory[1].point.z = data->height;
   trajectory[1].point.velocity_x = 0;
   trajectory[1].point.velocity_y = 0;
@@ -370,8 +370,8 @@ int trajectoryLand(const struct data_land* data)
   trajectory[0].point.yaw = 0;
 
   trajectory[1].time_from_start = data->time_from_start;
-  trajectory[1].point.x = x;
-  trajectory[1].point.y = y;
+  trajectory[1].point.x = 0;
+  trajectory[1].point.y = 0;
   trajectory[1].point.z = data->height;
   trajectory[1].point.velocity_x = 0;
   trajectory[1].point.velocity_y = 0;

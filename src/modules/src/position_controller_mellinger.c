@@ -178,9 +178,13 @@ void positionControllerMellinger(
   }
 
   // Desired thrust (ignoring target accellerations) [F_des]
-  target_thrust.x = sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
-  target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  // target_thrust.x = sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
+  // target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+  // target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+
+  target_thrust.x = -(kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x);
+  target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+  target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
   // Z-Axis [zB]
   z_axis.x = -sin(pitch) * cos(roll);

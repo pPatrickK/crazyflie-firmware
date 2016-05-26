@@ -114,6 +114,6 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 	state->attitude.yaw = degrees(rpy.z);
 
 	state->attitudeRate.roll = gyro[0];
-	state->attitudeRate.pitch = gyro[1];
+	state->attitudeRate.pitch = -gyro[1];
 	state->attitudeRate.yaw = gyro[2];
 }
