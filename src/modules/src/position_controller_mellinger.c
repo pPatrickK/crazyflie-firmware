@@ -33,6 +33,8 @@
 // #include "num.h"
 #include "position_controller.h"
 #include "debug.h"
+#include "log.h"
+#include "ekfutil.h"
 
 #define DT 0.01
 
@@ -104,6 +106,9 @@ static float kR_z  = 7000;
 static float kw_xy = 3000;
 static float kw_z = 3000;
 
+static vector3f z_axis_desired;
+
+
 
 
 void positionControllerReset(void)
@@ -129,18 +134,18 @@ void positionControllerMellinger(
   vector3f target_thrust;
   vector3f z_axis;
   float current_thrust;
-  vector3f z_axis_desired;
+  // vector3f z_axis_desired;
   vector3f x_axis_desired;
   vector3f y_axis_desired;
   vector3f x_c_des;
 
-  float roll, pitch, yaw;
+  //float roll, pitch, yaw;
 
   vector3f eR, ew, M;
 
-  roll = state->attitude.roll / 180.0 * M_PI;
-  pitch = state->attitude.pitch / 180.0 * M_PI;
-  yaw = state->attitude.yaw / 180.0 * M_PI;
+  //roll = state->attitude.roll / 180.0 * M_PI;
+  //pitch = state->attitude.pitch / 180.0 * M_PI;
+  //yaw = state->attitude.yaw / 180.0 * M_PI;
 
   // Position Error (ep)
   r_error.x = setpoint->position.x - state->position.x;
@@ -178,18 +183,26 @@ void positionControllerMellinger(
   }
 
   // Desired thrust (ignoring target accellerations) [F_des]
-  // target_thrust.x = sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
-  // target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  // target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
+  target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+  target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
-  target_thrust.x = -(kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x);
-  target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  // target_thrust.x = -(kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x);
+  // target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+  // target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
   // Z-Axis [zB]
-  z_axis.x = -sin(pitch) * cos(roll);
-  z_axis.y = sin(roll);
-  z_axis.z = cos(pitch) * cos(roll);
+  struct quat q = mkquat(state->attitude_q.x, state->attitude_q.y, state->attitude_q.z, state->attitude_q.w);
+  struct mat33 R = quat2rotmat(q);
+  struct vec z_axis_ekf_util = mcolumn(R, 2);
+
+  z_axis.x = z_axis_ekf_util.x;
+  z_axis.y = z_axis_ekf_util.y;
+  z_axis.z = z_axis_ekf_util.z;
+
+  // z_axis.x = -sin(pitch) * cos(roll);
+  // z_axis.y = -sin(roll);
+  // z_axis.z = cos(pitch) * cos(roll);
 
   // Current thrust [F]
   current_thrust = dot(&target_thrust, &z_axis);
@@ -213,12 +226,28 @@ void positionControllerMellinger(
 
   // [eR] (see mathematica notebook)
   // TODO: it might be more efficient to actually create the rotation matrix and carray out the matrix multiplication?
-  float phi = roll;
-  float theta = pitch;
-  float psi = yaw;
-  eR.x = cos(phi) * (z_axis_desired.y * cos(psi) - y_axis_desired.z * cos(theta) - z_axis_desired.x * sin(psi)) + sin(phi) * (z_axis_desired.z + y_axis_desired.y * cos(psi) * cos(theta) - y_axis_desired.x * cos(theta) * sin(psi)) - (y_axis_desired.x * cos(psi) + y_axis_desired.y * sin(psi)) * sin(theta);
-  eR.y = cos(theta) * (x_axis_desired.z * cos(phi) - cos(psi) * (z_axis_desired.x + x_axis_desired.y * sin(phi)) + (-z_axis_desired.y + x_axis_desired.x * sin(phi)) * sin(psi)) + (z_axis_desired.z * cos(phi) + cos(psi) * (x_axis_desired.x - z_axis_desired.y * sin(phi)) + (x_axis_desired.y + z_axis_desired.x * sin(phi)) * sin(psi)) * sin(theta);
-  eR.z = y_axis_desired.y * cos(theta) * sin(psi) - cos(phi) * (x_axis_desired.y * cos(psi) - x_axis_desired.x * sin(psi) + y_axis_desired.z * sin(theta)) + cos(psi) * (y_axis_desired.x * cos(theta) + y_axis_desired.y * sin(phi) * sin(theta)) - sin(phi) * (x_axis_desired.z + y_axis_desired.x * sin(psi) * sin(theta));
+  // float phi = roll;
+  // float theta = pitch;
+  // float psi = yaw;
+  // eR.x = cos(phi) * (z_axis_desired.y * cos(psi) - y_axis_desired.z * cos(theta) - z_axis_desired.x * sin(psi)) + sin(phi) * (z_axis_desired.z + y_axis_desired.y * cos(psi) * cos(theta) - y_axis_desired.x * cos(theta) * sin(psi)) - (y_axis_desired.x * cos(psi) + y_axis_desired.y * sin(psi)) * sin(theta);
+  // eR.y = cos(theta) * (x_axis_desired.z * cos(phi) - cos(psi) * (z_axis_desired.x + x_axis_desired.y * sin(phi)) + (-z_axis_desired.y + x_axis_desired.x * sin(phi)) * sin(psi)) + (z_axis_desired.z * cos(phi) + cos(psi) * (x_axis_desired.x - z_axis_desired.y * sin(phi)) + (x_axis_desired.y + z_axis_desired.x * sin(phi)) * sin(psi)) * sin(theta);
+  // eR.z = y_axis_desired.y * cos(theta) * sin(psi) - cos(phi) * (x_axis_desired.y * cos(psi) - x_axis_desired.x * sin(psi) + y_axis_desired.z * sin(theta)) + cos(psi) * (y_axis_desired.x * cos(theta) + y_axis_desired.y * sin(phi) * sin(theta)) - sin(phi) * (x_axis_desired.z + y_axis_desired.x * sin(psi) * sin(theta));
+
+
+
+  struct mat33 Rdes = mcolumns(
+    mkvec(x_axis_desired.x, x_axis_desired.y, x_axis_desired.z),
+    mkvec(y_axis_desired.x, y_axis_desired.y, y_axis_desired.z),
+    mkvec(z_axis_desired.x, z_axis_desired.y, z_axis_desired.z));
+
+  struct mat33 R_transpose = mtranspose(R);
+  struct mat33 Rdes_transpose = mtranspose(Rdes);
+
+  struct mat33 eRM = msub(mmult(Rdes_transpose, R), mmult(R_transpose, Rdes));
+
+  eR.x = eRM.m[2][1];
+  eR.y = -eRM.m[0][2];
+  eR.z = eRM.m[1][0];
 
   // ew
   ew.x = /*setpoint->attitudeRate.roll*/0 - state->attitudeRate.roll;
@@ -252,7 +281,7 @@ void positionControllerMellinger(
   control->pitch = clamp(M.y, -32000, 32000);
   control->yaw = clamp(-M.z, -32000, 32000);
 
-  DEBUG_PRINT("%f,%f,%f,%f,%f,%f,%f\n", control->thrust, roll, pitch, yaw, M.x, M.y, M.z);
+  // DEBUG_PRINT("%f,%f,%f,%f,%f,%f,%f\n", control->thrust, roll, pitch, yaw, M.x, M.y, M.z);
 
   // attitude->roll = atan2(y_axis_desired.z, z_axis_desired.z) * 180.0 / M_PI;
   // attitude->pitch = asin(x_axis_desired.z) * 180.0 / M_PI;
@@ -272,3 +301,9 @@ PARAM_ADD(PARAM_FLOAT, kR_z, &kR_z)
 PARAM_ADD(PARAM_FLOAT, kw_xy, &kw_xy)
 PARAM_ADD(PARAM_FLOAT, kw_z, &kw_z)
 PARAM_GROUP_STOP(ctrlMel)
+
+LOG_GROUP_START(ctrlMel)
+LOG_ADD(LOG_FLOAT, zdx, &z_axis_desired.x)
+LOG_ADD(LOG_FLOAT, zdy, &z_axis_desired.y)
+LOG_ADD(LOG_FLOAT, zdz, &z_axis_desired.z)
+LOG_GROUP_STOP(ctrlMel)

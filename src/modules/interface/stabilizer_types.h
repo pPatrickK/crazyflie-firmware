@@ -95,6 +95,7 @@ typedef struct sensorData_s {
 
 typedef struct state_s {
   attitude_t attitude; // deg
+  quaternion_t attitude_q;
   attitude_t attitudeRate; // rad/s
   point_t position; // m
   velocity_t velocity; // m/s
