@@ -106,6 +106,8 @@ static float kR_z  = 7000;
 static float kw_xy = 3000;
 static float kw_z = 3000;
 
+static float i_range_xy = 1.0;
+
 static vector3f z_axis_desired;
 
 
@@ -167,29 +169,29 @@ void positionControllerMellinger(
   }
 
   i_error_x += r_error.x * DT;
-  if (i_error_x < -0.5) {
-    i_error_x = -0.5;
+  if (i_error_x < -i_range_xy) {
+    i_error_x = -i_range_xy;
   }
-  if (i_error_x > 0.5) {
-    i_error_x = 0.5;
+  if (i_error_x > i_range_xy) {
+    i_error_x = i_range_xy;
   }
 
   i_error_y += r_error.y * DT;
-  if (i_error_y < -0.5) {
-    i_error_y = -0.5;
+  if (i_error_y < -i_range_xy) {
+    i_error_y = -i_range_xy;
   }
-  if (i_error_y > 0.5) {
-    i_error_y = 0.5;
+  if (i_error_y > i_range_xy) {
+    i_error_y = i_range_xy;
   }
 
   // Desired thrust (ignoring target accellerations) [F_des]
-  target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
-  target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  // target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
+  // target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+  // target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
-  // target_thrust.x = -(kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x);
-  // target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  // target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  target_thrust.x = kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
+  target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+  target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
 
   // Z-Axis [zB]
   struct quat q = mkquat(state->attitude_q.x, state->attitude_q.y, state->attitude_q.z, state->attitude_q.w);
@@ -215,8 +217,8 @@ void positionControllerMellinger(
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
   // x_c_des.x = cos(yaw);//cos(setpoint->attitude.yaw / 180 * M_PI);
   // x_c_des.y = sin(yaw);//sin(setpoint->attitude.yaw / 180 * M_PI);
-  x_c_des.x = cos(setpoint->attitude.yaw / 180 * M_PI);
-  x_c_des.y = sin(setpoint->attitude.yaw / 180 * M_PI);
+  x_c_des.x = cos(setpoint->attitude.yaw);// / 180 * M_PI);
+  x_c_des.y = sin(setpoint->attitude.yaw);// / 180 * M_PI);
   x_c_des.z = 0;
   // [yB_des]
   cross(&z_axis_desired, &x_c_des, &y_axis_desired);
@@ -292,6 +294,8 @@ void positionControllerMellinger(
 PARAM_GROUP_START(ctrlMel)
 PARAM_ADD(PARAM_FLOAT, kp_xy, &kp_xy)
 PARAM_ADD(PARAM_FLOAT, kd_xy, &kd_xy)
+PARAM_ADD(PARAM_FLOAT, ki_xy, &ki_xy)
+PARAM_ADD(PARAM_FLOAT, i_range_xy, &i_range_xy)
 PARAM_ADD(PARAM_FLOAT, kp_z, &kp_z)
 PARAM_ADD(PARAM_FLOAT, kd_z, &kd_z)
 PARAM_ADD(PARAM_FLOAT, mass, &mass)
