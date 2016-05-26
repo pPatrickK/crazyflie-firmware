@@ -161,6 +161,11 @@ static inline struct mat33 mcolumns(struct vec a, struct vec b, struct vec c)
 	return m;
 }
 
+static inline struct vec mcolumn(struct mat33 m, int col)
+{
+	return mkvec(m.m[0][col], m.m[1][col], m.m[2][col]);
+}
+
 static inline struct mat33 mtranspose(struct mat33 m)
 {
 	struct mat33 mt;
