@@ -267,6 +267,14 @@ void sensfusion6GetEulerRPY(float* roll, float* pitch, float* yaw)
   *roll = atan2f(gy, gz) * 180 / M_PI_F;
 }
 
+void sensfusion6GetQuaternion(float* x, float*y, float* z, float* w)
+{
+  *x = q1;
+  *y = q2;
+  *z = q3;
+  *w = q0;
+}
+
 float sensfusion6GetAccZWithoutGravity(const float ax, const float ay, const float az)
 {
   return sensfusion6GetAccZ(ax, ay, az) - baseZacc;

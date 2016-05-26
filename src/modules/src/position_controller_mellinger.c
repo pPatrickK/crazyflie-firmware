@@ -106,12 +106,10 @@ static float kR_z  = 7000;
 static float kw_xy = 3000;
 static float kw_z = 3000;
 
-static float i_range_xy = 1.0;
+static float i_range_xy = 2.0;
+static float i_range_z  = 1.0;
 
 static vector3f z_axis_desired;
-
-
-
 
 void positionControllerReset(void)
 {
@@ -161,37 +159,24 @@ void positionControllerMellinger(
 
   // Integral Error
   i_error_z += r_error.z * DT;
-  if (i_error_z < -0.5) {
-    i_error_z = -0.5;
-  }
-  if (i_error_z > 0.5) {
-    i_error_z = 0.5;
-  }
+  i_error_z = clamp(i_error_z, -i_range_z, i_range_z);
 
   i_error_x += r_error.x * DT;
-  if (i_error_x < -i_range_xy) {
-    i_error_x = -i_range_xy;
-  }
-  if (i_error_x > i_range_xy) {
-    i_error_x = i_range_xy;
-  }
+  i_error_x = clamp(i_error_x, -i_range_xy, i_range_xy);
 
   i_error_y += r_error.y * DT;
-  if (i_error_y < -i_range_xy) {
-    i_error_y = -i_range_xy;
-  }
-  if (i_error_y > i_range_xy) {
-    i_error_y = i_range_xy;
-  }
+  i_error_y = clamp(i_error_y, -i_range_xy, i_range_xy);
 
   // Desired thrust (ignoring target accellerations) [F_des]
-  // target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);//kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
-  // target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);//kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  // target_thrust.z = 1;//kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
-
-  target_thrust.x = kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
-  target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-  target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  if (setpoint->enablePosCtrl) {
+    target_thrust.x = kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
+    target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
+    target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+  } else {
+    target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);
+    target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);
+    target_thrust.z = 1;
+  }
 
   // Z-Axis [zB]
   struct quat q = mkquat(state->attitude_q.x, state->attitude_q.y, state->attitude_q.z, state->attitude_q.w);
@@ -217,8 +202,8 @@ void positionControllerMellinger(
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
   // x_c_des.x = cos(yaw);//cos(setpoint->attitude.yaw / 180 * M_PI);
   // x_c_des.y = sin(yaw);//sin(setpoint->attitude.yaw / 180 * M_PI);
-  x_c_des.x = cos(setpoint->attitude.yaw);// / 180 * M_PI);
-  x_c_des.y = sin(setpoint->attitude.yaw);// / 180 * M_PI);
+  x_c_des.x = cos(setpoint->attitude.yaw / 180 * M_PI);
+  x_c_des.y = sin(setpoint->attitude.yaw / 180 * M_PI);
   x_c_des.z = 0;
   // [yB_des]
   cross(&z_axis_desired, &x_c_des, &y_axis_desired);
@@ -236,20 +221,32 @@ void positionControllerMellinger(
   // eR.z = y_axis_desired.y * cos(theta) * sin(psi) - cos(phi) * (x_axis_desired.y * cos(psi) - x_axis_desired.x * sin(psi) + y_axis_desired.z * sin(theta)) + cos(psi) * (y_axis_desired.x * cos(theta) + y_axis_desired.y * sin(phi) * sin(theta)) - sin(phi) * (x_axis_desired.z + y_axis_desired.x * sin(psi) * sin(theta));
 
 
+  // SLOW VERSION
+  // struct mat33 Rdes = mcolumns(
+  //   mkvec(x_axis_desired.x, x_axis_desired.y, x_axis_desired.z),
+  //   mkvec(y_axis_desired.x, y_axis_desired.y, y_axis_desired.z),
+  //   mkvec(z_axis_desired.x, z_axis_desired.y, z_axis_desired.z));
 
-  struct mat33 Rdes = mcolumns(
-    mkvec(x_axis_desired.x, x_axis_desired.y, x_axis_desired.z),
-    mkvec(y_axis_desired.x, y_axis_desired.y, y_axis_desired.z),
-    mkvec(z_axis_desired.x, z_axis_desired.y, z_axis_desired.z));
+  // struct mat33 R_transpose = mtranspose(R);
+  // struct mat33 Rdes_transpose = mtranspose(Rdes);
 
-  struct mat33 R_transpose = mtranspose(R);
-  struct mat33 Rdes_transpose = mtranspose(Rdes);
+  // struct mat33 eRM = msub(mmult(Rdes_transpose, R), mmult(R_transpose, Rdes));
 
-  struct mat33 eRM = msub(mmult(Rdes_transpose, R), mmult(R_transpose, Rdes));
+  // eR.x = eRM.m[2][1];
+  // eR.y = -eRM.m[0][2];
+  // eR.z = eRM.m[1][0];
 
-  eR.x = eRM.m[2][1];
-  eR.y = -eRM.m[0][2];
-  eR.z = eRM.m[1][0];
+  // FAST VERSION
+  float x = q.x;
+  float y = q.y;
+  float z = q.z;
+  float w = q.w;
+  eR.x = (-1 + 2*pow(x,2) + 2*pow(y,2))*y_axis_desired.z + z_axis_desired.y - 2*(x*y_axis_desired.x*z + y*y_axis_desired.y*z - x*y*z_axis_desired.x + pow(x,2)*z_axis_desired.y + pow(z,2)*z_axis_desired.y - y*z*z_axis_desired.z) +    2*w*(-(y*y_axis_desired.x) - z*z_axis_desired.x + x*(y_axis_desired.y + z_axis_desired.z));
+  eR.y = x_axis_desired.z - z_axis_desired.x - 2*(pow(x,2)*x_axis_desired.z + y*(x_axis_desired.z*y - x_axis_desired.y*z) - (pow(y,2) + pow(z,2))*z_axis_desired.x + x*(-(x_axis_desired.x*z) + y*z_axis_desired.y + z*z_axis_desired.z) + w*(x*x_axis_desired.y + z*z_axis_desired.y - y*(x_axis_desired.x + z_axis_desired.z)));
+  eR.z = y_axis_desired.x - 2*(y*(x*x_axis_desired.x + y*y_axis_desired.x - x*y_axis_desired.y) + w*(x*x_axis_desired.z + y*y_axis_desired.z)) + 2*(-(x_axis_desired.z*y) + w*(x_axis_desired.x + y_axis_desired.y) + x*y_axis_desired.z)*z - 2*y_axis_desired.x*pow(z,2) + x_axis_desired.y*(-1 + 2*pow(x,2) + 2*pow(z,2));
+
+  // ?????
+  eR.y = -eR.y;
 
   // ew
   ew.x = /*setpoint->attitudeRate.roll*/0 - state->attitudeRate.roll;
@@ -298,6 +295,7 @@ PARAM_ADD(PARAM_FLOAT, ki_xy, &ki_xy)
 PARAM_ADD(PARAM_FLOAT, i_range_xy, &i_range_xy)
 PARAM_ADD(PARAM_FLOAT, kp_z, &kp_z)
 PARAM_ADD(PARAM_FLOAT, kd_z, &kd_z)
+PARAM_ADD(PARAM_FLOAT, i_range_z, &i_range_z)
 PARAM_ADD(PARAM_FLOAT, mass, &mass)
 PARAM_ADD(PARAM_FLOAT, massThrust, &massThrust)
 PARAM_ADD(PARAM_FLOAT, kR_xy, &kR_xy)

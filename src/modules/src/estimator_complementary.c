@@ -39,6 +39,8 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
     // float yaw;
     sensfusion6GetEulerRPY(&state->attitude.roll, &state->attitude.pitch, &state->attitude.yaw);
 
+    sensfusion6GetQuaternion(&state->attitude_q.x, &state->attitude_q.y, &state->attitude_q.z, &state->attitude_q.w);
+
     // state->attitude.yaw += (yaw - oldYaw);
     // oldYaw = yaw;
 
