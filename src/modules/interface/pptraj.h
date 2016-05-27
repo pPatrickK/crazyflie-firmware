@@ -3,8 +3,7 @@
 // Piecewise polynomial trajectories
 // by James A. Preiss
 
-#include <string.h> // memset
-#include <stdio.h> // TEMP DEBUG
+#include <string.h> // memset, memcpy
 
 #include "ekfutil.h"
 
@@ -44,8 +43,7 @@ void pp_init(struct pp *pp, float xyzyaw[4][PP_SIZE], float t_end)
 {
 	pp->t_end = t_end;
 	memset(pp->p, 0, sizeof(pp->p));
-	//memcpy(pp->p[0], xyzyaw, sizeof(pp->p[0]));
-	memcpy(pp->p[0], xyzyaw, 4 * PP_SIZE * sizeof(float));
+	memcpy(pp->p[0], xyzyaw, sizeof(pp->p[0]));
 	// compute the derivatives
 	for (int deriv = 1; deriv < 4; ++deriv) {
 		for (int dim = 0; dim < 4; ++dim) {
@@ -100,31 +98,3 @@ struct traj_eval pp_eval(struct pp const *pp, float t)
 
 	return out;
 }
-
-/*
-int main()
-{
-	float dflat[4][PP_SIZE] = {
-		{ 0, 2, 0, 0, 0, 0, 0, 0 },
-		{ 0, 0, 3, 0, 0, 0, 0, 0 },
-		{ 0, 0, 0, 1, 0, 0, 0, 0 },
-		{ 0, 0, 1, 0, 1, 0, 0, 0 },
-	};
-
-	struct pp pp;
-	pp_init(&pp, dflat, 10.0);
-
-	char const *names[] = { "  x", "  y", "  z", "yaw" };
-	for (int deriv = 0; deriv < 3; ++deriv) {
-		printf("d^%dp/dp^%d:\n", deriv, deriv);
-		for (int dim = 0; dim < 4; ++dim) {
-			printf("\t%s: ", names[dim]);
-			for (int i = 0; i < PP_SIZE; ++i) {
-				printf("%f, ", pp.p[deriv][dim][i]);
-			}
-			printf("\n");
-		}
-		printf("\n");
-	}
-}
-*/
