@@ -54,11 +54,11 @@ void pp_init(struct pp *pp, float xyzyaw[4][PP_SIZE], float t_end)
 
 struct vec polyval3(float const p[3][PP_SIZE], float t)
 {
-	struct vec v;
-	for (int i = 0; i < 3; ++i) {
-		v.a[i] = polyval(p[i], PP_DEGREE, t);
-	}
-	return v;
+	return mkvec(
+		polyval(p[0], PP_DEGREE, t),
+		polyval(p[1], PP_DEGREE, t),
+		polyval(p[2], PP_DEGREE, t)
+	);
 }
 
 struct traj_eval

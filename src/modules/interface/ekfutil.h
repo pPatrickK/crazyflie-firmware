@@ -25,12 +25,7 @@ static inline float degrees(float radians) { return (180.0 / M_PI) * radians; }
 // ---------------------------- 3d vectors ------------------------------
 
 struct vec {
-	union {
-		struct {
-			float x; float y; float z;
-		};
-		float a[3];
-	};
+	float x; float y; float z;
 };
 
 // constructors
