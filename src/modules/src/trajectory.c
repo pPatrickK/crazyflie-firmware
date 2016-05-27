@@ -330,7 +330,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
   trajectory[0].point.z = z;
   trajectory[0].point.velocity_x = 0;
   trajectory[0].point.velocity_y = 0;
-  trajectory[0].point.velocity_z = 0;
+  trajectory[0].point.velocity_z = (data->height - z) / (data->time_from_start / 1000.0);
   trajectory[0].point.yaw = 0;
 
   trajectory[1].time_from_start = data->time_from_start;
@@ -339,7 +339,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
   trajectory[1].point.z = data->height;
   trajectory[1].point.velocity_x = 0;
   trajectory[1].point.velocity_y = 0;
-  trajectory[1].point.velocity_z = 0;
+  trajectory[1].point.velocity_z = (data->height - z) / (data->time_from_start / 1000.0);
   trajectory[1].point.yaw = 0;
 
   state = TRAJECTORY_STATE_TAKING_OFF;
@@ -366,7 +366,7 @@ int trajectoryLand(const struct data_land* data)
   trajectory[0].point.z = z;
   trajectory[0].point.velocity_x = 0;
   trajectory[0].point.velocity_y = 0;
-  trajectory[0].point.velocity_z = 0;
+  trajectory[0].point.velocity_z = (data->height - z) / (data->time_from_start / 1000.0);
   trajectory[0].point.yaw = 0;
 
   trajectory[1].time_from_start = data->time_from_start;
@@ -375,7 +375,7 @@ int trajectoryLand(const struct data_land* data)
   trajectory[1].point.z = data->height;
   trajectory[1].point.velocity_x = 0;
   trajectory[1].point.velocity_y = 0;
-  trajectory[1].point.velocity_z = 0;
+  trajectory[1].point.velocity_z = (data->height - z) / (data->time_from_start / 1000.0);
   trajectory[1].point.yaw = 0;
 
   state = TRAJECTORY_STATE_LANDING;

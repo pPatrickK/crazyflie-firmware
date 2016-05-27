@@ -25,7 +25,7 @@ PLATFORM					?= CF2
 ######### Stabilizer configuration ##########
 ##### Sets the name of the stabilizer module to use.
 SENSORS            ?= stock
-ESTIMATOR          ?= complementary
+ESTIMATOR          ?= ekf
 CONTROLLER         ?= pid
 POWER_DISTRIBUTION ?= stock
 

@@ -99,12 +99,22 @@ static float i_error_y = 0;
 static float i_error_z = 0;
 
 // "P" part for moment
-static float kR_xy = 7000;
+static float kR_xy = 9000;
 static float kR_z  = 7000;
 
 // "D" part for moment
-static float kw_xy = 3000;
+static float kw_xy = 4000;
 static float kw_z = 3000;
+
+// "I" part for moment
+static float ki_m_xy = 0.0;
+static float ki_m_z = 0.0;
+  //
+static float i_error_m_x = 0;
+static float i_error_m_y = 0;
+static float i_error_m_z = 0;
+static float i_range_m_xy = 1.0;
+static float i_range_m_z  = 2.0;
 
 static float i_range_xy = 2.0;
 static float i_range_z  = 1.0;
@@ -253,10 +263,20 @@ void positionControllerMellinger(
   ew.y = /*setpoint->attitudeRate.pitch*/0 - state->attitudeRate.pitch;
   ew.z = /*setpoint->attitudeRate.yaw*/0 - state->attitudeRate.yaw;
 
+  // Integral Error
+  i_error_m_x += (-eR.x) * DT;
+  i_error_m_x = clamp(i_error_m_x, -i_range_m_xy, i_range_m_xy);
+
+  i_error_m_y += (-eR.y) * DT;
+  i_error_m_y = clamp(i_error_m_y, -i_range_m_xy, i_range_m_xy);
+
+  i_error_m_z += (-eR.z) * DT;
+  i_error_m_z = clamp(i_error_m_z, -i_range_m_z, i_range_m_z);
+
   // Moment:
-  M.x = -kR_xy * eR.x + kw_xy * ew.x;
-  M.y = -kR_xy * eR.y + kw_xy * ew.y;
-  M.z = -kR_z  * eR.z + kw_z  * ew.z;
+  M.x = -kR_xy * eR.x + kw_xy * ew.x + ki_m_xy * i_error_m_x;
+  M.y = -kR_xy * eR.y + kw_xy * ew.y + ki_m_xy * i_error_m_y;
+  M.z = -kR_z  * eR.z + kw_z  * ew.z + ki_m_z  * i_error_m_z;
 
   // invert (4.1)
   // float u1 = current_thrust;
@@ -295,6 +315,7 @@ PARAM_ADD(PARAM_FLOAT, ki_xy, &ki_xy)
 PARAM_ADD(PARAM_FLOAT, i_range_xy, &i_range_xy)
 PARAM_ADD(PARAM_FLOAT, kp_z, &kp_z)
 PARAM_ADD(PARAM_FLOAT, kd_z, &kd_z)
+PARAM_ADD(PARAM_FLOAT, ki_z, &ki_z)
 PARAM_ADD(PARAM_FLOAT, i_range_z, &i_range_z)
 PARAM_ADD(PARAM_FLOAT, mass, &mass)
 PARAM_ADD(PARAM_FLOAT, massThrust, &massThrust)
@@ -302,6 +323,10 @@ PARAM_ADD(PARAM_FLOAT, kR_xy, &kR_xy)
 PARAM_ADD(PARAM_FLOAT, kR_z, &kR_z)
 PARAM_ADD(PARAM_FLOAT, kw_xy, &kw_xy)
 PARAM_ADD(PARAM_FLOAT, kw_z, &kw_z)
+PARAM_ADD(PARAM_FLOAT, ki_m_xy, &ki_m_xy)
+PARAM_ADD(PARAM_FLOAT, ki_m_z, &ki_m_z)
+PARAM_ADD(PARAM_FLOAT, i_range_m_xy, &i_range_m_xy)
+PARAM_ADD(PARAM_FLOAT, i_range_m_z, &i_range_m_z)
 PARAM_GROUP_STOP(ctrlMel)
 
 LOG_GROUP_START(ctrlMel)

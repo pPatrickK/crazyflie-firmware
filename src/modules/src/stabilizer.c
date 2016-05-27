@@ -184,6 +184,9 @@ LOG_ADD(LOG_FLOAT, roll, &setpoint.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &setpoint.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &setpoint.attitudeRate.yaw)
 LOG_ADD(LOG_FLOAT, yawAngle, &setpoint.attitude.yaw)
+LOG_ADD(LOG_FLOAT, x, &setpoint.position.x)
+LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
+LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
 LOG_GROUP_STOP(ctrltarget)
 
 LOG_GROUP_START(stabilizer)
@@ -204,6 +207,13 @@ LOG_ADD(LOG_FLOAT, x, &sensorData.acc.x)
 LOG_ADD(LOG_FLOAT, y, &sensorData.acc.y)
 LOG_ADD(LOG_FLOAT, z, &sensorData.acc.z)
 LOG_GROUP_STOP(acc)
+
+
+LOG_GROUP_START(extPosEst)
+LOG_ADD(LOG_FLOAT, x, &sensorData.position.x)
+LOG_ADD(LOG_FLOAT, y, &sensorData.position.y)
+LOG_ADD(LOG_FLOAT, z, &sensorData.position.z)
+LOG_GROUP_STOP(extPosEst)
 
 LOG_GROUP_START(baro)
 LOG_ADD(LOG_FLOAT, asl, &sensorData.baro.asl)
