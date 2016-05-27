@@ -28,6 +28,7 @@ SENSORS            ?= stock
 ESTIMATOR          ?= ekf
 CONTROLLER         ?= pid
 POWER_DISTRIBUTION ?= stock
+TRAJECTORY         ?= linear
 
 
 ifeq ($(PLATFORM), CF1)
@@ -161,11 +162,11 @@ PROJ_OBJ_CF2 += platformservice.o sound_cf2.o extrx.o
 PROJ_OBJ += commander.o attitude_pid_controller.o sensfusion6.o stabilizer.o
 PROJ_OBJ += position_estimator_altitude.o
 PROJ_OBJ += estimator_$(ESTIMATOR).o controller_$(CONTROLLER).o
+PROJ_OBJ += trajectory_$(TRAJECTORY).o
 PROJ_OBJ += ekf.o
 PROJ_OBJ += sensors_$(SENSORS).o power_distribution_$(POWER_DISTRIBUTION).o
 PROJ_OBJ += position_external_bringup.o
 PROJ_OBJ += position_external.o
-PROJ_OBJ += trajectory.o
 PROJ_OBJ += position_controller_mellinger.o
 
 
