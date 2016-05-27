@@ -25,7 +25,12 @@ static inline float degrees(float radians) { return (180.0 / M_PI) * radians; }
 // ---------------------------- 3d vectors ------------------------------
 
 struct vec {
-	float x; float y; float z;
+	union {
+		struct {
+			float x; float y; float z;
+		};
+		float a[3];
+	};
 };
 
 // constructors
@@ -43,7 +48,7 @@ static inline struct vec float2vec(float const v[3]) {
 	return mkvec(v[0], v[1], v[2]);
 }
 
-// linear operators
+// operators
 static inline struct vec vscl(float s, struct vec v) {
 	return mkvec(s * v.x , s * v.y, s * v.z);
 }
@@ -59,8 +64,6 @@ static inline struct vec vadd(struct vec a, struct vec b) {
 static inline struct vec vsub(struct vec a, struct vec b) {
 	return vadd(a, vneg(b));
 }
-
-// other operators
 static inline float vdot(struct vec a, struct vec b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
@@ -75,6 +78,16 @@ static inline struct vec vnormalized(struct vec v) {
 }
 static inline struct vec vcross(struct vec a, struct vec b) {
 	return mkvec(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+}
+// projection of a onto b, where b is a unit vector
+static inline struct vec vprojectunit(struct vec a, struct vec b_unit)
+{
+	return vscl(vdot(a, b_unit), b_unit);
+}
+// component of a orthogonal to b, where b is a unit vector
+static inline struct vec vorthunit(struct vec a, struct vec b_unit)
+{
+	return vsub(a, vprojectunit(a, b_unit));
 }
 
 // special functions to ease the pain of writing vector math in C :)

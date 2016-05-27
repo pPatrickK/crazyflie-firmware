@@ -20,3 +20,5 @@ version.c
 *.eps
 modinc
 modsrc
+
+a.out
