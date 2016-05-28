@@ -320,7 +320,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
 
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
-  positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
   numEntries = 2;
   trajectory[0].time_from_start = 0;
@@ -356,7 +356,7 @@ int trajectoryLand(const struct data_land* data)
 
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
-  positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
 
   numEntries = 2;
   trajectory[0].time_from_start = 0;

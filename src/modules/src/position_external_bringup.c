@@ -36,7 +36,7 @@
 #include "num.h"
 #include "configblock.h"
 
-bool positionExternalBringupFresh = false;
+bool positionExternalFresh = false;
 
 // Private types
 typedef uint16_t fp16_t;
@@ -64,16 +64,16 @@ static uint64_t lastTime = 0;
 static uint8_t my_id;
 
 //Private functions
-static void positionExternalBringupCrtpCB(CRTPPacket* pk);
+static void positionExternalCrtpCB(CRTPPacket* pk);
 
-void positionExternalBringupInit(void)
+void positionExternalInit(void)
 {
   if(isInit) {
     return;
   }
 
   crtpInit();
-  crtpRegisterPortCB(CRTP_PORT_POSEXT_BRINGUP, positionExternalBringupCrtpCB);
+  crtpRegisterPortCB(CRTP_PORT_POSEXT_BRINGUP, positionExternalCrtpCB);
 
   isInit = true;
 
@@ -82,12 +82,12 @@ void positionExternalBringupInit(void)
   DEBUG_PRINT("posextbrinup. initialized: %d\n", my_id);
 }
 
-bool positionExternalBringupTest(void)
+bool positionExternalTest(void)
 {
   return isInit;
 }
 
-void positionExternalBringupGetLastData(
+void positionExternalGetLastData(
   float* x,
   float* y,
   float* z,
@@ -111,7 +111,7 @@ void positionExternalBringupGetLastData(
   }
 }
 
-static void positionExternalBringupCrtpCB(CRTPPacket* pk)
+static void positionExternalCrtpCB(CRTPPacket* pk)
 {
   struct data* d = ((struct data*)pk->data);
   for (int i=0; i < 2; ++i) {
@@ -125,7 +125,7 @@ static void positionExternalBringupCrtpCB(CRTPPacket* pk)
       lastQ3 = d->pose[i].quat[3] / 32768.0;
 
       lastTime = xTaskGetTickCount();
-      positionExternalBringupFresh = true;
+      positionExternalFresh = true;
     }
   }
 }

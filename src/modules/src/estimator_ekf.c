@@ -97,12 +97,12 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 	ekf_flip();
 
 	// check if new vicon data available
-	if (positionExternalBringupFresh) {
+	if (positionExternalFresh) {
 		float pos_vicon[3] = {sensorData->position.x, sensorData->position.y, sensorData->position.z};
 		ekf_vicon(ekf_back, ekf_front, pos_vicon, sensorData->quaternion.q_arr);
 		ekf_flip();
 
-		positionExternalBringupFresh = false;
+		positionExternalFresh = false;
 	}
 
 	state->position = ekf2vec(ekf_back->pos);

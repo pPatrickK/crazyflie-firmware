@@ -23,13 +23,13 @@
  *
  *
  */
-#ifndef POSITION_EXTERNAL_BRINGUP_H_
-#define POSITION_EXTERNAL_BRINHUP_H_
+#ifndef POSITION_EXTERNAL_H_
+#define POSITION_EXTERNAL_H_
 
-void positionExternalBringupInit(void);
-bool positionExternalBringupTest(void);
+void positionExternalInit(void);
+bool positionExternalTest(void);
 
-void positionExternalBringupGetLastData(
+void positionExternalGetLastData(
   float* x,
   float* y,
   float* z,
@@ -39,6 +39,6 @@ void positionExternalBringupGetLastData(
   float* q3,
   uint16_t* last_time_in_ms);
 
-extern bool positionExternalBringupFresh;
+extern bool positionExternalFresh;
 
-#endif /* POSITION_EXTERNAL_BRINGUP_H_ */
+#endif /* POSITION_EXTERNAL_H_ */

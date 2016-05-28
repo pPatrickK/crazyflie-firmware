@@ -75,7 +75,7 @@ void stabilizerInit(void)
 #if defined(SITAW_ENABLED)
   sitAwInit();
 #endif
-  positionExternalBringupInit();
+  positionExternalInit();
   trajectoryInit();
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
@@ -92,7 +92,7 @@ bool stabilizerTest(void)
   pass &= stateEstimatorTest();
   // pass &= stateControllerTest();
   pass &= powerDistributionTest();
-  pass &= positionExternalBringupTest();
+  pass &= positionExternalTest();
   pass &= trajectoryTest();
 
   return pass;
