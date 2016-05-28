@@ -31,7 +31,7 @@
 #include "task.h"
 
 #include "crtp.h"
-#include "position_external_bringup.h"
+#include "position_external.h"
 #include "debug.h"
 #include "num.h"
 #include "configblock.h"
@@ -73,7 +73,7 @@ void positionExternalInit(void)
   }
 
   crtpInit();
-  crtpRegisterPortCB(CRTP_PORT_POSEXT_BRINGUP, positionExternalCrtpCB);
+  crtpRegisterPortCB(CRTP_PORT_POSEXT, positionExternalCrtpCB);
 
   isInit = true;
 

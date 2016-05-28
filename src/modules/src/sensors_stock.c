@@ -36,7 +36,7 @@
 
 // static point_t position;
 
-#include "position_external_bringup.h"
+#include "position_external.h"
 
 #define IMU_RATE RATE_500_HZ
 #define BARO_RATE RATE_100_HZ

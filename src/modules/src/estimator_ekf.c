@@ -30,7 +30,7 @@
 
 #include "ekf.h"
 #include "stabilizer_types.h"
-#include "position_external_bringup.h"
+#include "position_external.h"
 
 
 // EKF implementation uses double-buffered approach
