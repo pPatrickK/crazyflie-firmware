@@ -41,7 +41,6 @@
 #include "crtp.h"
 #include "trajectory.h"
 #include "debug.h"
-#include "position_external.h"
 #include "position_external_bringup.h"
 
 //#include "console.h"

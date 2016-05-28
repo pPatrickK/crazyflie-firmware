@@ -36,7 +36,6 @@
 
 // static point_t position;
 
-#include "position_external.h"
 #include "position_external_bringup.h"
 
 #define IMU_RATE RATE_500_HZ
@@ -45,7 +44,6 @@
 void sensorsInit(void)
 {
  imu6Init();
- positionExternalInit();
 }
 
 bool sensorsTest(void)
@@ -53,7 +51,6 @@ bool sensorsTest(void)
  bool pass = true;
 
  pass &= imu6Test();
- pass &= positionExternalTest();
 
  return pass;
 }
