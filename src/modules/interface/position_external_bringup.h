@@ -26,6 +26,8 @@
 #ifndef POSITION_EXTERNAL_BRINGUP_H_
 #define POSITION_EXTERNAL_BRINHUP_H_
 
+#include "math3d.h"
+
 void positionExternalBringupInit(void);
 bool positionExternalBringupTest(void);
 
@@ -38,6 +40,14 @@ void positionExternalBringupGetLastData(
   float* q2,
   float* q3,
   uint16_t* last_time_in_ms);
+
+struct position_external {
+  struct vec pos;
+  struct quat quat;
+  uint16_t last_time_in_ms;
+};
+
+struct position_external positionExternalBringupGetLastDataStruct();
 
 extern bool positionExternalBringupFresh;
 

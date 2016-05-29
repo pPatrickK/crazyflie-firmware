@@ -53,13 +53,7 @@ struct data {
 
 // Global variables
 static bool isInit = false;
-static float lastX;
-static float lastY;
-static float lastZ;
-static float lastQ0;
-static float lastQ1;
-static float lastQ2;
-static float lastQ3;
+struct position_external last;
 static uint64_t lastTime = 0;
 static uint8_t my_id;
 
@@ -97,13 +91,13 @@ void positionExternalBringupGetLastData(
   float* q3,
   uint16_t* last_time_in_ms)
 {
-  *x = lastX;
-  *y = lastY;
-  *z = lastZ;
-  *q0 = lastQ0;
-  *q1 = lastQ1;
-  *q2 = lastQ2;
-  *q3 = lastQ3;
+  *x = last.pos.x;
+  *y = last.pos.y;
+  *z = last.pos.z;
+  *q0 = last.quat.x;
+  *q1 = last.quat.y;
+  *q2 = last.quat.z;
+  *q3 = last.quat.w;
   if (xTaskGetTickCount() - lastTime < 10 * 1000) {
     *last_time_in_ms = xTaskGetTickCount() - lastTime;
   } else {
@@ -111,18 +105,29 @@ void positionExternalBringupGetLastData(
   }
 }
 
+struct position_external positionExternalBringupGetLastDataStruct()
+{
+  struct position_external pext = last;
+  if (xTaskGetTickCount() - lastTime < 10 * 1000) {
+    pext.last_time_in_ms = xTaskGetTickCount() - lastTime;
+  } else {
+    pext.last_time_in_ms = 10 * 1000;
+  }
+  return pext;
+}
+
 static void positionExternalBringupCrtpCB(CRTPPacket* pk)
 {
   struct data* d = ((struct data*)pk->data);
   for (int i=0; i < 2; ++i) {
     if (d->pose[i].id == my_id) {
-      lastX = half2single(d->pose[i].x);
-      lastY = half2single(d->pose[i].y);
-      lastZ = half2single(d->pose[i].z);
-      lastQ0 = d->pose[i].quat[0] / 32768.0;
-      lastQ1 = d->pose[i].quat[1] / 32768.0;
-      lastQ2 = d->pose[i].quat[2] / 32768.0;
-      lastQ3 = d->pose[i].quat[3] / 32768.0;
+      last.pos.x = half2single(d->pose[i].x);
+      last.pos.y = half2single(d->pose[i].y);
+      last.pos.z = half2single(d->pose[i].z);
+      last.quat.x = d->pose[i].quat[0] / 32768.0;
+      last.quat.y = d->pose[i].quat[1] / 32768.0;
+      last.quat.z = d->pose[i].quat[2] / 32768.0;
+      last.quat.w = d->pose[i].quat[3] / 32768.0;
 
       lastTime = xTaskGetTickCount();
       positionExternalBringupFresh = true;
