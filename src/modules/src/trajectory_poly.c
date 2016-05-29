@@ -124,7 +124,7 @@ static void trajectoryTask(void * prm);
 static int trajectoryTakeoff();
 static int trajectoryLand();
 
-static struct pp poly;
+static struct poly4d poly;
 
 
 void trajectoryInit(void)
@@ -164,10 +164,10 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
   float t = ((float)(t_tick - startTime)) / 1000.0; // TODO not magic number
 
   if (t < poly.duration) {
-    struct traj_eval ev = pp_eval(&poly, t);
+    struct traj_eval ev = poly4d_eval(&poly, t, 0.03); //  TODO mass not magic number
 	pp_eval_to_trajectory_point(&ev, goal);
   } else {
-    struct traj_eval ev = pp_eval(&poly, poly.duration);
+    struct traj_eval ev = poly4d_eval(&poly, poly.duration, 0.03);//  TODO mass not magic number
 	pp_eval_to_trajectory_point(&ev, goal);
 
     if (state == TRAJECTORY_STATE_TAKING_OFF) {
@@ -282,15 +282,15 @@ int trajectoryStart(void)
 
 
 // set x, y, and yaw to current position, hold constant
-static void set_xyyaw_constant(struct pp *pp)
+static void set_xyyaw_constant(struct poly4d *p)
 {
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalBringupGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
   float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
-  pp_set_constant(pp, 0, x);
-  pp_set_constant(pp, 1, y);
-  pp_set_constant(pp, 3, yaw);
+  poly4d_set_constant(p, 0, x);
+  poly4d_set_constant(p, 1, y);
+  poly4d_set_constant(p, 3, yaw);
 }
 
 int trajectoryTakeoff()
@@ -298,8 +298,8 @@ int trajectoryTakeoff()
   if (state != TRAJECTORY_STATE_IDLE) {
     return 1;
   }
-
-  pp_init(&poly, takeoff, 2.0f);
+  
+  poly = poly4d_takeoff;
   set_xyyaw_constant(&poly);
 
   state = TRAJECTORY_STATE_TAKING_OFF;
@@ -313,7 +313,7 @@ int trajectoryLand()
     return 1;
   }
 
-  pp_init(&poly, landing, 2.0f);
+  poly = poly4d_landing;
   set_xyyaw_constant(&poly);
 
   state = TRAJECTORY_STATE_LANDING;
