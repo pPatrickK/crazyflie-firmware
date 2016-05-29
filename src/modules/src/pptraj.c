@@ -1,7 +1,31 @@
-// Piecewise polynomial trajectories
-// by James A. Preiss
-
-#include <string.h> // memset, memcpy
+/**
+ *    ______
+ *   / ____/________ _____  __  ________      ______ __________ ___
+ *  / /   / ___/ __ `/_  / / / / / ___/ | /| / / __ `/ ___/ __ `__ \
+ * / /___/ /  / /_/ / / /_/ /_/ (__  )| |/ |/ / /_/ / /  / / / / / /
+ * \____/_/   \__,_/ /___/\__, /____/ |__/|__/\__,_/_/  /_/ /_/ /_/
+ *                       /____/
+ *
+ * Crazyswarm advanced control firmware for Crazyflie
+ *
+ * Copyright (C) 2016 Wolfgang Hoenig and James Preiss,
+ * University of Southern California
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, in version 3.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * pptraj.c: implementation of xyz-yaw piecewise polynomial trajectories
+ *           see Mellinger and Kumar, "Minimum Snap...", ICRA 2011
+ */
 
 #include "pptraj.h"
 
