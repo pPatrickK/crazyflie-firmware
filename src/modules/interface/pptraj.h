@@ -11,6 +11,21 @@
 #define PP_DEGREE (7)
 #define PP_SIZE (PP_DEGREE + 1)
 
+
+float takeoff[4][8] = {
+	{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	{-0.000000, 0.000000, -0.000000, 2.128369, -3.133618, 2.164124, -0.768719, 0.109821, },
+	{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+};
+
+float landing[4][8] = {
+	{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	{1.000000, 0.000000, 0.000000, -2.022341, 2.977522, -2.056210, 0.730332, -0.104330, },
+	{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+};
+
 // polynomials are stored with ascending degree
 
 // evaluate a polynomial using horner's rule.
@@ -35,19 +50,34 @@ struct pp
 {
 	// 4 derivatives, 4 dimensions, degree
 	float p[4][4][PP_SIZE];
-	float t_end;
+	// pp_init ensures that all high-degree terms in derivatives are 0 
+	// so you can use polyval(PP_DEGREE) even tho derivs are lower degree
+	float duration;
 	float mass;
 };
 
-void pp_init(struct pp *pp, float xyzyaw[4][PP_SIZE], float t_end)
+void pp_init(struct pp *pp, float xyzyaw[4][PP_SIZE], float duration)
 {
-	pp->t_end = t_end;
+	pp->duration = duration;
 	memset(pp->p, 0, sizeof(pp->p));
 	memcpy(pp->p[0], xyzyaw, sizeof(pp->p[0]));
 	// compute the derivatives
 	for (int deriv = 1; deriv < 4; ++deriv) {
 		for (int dim = 0; dim < 4; ++dim) {
 			polyder(pp->p[deriv-1][dim], PP_DEGREE, pp->p[deriv][dim]);			
+		}
+	}
+}
+
+void pp_set_constant(struct pp *pp, int dim, float value)
+{
+	pp->p[0][dim][0] = value;
+	for (int i = 1; i < PP_SIZE; ++i) {
+		pp->p[0][dim][i] = 0.0f;
+	}
+	for (int deriv = 1; deriv < 4; ++deriv) {
+		for (int i = 0; i < PP_SIZE; ++i) {
+			pp->p[deriv][dim][i] = 0.0f;
 		}
 	}
 }

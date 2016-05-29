@@ -30,6 +30,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "ekfutil.h" // TODO rename as math library
+
 /* Public functions */
 void trajectoryInit(void);
 bool trajectoryTest(void);
@@ -43,6 +45,7 @@ typedef struct {
   float velocity_y;   // m/s
   float velocity_z;   // m/s
   float yaw;          // rad
+  struct vec omega;   // rad/s
 } trajectoryPoint_t;
 
 // Sets the current goal of the active trajectory
