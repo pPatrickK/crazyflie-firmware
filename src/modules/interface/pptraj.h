@@ -29,11 +29,13 @@ float landing[4][8] = {
 // polynomials are stored with ascending degree
 
 // evaluate a polynomial using horner's rule.
-// TODO: convert to iterative form, GCC does not do tail call optimization on this
 float polyval(float const *poly, int deg, float t)
 {
-	if (deg == 0) return poly[0];
-	return poly[0] + t * polyval(poly+1, deg-1, t);
+    float x = 0.0;
+    for (int i = deg; i >= 0; --i) {
+        x = x * t + poly[i];
+    }
+    return x;
 }
 
 // compute derivative of a polynomial
