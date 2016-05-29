@@ -34,10 +34,6 @@ void polyder(float *p, int deg)
 	p[deg] = 0;
 }
 
-void polyconstant(float *p, int deg, float x)
-{
-}
-
 // 4d single polynomial piece for x-y-z-yaw.
 //
 // if we ever run on x86-SSE or arm-NEON, 
