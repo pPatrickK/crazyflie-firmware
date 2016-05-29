@@ -8,7 +8,7 @@
 // polynomials are stored with ascending degree
 
 // evaluate a polynomial using horner's rule.
-float polyval(float const *poly, int deg, float t)
+static float polyval(float const *poly, int deg, float t)
 {
     float x = 0.0;
     for (int i = deg; i >= 0; --i) {
@@ -18,7 +18,7 @@ float polyval(float const *poly, int deg, float t)
 }
 
 // compute derivative of a polynomial in place
-void polyder(float *p, int deg)
+static void polyder(float *p, int deg)
 {
 	for (int i = 1; i <= deg; ++i) {
 		p[i-1] = i * p[i];
@@ -26,22 +26,22 @@ void polyder(float *p, int deg)
 	p[deg] = 0;
 }
 
-void polyder4d(struct poly4d *p)
+static void polyder4d(struct poly4d *p)
 {
 	for (int i = 0; i < 4; ++i) {
 		polyder(p->p[i], PP_DEGREE);
 	}
 }
 
-void poly4d_set_constant(struct poly4d *p, int dim, float x)
+void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw)
 {
-	p->p[dim][0] = x;
-	for (int i = 1; i <= PP_DEGREE; ++i) {
-		p->p[dim][i] = 0;
-	}
+	p->p[0][0] += x;
+	p->p[1][0] += y;
+	p->p[2][0] += z;
+	p->p[3][0] += yaw;
 }
 
-struct vec polyval_xyz(struct poly4d const *p, float t)
+static struct vec polyval_xyz(struct poly4d const *p, float t)
 {
 	return mkvec(
 		polyval(p->p[0], PP_DEGREE, t),
@@ -50,7 +50,7 @@ struct vec polyval_xyz(struct poly4d const *p, float t)
 	);
 }
 
-float polyval_yaw(struct poly4d const *p, float t)
+static float polyval_yaw(struct poly4d const *p, float t)
 {
 	return polyval(p->p[3], PP_DEGREE, t);
 }

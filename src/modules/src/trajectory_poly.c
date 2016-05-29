@@ -281,14 +281,12 @@ int trajectoryStart(void)
 // }
 
 
-// set x, y, and yaw to current position, hold constant
-static void set_xyyaw_constant(struct poly4d *p)
+// for takeoff/landing traj, set x, y, and yaw to current position
+static void set_xyyaw_current(struct poly4d *p)
 {
   struct position_external ext = positionExternalBringupGetLastDataStruct();
   float yaw = quat2rpy(ext.quat).z;
-  poly4d_set_constant(p, 0, ext.pos.x);
-  poly4d_set_constant(p, 1, ext.pos.y);
-  poly4d_set_constant(p, 3, yaw);
+  poly4d_shift(p, ext.pos.x, ext.pos.y, 0, yaw);
 }
 
 int trajectoryTakeoff()
@@ -298,7 +296,7 @@ int trajectoryTakeoff()
   }
   
   poly = poly4d_takeoff;
-  set_xyyaw_constant(&poly);
+  set_xyyaw_current(&poly);
 
   state = TRAJECTORY_STATE_TAKING_OFF;
   trajectoryStart();
@@ -312,7 +310,7 @@ int trajectoryLand()
   }
 
   poly = poly4d_landing;
-  set_xyyaw_constant(&poly);
+  set_xyyaw_current(&poly);
 
   state = TRAJECTORY_STATE_LANDING;
   trajectoryStart();

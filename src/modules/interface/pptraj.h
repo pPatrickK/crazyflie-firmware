@@ -20,7 +20,7 @@ struct poly4d
 	float duration;
 };
 
-void poly4d_set_constant(struct poly4d *p, int dim, float x);
+void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw);
 
 struct traj_eval
 {
