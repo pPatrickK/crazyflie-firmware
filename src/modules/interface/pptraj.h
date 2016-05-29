@@ -5,7 +5,7 @@
 
 #include <string.h> // memset, memcpy
 
-#include "ekfutil.h"
+#include "math3d.h"
 
 
 #define PP_DEGREE (7)

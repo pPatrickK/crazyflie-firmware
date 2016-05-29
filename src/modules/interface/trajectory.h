@@ -30,7 +30,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "ekfutil.h" // TODO rename as math library
+#include "math3d.h"
 
 /* Public functions */
 void trajectoryInit(void);

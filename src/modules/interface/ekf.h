@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ekfutil.h"
+#include "math3d.h"
 
 // Indirect (a.k.a. error-state) EKF.
 //
