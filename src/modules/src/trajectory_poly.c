@@ -25,7 +25,7 @@
  */
 
 
-// #include <string.h>
+#include <string.h>
 #include <errno.h>
 #include <math.h>
 // #include <stdint.h>
@@ -50,9 +50,9 @@
 
 // Private types
 enum TrajectoryCommand_e {
-  //COMMAND_RESET   = 0,
-  //COMMAND_ADD     = 1,
-  //COMMAND_START   = 2,
+  COMMAND_RESET   = 0,
+  COMMAND_ADD     = 1,
+  COMMAND_START   = 2,
   //COMMAND_STATE = 3,
   COMMAND_TAKEOFF = 4,
   COMMAND_LAND    = 5,
@@ -61,19 +61,14 @@ enum TrajectoryCommand_e {
 // struct data_reset {
 // } __attribute__((packed));
 
-/*
+
 struct data_add {
   uint8_t id;
-  uint16_t time_from_start; // ms; 0 marks the beginning of the execution
-  float x; // m
-  float y; // m
-  float z; // m
-  float velocity_x; // m/s
-  float velocity_y; // m/s
-  float velocity_z; // m/s
-  int16_t yaw; // rad * 1000
+  uint8_t offset;
+  uint8_t size;
+  float values[7];
 } __attribute__((packed));
-
+/*
 struct data_state {
   uint8_t state;
 };
@@ -113,9 +108,9 @@ static trajectoryState_t state = TRAJECTORY_STATE_IDLE;
 
 // Private functions
 static void trajectoryTask(void * prm);
-//static int trajectoryReset(void);
-//static int trajectoryAdd(const struct data_add* data);
-//static int trajectoryStart(void);
+static int trajectoryReset(void);
+static int trajectoryAdd(const struct data_add* data);
+static int trajectoryStart(void);
 // static int trajectoryState(const struct data_state* data);
 static int trajectoryTakeoff();
 static int trajectoryLand();
@@ -230,15 +225,15 @@ void trajectoryTask(void * prm)
 
     switch(p.data[0])
     {
-      //case COMMAND_RESET:
-        //ret = trajectoryReset();
-        //break;
-      //case COMMAND_ADD:
-        //ret = trajectoryAdd((const struct data_add*)&p.data[1]);
-        //break;
-      //case COMMAND_START:
-        //ret = trajectoryStart();
-        //break;
+      case COMMAND_RESET:
+        ret = trajectoryReset();
+        break;
+      case COMMAND_ADD:
+        ret = trajectoryAdd((const struct data_add*)&p.data[1]);
+        break;
+      case COMMAND_START:
+        ret = trajectoryStart();
+        break;
       // case COMMAND_STATE:
       //   ret = trajectoryState((const struct data_state*)&p.data[1]);
       case COMMAND_TAKEOFF:
@@ -259,10 +254,10 @@ void trajectoryTask(void * prm)
   }
 }
 
-/*
+
 int trajectoryReset(void)
 {
-  numEntries = 0;
+  pp.n_pieces = 0;
   DEBUG_PRINT("trajectoryReset\n");
 
   return 0;
@@ -270,23 +265,24 @@ int trajectoryReset(void)
 
 int trajectoryAdd(const struct data_add* data)
 {
-  if (data->id < MAX_TRAJECTORY_ENTRIES) {
-    trajectory[numEntries].time_from_start = data->time_from_start;
-    trajectory[numEntries].point.x = data->x;
-    trajectory[numEntries].point.y = data->y;
-    trajectory[numEntries].point.z = data->z;
-    trajectory[numEntries].point.velocity_x = data->velocity_x;
-    trajectory[numEntries].point.velocity_y = data->velocity_y;
-    trajectory[numEntries].point.velocity_z = data->velocity_z;
-    trajectory[numEntries].point.yaw = data->yaw / 1000.0;
-    numEntries = data->id + 1;
+  if (data->id < PP_MAX_PIECES
+      && data->offset + data-> size < sizeof(pp.pieces[pp.n_pieces])) {
+    uint8_t size = data->size;
+    uint8_t* ptr = (uint8_t*)&(data->values[0]);
+    if (data->offset == 0) {
+      pp.pieces[pp.n_pieces].duration = data->values[0];
+      size -= 4;
+      ptr += 4;
+    }
+    memcpy(((uint8_t*)pp.pieces[pp.n_pieces].p) + data->offset, ptr, size);
+    pp.n_pieces = data->id + 1;
     DEBUG_PRINT("trajectoryAdd: %d\n", data->id);
     return 0;
   }
 
   return ENOMEM;
 }
-*/
+
 
 int trajectoryStart(void)
 {
