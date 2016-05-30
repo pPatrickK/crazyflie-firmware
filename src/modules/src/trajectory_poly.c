@@ -303,7 +303,9 @@ int trajectoryLand()
     return 1;
   }
 
-  pp.pieces[0] = poly4d_landing;
+  pp.pieces[0] = poly4d_takeoff;
+  poly4d_scale(&pp.pieces[0], 0, 0, -0.97, 0);
+  poly4d_shift(&pp.pieces[0], 0, 0, 1, 0);
   set_xyyaw_current(&pp.pieces[0]);
   pp.n_pieces = 1;
 

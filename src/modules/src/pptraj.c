@@ -39,13 +39,20 @@ struct poly4d poly4d_takeoff = {
 	.duration = 2
 };
 
-struct poly4d poly4d_landing = {
-	.p = {{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
-	      {0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
-	      {1.000000, 0.000000, 0.000000, -2.022341, 2.977522, -2.056210, 0.730332, -0.104330, },
-	      {0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, }},
-	.duration = 2
-};
+static void polyscale(float p[PP_SIZE], float s)
+{
+	for (int i = 0; i < PP_SIZE; ++i) {
+		p[i] *= s;
+	}
+}
+
+void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw)
+{
+	polyscale(p->p[0], x);
+	polyscale(p->p[1], y);
+	polyscale(p->p[2], z);
+	polyscale(p->p[3], yaw);
+}
 
 void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw)
 {

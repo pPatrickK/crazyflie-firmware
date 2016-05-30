@@ -38,6 +38,7 @@ extern struct poly4d poly4d_landing;
 
 // useful for shifting the takeoff/land trajectories
 void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw);
+void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw);
 
 
 // ----------------------------------//
