@@ -34,7 +34,7 @@
 #include "position_controller.h"
 #include "debug.h"
 #include "log.h"
-#include "ekfutil.h"
+#include "math3d.h"
 
 #define DT 0.01
 
