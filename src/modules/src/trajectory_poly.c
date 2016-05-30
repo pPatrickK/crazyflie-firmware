@@ -43,6 +43,7 @@
 #include "debug.h"
 #include "position_external.h"
 #include "pptraj.h"
+#include "usec_time.h"
 
 //#include "console.h"
 //#include "cfassert.h"
@@ -119,7 +120,7 @@ static void trajectoryTask(void * prm);
 static int trajectoryTakeoff();
 static int trajectoryLand();
 
-//#define PIECEWISE
+#define PIECEWISE
 
 #ifdef PIECEWISE
 static struct piecewise_traj pp;
@@ -137,6 +138,7 @@ void trajectoryInit(void)
   xTaskCreate(trajectoryTask, TRAJECTORY_TASK_NAME,
               TRAJECTORY_TASK_STACKSIZE, NULL, TRAJECTORY_TASK_PRI, NULL);
 
+  initUsecTimer(); // TODO: Move somewhere "central"
   isInit = true;
   DEBUG_PRINT("traj. initialized.\n");
 }
@@ -161,7 +163,7 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
 #ifdef PIECEWISE
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
-  float t = xTaskGetTickCount() / 1000.0; // TODO not magic number
+  float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
   struct traj_eval ev = piecewise_eval(&pp, t, 0.03); //  TODO mass not magic number
   pp_eval_to_trajectory_point(&ev, goal);
 
@@ -177,8 +179,8 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 #else // not PIECEWISE
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
-  uint64_t t_tick = xTaskGetTickCount();
-  float t = ((float)(t_tick - startTime)) / 1000.0; // TODO not magic number
+  uint64_t t_tick = usecTimestamp();//xTaskGetTickCount();
+  float t = ((float)(t_tick - startTime)) / 1e6; // TODO not magic number
 
   if (t < poly.duration) {
     struct traj_eval ev = poly4d_eval(&poly, t, 0.03); //  TODO mass not magic number
@@ -288,9 +290,9 @@ int trajectoryAdd(const struct data_add* data)
 
 int trajectoryStart(void)
 {
-  startTime = xTaskGetTickCount();
+  startTime = usecTimestamp();//xTaskGetTickCount();
 #ifdef PIECEWISE
-  pp.t_begin_piece = startTime / 1000.0f;
+  pp.t_begin_piece = startTime / 1e6;
   pp.cursor = 0;
 #endif
   return 0;
@@ -318,7 +320,7 @@ int trajectoryTakeoff()
   if (state != TRAJECTORY_STATE_IDLE) {
     return 1;
   }
-  
+
 #ifdef PIECEWISE
   pp.pieces[0] = poly4d_takeoff;
   set_xyyaw_current(&pp.pieces[0]);

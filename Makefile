@@ -28,7 +28,7 @@ SENSORS            ?= stock
 ESTIMATOR          ?= ekf
 CONTROLLER         ?= pid
 POWER_DISTRIBUTION ?= stock
-TRAJECTORY         ?= linear
+TRAJECTORY         ?= poly
 
 
 ifeq ($(PLATFORM), CF1)
