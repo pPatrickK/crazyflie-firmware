@@ -1,0 +1,4 @@
+- convert all uses of degrees to radians
+- use math3d.h consistently where appropriate
+- make positionExternalGetLastData return struct
+- implement reliable transmission over CRTP? lol

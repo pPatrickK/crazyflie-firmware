@@ -53,3 +53,8 @@ struct piecewise_traj
 };
 
 struct traj_eval piecewise_eval(struct piecewise_traj *traj, float t, float mass);
+
+static inline bool piecewise_is_finished(struct piecewise_traj const *traj)
+{
+	return traj->cursor == traj->n_pieces;
+}
