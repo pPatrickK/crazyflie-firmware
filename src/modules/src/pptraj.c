@@ -134,3 +134,20 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 
 	return out;
 }
+
+// piecewise eval
+struct traj_eval piecewise_eval(struct piecewise_traj *traj, float t, float mass)
+{
+	while (traj->cursor < traj->n_pieces) {
+		struct poly4d const *piece = &(traj->pieces[traj->cursor]);
+		float time_in_piece = t - traj->t_begin_piece;
+		if (time_in_piece <= piece->duration) {
+			return poly4d_eval(piece, time_in_piece, mass);
+		}
+		traj->t_begin_piece += piece->duration;
+		++traj->cursor;
+	}
+	// if we get here, the trajectory has ended
+	struct poly4d const *end_piece = &(traj->pieces[traj->n_pieces - 1]);
+	return poly4d_eval(end_piece, end_piece->duration, mass);
+}
