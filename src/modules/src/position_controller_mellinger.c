@@ -126,6 +126,9 @@ void positionControllerReset(void)
   i_error_x = 0;
   i_error_y = 0;
   i_error_z = 0;
+  i_error_m_x = 0;
+  i_error_m_y = 0;
+  i_error_m_z = 0;
 }
 
 float clamp(float value, float min, float max) {
