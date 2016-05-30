@@ -108,8 +108,8 @@ struct trajectoryEntry {
 // Global variables
 static bool isInit = false;
 static CRTPPacket p;
-static uint64_t startTime = 0; // TODO remove once using piecewise
 static trajectoryState_t state = TRAJECTORY_STATE_IDLE;
+static struct piecewise_traj pp;
 
 // Private functions
 static void trajectoryTask(void * prm);
@@ -120,13 +120,6 @@ static void trajectoryTask(void * prm);
 static int trajectoryTakeoff();
 static int trajectoryLand();
 
-#define PIECEWISE
-
-#ifdef PIECEWISE
-static struct piecewise_traj pp;
-#else
-static struct poly4d poly;
-#endif
 
 void trajectoryInit(void)
 {
@@ -160,7 +153,6 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
 	goal->omega = ev->omega;
 }
 
-#ifdef PIECEWISE
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
@@ -176,28 +168,6 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
     }
   }
 }
-#else // not PIECEWISE
-void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
-{
-  uint64_t t_tick = usecTimestamp();//xTaskGetTickCount();
-  float t = ((float)(t_tick - startTime)) / 1e6; // TODO not magic number
-
-  if (t < poly.duration) {
-    struct traj_eval ev = poly4d_eval(&poly, t, 0.03); //  TODO mass not magic number
-	pp_eval_to_trajectory_point(&ev, goal);
-  } else {
-    struct traj_eval ev = poly4d_eval(&poly, poly.duration, 0.03);//  TODO mass not magic number
-	pp_eval_to_trajectory_point(&ev, goal);
-
-    if (state == TRAJECTORY_STATE_TAKING_OFF) {
-      state = TRAJECTORY_STATE_FLYING;
-    }
-    if (state == TRAJECTORY_STATE_LANDING) {
-      state = TRAJECTORY_STATE_IDLE;
-    }
-  }
-}
-#endif
 
 // void trajectoryIsIdle()
 // {
@@ -290,11 +260,8 @@ int trajectoryAdd(const struct data_add* data)
 
 int trajectoryStart(void)
 {
-  startTime = usecTimestamp();//xTaskGetTickCount();
-#ifdef PIECEWISE
-  pp.t_begin_piece = startTime / 1e6;
+  pp.t_begin_piece = usecTimestamp() / 1e6;
   pp.cursor = 0;
-#endif
   return 0;
 }
 
@@ -321,15 +288,9 @@ int trajectoryTakeoff()
     return 1;
   }
 
-#ifdef PIECEWISE
   pp.pieces[0] = poly4d_takeoff;
   set_xyyaw_current(&pp.pieces[0]);
-  pp.cursor = 0;
   pp.n_pieces = 1;
-#else
-  poly = poly4d_takeoff;
-  set_xyyaw_current(&poly);
-#endif
 
   state = TRAJECTORY_STATE_TAKING_OFF;
   trajectoryStart();
@@ -342,15 +303,9 @@ int trajectoryLand()
     return 1;
   }
 
-#ifdef PIECEWISE
   pp.pieces[0] = poly4d_landing;
   set_xyyaw_current(&pp.pieces[0]);
-  pp.cursor = 0;
   pp.n_pieces = 1;
-#else
-  poly = poly4d_landing;
-  set_xyyaw_current(&poly);
-#endif
 
   state = TRAJECTORY_STATE_LANDING;
   trajectoryStart();
