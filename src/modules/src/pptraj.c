@@ -53,7 +53,7 @@ static void polystretchtime(float p[PP_SIZE], float s)
 	float scale = recip;
 	for (int i = 1; i < PP_SIZE; ++i) {
 		p[i] *= scale;
-		divisor *= recip;
+		scale *= recip;
 	}
 }
 
