@@ -46,6 +46,16 @@ static void polyscale(float p[PP_SIZE], float s)
 	}
 }
 
+// e.g. if s==2 the new polynomial will be stretched to take 2x longer
+static void polystretchtime(float p[PP_SIZE], float s)
+{
+	float divisor = s;
+	for (int i = 1; i < PP_SIZE; ++i) {
+		p[i] /= divisor;
+		divisor *= s;
+	}
+}
+
 void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw)
 {
 	polyscale(p->p[0], x);
