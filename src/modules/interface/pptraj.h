@@ -7,11 +7,11 @@
 
 #define PP_DEGREE (7)
 #define PP_SIZE (PP_DEGREE + 1)
-#define PP_MAX_PIECES (8)
+#define PP_MAX_PIECES (10)
 
 // 4d single polynomial piece for x-y-z-yaw.
 //
-// if we ever run on x86-SSE or arm-NEON, 
+// if we ever run on x86-SSE or arm-NEON,
 // transposing the coeff array and using 4xfloat SIMD math would be a big speedup
 //
 struct poly4d

@@ -64,9 +64,9 @@ enum TrajectoryCommand_e {
 
 struct data_add {
   uint8_t id;
-  uint8_t offset;
-  uint8_t size;
-  float values[7];
+  uint8_t offset:5;
+  uint8_t size:3;
+  float values[6];
 } __attribute__((packed));
 /*
 struct data_state {
@@ -104,7 +104,11 @@ struct trajectoryEntry {
 static bool isInit = false;
 static CRTPPacket p;
 static trajectoryState_t state = TRAJECTORY_STATE_IDLE;
-static struct piecewise_traj pp;
+
+static struct piecewise_traj* ppFront;
+static struct piecewise_traj* ppBack;
+static struct piecewise_traj pp1;
+static struct piecewise_traj pp2;
 
 // Private functions
 static void trajectoryTask(void * prm);
@@ -121,6 +125,9 @@ void trajectoryInit(void)
   if(isInit) {
     return;
   }
+
+  ppFront = &pp1;
+  ppBack = &pp2;
 
   //Start the trajectory task
   xTaskCreate(trajectoryTask, TRAJECTORY_TASK_NAME,
@@ -151,10 +158,10 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
-  struct traj_eval ev = piecewise_eval(&pp, t, 0.03); //  TODO mass not magic number
+  struct traj_eval ev = piecewise_eval(ppFront, t, 0.03); //  TODO mass not magic number
   pp_eval_to_trajectory_point(&ev, goal);
 
-  if (piecewise_is_finished(&pp)) {
+  if (piecewise_is_finished(ppFront)) {
     if (state == TRAJECTORY_STATE_TAKING_OFF) {
       state = TRAJECTORY_STATE_FLYING;
     }
@@ -218,8 +225,8 @@ void trajectoryTask(void * prm)
     }
 
     //answer
-    p.data[2] = ret;
-    p.size = 3;
+    p.data[3] = ret;
+    p.size = 4;
     crtpSendPacket(&p);
   }
 }
@@ -227,7 +234,17 @@ void trajectoryTask(void * prm)
 
 int trajectoryReset(void)
 {
-  pp.n_pieces = 0;
+  DEBUG_PRINT("Last Trajectory\n");
+  for (int i = 0; i < ppBack->n_pieces; ++i) {
+    DEBUG_PRINT("Piece: %d %f\n", i, ppBack->pieces[i].duration);
+    for (int j = 0; j < 4; ++j) {
+      for (int k = 0; k < 8; ++k) {
+        DEBUG_PRINT("Item %d, %d: %f\n", j, k, ppBack->pieces[i].p[j][k]);
+      }
+    }
+  }
+
+  ppBack->n_pieces = 0;
   DEBUG_PRINT("trajectoryReset\n");
 
   return 0;
@@ -236,17 +253,24 @@ int trajectoryReset(void)
 int trajectoryAdd(const struct data_add* data)
 {
   if (data->id < PP_MAX_PIECES
-      && data->offset + data-> size < sizeof(pp.pieces[pp.n_pieces])) {
+      && data->offset + data->size < sizeof(ppBack->pieces[data->id])) {
     uint8_t size = data->size;
     uint8_t* ptr = (uint8_t*)&(data->values[0]);
+    uint8_t offset = data->offset;
     if (data->offset == 0) {
-      pp.pieces[pp.n_pieces].duration = data->values[0];
-      size -= 4;
+      DEBUG_PRINT("setDur: %d %f\n", data->id, data->values[0]);
+      ppBack->pieces[data->id].duration = data->values[0];
+      size -= 1;
       ptr += 4;
+    } else {
+      offset -= 1;
     }
-    memcpy(((uint8_t*)pp.pieces[pp.n_pieces].p) + data->offset, ptr, size);
-    pp.n_pieces = data->id + 1;
-    DEBUG_PRINT("trajectoryAdd: %d\n", data->id);
+    for (int i = offset; i < offset + size; ++i) {
+      ppBack->pieces[data->id].p[i/8][i%8] = data->values[offset == 0 ? i+1 : i-offset];
+    }
+    // memcpy(ppBack->pieces[data->id].p + offset, ptr, size * sizeof(float));
+    ppBack->n_pieces = data->id + 1;
+    DEBUG_PRINT("trajectoryAdd: %d, %d, %d\n", data->id, offset, size);
     return 0;
   }
 
@@ -256,8 +280,13 @@ int trajectoryAdd(const struct data_add* data)
 
 int trajectoryStart(void)
 {
-  pp.t_begin_piece = usecTimestamp() / 1e6;
-  pp.cursor = 0;
+  ppBack->t_begin_piece = usecTimestamp() / 1e6;
+  ppBack->cursor = 0;
+
+  struct piecewise_traj* tmp = ppFront;
+  ppFront = ppBack;
+  ppBack = tmp;
+
   return 0;
 }
 
@@ -284,9 +313,9 @@ int trajectoryTakeoff()
     return 1;
   }
 
-  pp.pieces[0] = poly4d_takeoff;
-  set_xyyaw_current(&pp.pieces[0]);
-  pp.n_pieces = 1;
+  ppBack->pieces[0] = poly4d_takeoff;
+  set_xyyaw_current(&ppBack->pieces[0]);
+  ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_TAKING_OFF;
   trajectoryStart();
@@ -299,11 +328,11 @@ int trajectoryLand()
     return 1;
   }
 
-  pp.pieces[0] = poly4d_takeoff;
-  poly4d_scale(&pp.pieces[0], 0, 0, -0.97, 0);
-  poly4d_shift(&pp.pieces[0], 0, 0, 1, 0);
-  set_xyyaw_current(&pp.pieces[0]);
-  pp.n_pieces = 1;
+  ppBack->pieces[0] = poly4d_takeoff;
+  poly4d_scale(&ppBack->pieces[0], 0, 0, -0.97, 0);
+  poly4d_shift(&ppBack->pieces[0], 0, 0, 1, 0);
+  set_xyyaw_current(&ppBack->pieces[0]);
+  ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_LANDING;
   trajectoryStart();
