@@ -39,6 +39,8 @@ extern struct poly4d poly4d_landing;
 // useful for shifting the takeoff/land trajectories
 void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw);
 void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw);
+// e.g. if s==2 the new polynomial will be stretched to take 2x longer
+void poly4d_stretchtime(struct poly4d *p, float s);
 
 
 // ----------------------------------//
@@ -52,6 +54,10 @@ struct piecewise_traj
 	unsigned char cursor;
 	unsigned char n_pieces;
 };
+
+void piecewise_shift(struct piecewise_traj *pp, float x, float y, float z, float yaw);
+void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw);
+void piecewise_stretchtime(struct piecewise_traj *pp, float s);
 
 struct traj_eval piecewise_eval(struct piecewise_traj *traj, float t, float mass);
 

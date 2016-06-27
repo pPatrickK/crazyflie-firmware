@@ -73,6 +73,14 @@ void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw)
 	p->p[3][0] += yaw;
 }
 
+void poly4d_stretchtime(struct poly4d *p, float s)
+{
+	for (int i = 0; i < 4; ++i) {
+		polystretchtime(p->p[i], s);
+		p->duration *= s;
+	}
+}
+
 // evaluate a polynomial using horner's rule.
 static float polyval(float const *poly, int deg, float t)
 {
@@ -168,4 +176,25 @@ struct traj_eval piecewise_eval(struct piecewise_traj *traj, float t, float mass
 	// if we get here, the trajectory has ended
 	struct poly4d const *end_piece = &(traj->pieces[traj->n_pieces - 1]);
 	return poly4d_eval(end_piece, end_piece->duration, mass);
+}
+
+void piecewise_shift(struct piecewise_traj *pp, float x, float y, float z, float yaw)
+{
+	for (int i = 0; i < PP_MAX_PIECES; ++i) {
+		poly4d_shift(&pp->pieces[i], x, y, z, yaw);
+	}
+}
+
+void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw)
+{
+	for (int i = 0; i < PP_MAX_PIECES; ++i) {
+		poly4d_scale(&pp->pieces[i], x, y, z, yaw);
+	}
+}
+
+void piecewise_stretchtime(struct piecewise_traj *pp, float s)
+{
+	for (int i = 0; i < PP_MAX_PIECES; ++i) {
+		poly4d_stretchtime(&pp->pieces[i], s);
+	}
 }
