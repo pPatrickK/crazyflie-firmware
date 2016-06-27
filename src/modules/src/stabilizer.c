@@ -144,6 +144,10 @@ static void stabilizerTask(void* param)
           setpoint.attitude.yaw+= 360.0;
       }
 
+      if (!setpoint.enablePosCtrl) {
+        setpoint.attitudeRate.yaw = 0;
+      }
+
       positionControllerMellinger(&control, &state, &setpoint);
 
       trajectoryState_t trajectoryState;

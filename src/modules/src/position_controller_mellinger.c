@@ -262,9 +262,9 @@ void positionControllerMellinger(
   eR.y = -eR.y;
 
   // ew
-  ew.x = /*setpoint->attitudeRate.roll*/0 - state->attitudeRate.roll;
-  ew.y = /*setpoint->attitudeRate.pitch*/0 - state->attitudeRate.pitch;
-  ew.z = /*setpoint->attitudeRate.yaw*/0 - state->attitudeRate.yaw;
+  ew.x = setpoint->attitudeRate.roll - state->attitudeRate.roll;
+  ew.y = setpoint->attitudeRate.pitch - state->attitudeRate.pitch;
+  ew.z = setpoint->attitudeRate.yaw - state->attitudeRate.yaw;
 
   // Integral Error
   i_error_m_x += (-eR.x) * DT;
