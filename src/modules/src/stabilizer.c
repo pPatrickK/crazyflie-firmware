@@ -144,6 +144,10 @@ static void stabilizerTask(void* param)
           setpoint.attitude.yaw+= 360.0;
       }
 
+      if (!setpoint.enablePosCtrl) {
+        setpoint.attitudeRate.yaw = 0;
+      }
+
       positionControllerMellinger(&control, &state, &setpoint);
 
       trajectoryState_t trajectoryState;
@@ -217,6 +221,8 @@ LOG_GROUP_STOP(extPosEst)
 
 LOG_GROUP_START(baro)
 LOG_ADD(LOG_FLOAT, asl, &sensorData.baro.asl)
+LOG_ADD(LOG_FLOAT, temp, &sensorData.baro.temperature)
+LOG_ADD(LOG_FLOAT, pressure, &sensorData.baro.pressure)
 LOG_GROUP_STOP(baro)
 
 LOG_GROUP_START(gyro)

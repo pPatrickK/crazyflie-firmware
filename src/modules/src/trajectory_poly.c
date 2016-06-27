@@ -234,16 +234,6 @@ void trajectoryTask(void * prm)
 
 int trajectoryReset(void)
 {
-  DEBUG_PRINT("Last Trajectory\n");
-  for (int i = 0; i < ppBack->n_pieces; ++i) {
-    DEBUG_PRINT("Piece: %d %f\n", i, ppBack->pieces[i].duration);
-    for (int j = 0; j < 4; ++j) {
-      for (int k = 0; k < 8; ++k) {
-        DEBUG_PRINT("Item %d, %d: %f\n", j, k, ppBack->pieces[i].p[j][k]);
-      }
-    }
-  }
-
   ppBack->n_pieces = 0;
   DEBUG_PRINT("trajectoryReset\n");
 
@@ -286,6 +276,18 @@ int trajectoryStart(void)
   struct piecewise_traj* tmp = ppFront;
   ppFront = ppBack;
   ppBack = tmp;
+
+  DEBUG_PRINT("trajectory Start\n");
+  for (int i = 0; i < ppFront->n_pieces; ++i) {
+    DEBUG_PRINT("Piece: %d (%f s)\n", i, ppFront->pieces[i].duration);
+    for (int j = 0; j < 4; ++j) {
+      DEBUG_PRINT("%d: ", j);
+      for (int k = 0; k < 8; ++k) {
+        DEBUG_PRINT("%f,", ppFront->pieces[i].p[j][k]);
+      }
+      DEBUG_PRINT("\n");
+    }
+  }
 
   return 0;
 }

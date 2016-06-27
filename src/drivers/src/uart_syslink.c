@@ -23,6 +23,7 @@
  *
  * uart_syslink.c - Uart syslink to nRF51 and raw access functions
  */
+#include <stdint.h>
 #include <string.h>
 
 /*ST includes */
@@ -49,7 +50,8 @@
 
 static bool isInit = false;
 
-xSemaphoreHandle waitUntilSendDone = NULL;
+static xSemaphoreHandle waitUntilSendDone;
+static xSemaphoreHandle uartBusy;
 static xQueueHandle uartslkDataDelivery;
 
 static uint8_t dmaBuffer[64];
@@ -103,6 +105,13 @@ void uartslkDmaInit(void)
 
 void uartslkInit(void)
 {
+  // initialize the FreeRTOS structures first, to prevent null pointers in interrupts
+  waitUntilSendDone = xSemaphoreCreateBinary(); // initialized as blocking
+  uartBusy = xSemaphoreCreateBinary(); // initialized as blocking
+  xSemaphoreGive(uartBusy); // but we give it because the uart isn't busy at initialization
+
+  uartslkDataDelivery = xQueueCreate(1024, sizeof(uint8_t));
+  DEBUG_QUEUE_MONITOR_REGISTER(uartslkDataDelivery);
 
   USART_InitTypeDef USART_InitStructure;
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -147,14 +156,10 @@ void uartslkInit(void)
 
   // Configure Rx buffer not empty interrupt
   NVIC_InitStructure.NVIC_IRQChannel = UARTSLK_IRQ;
-  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = NVIC_HIGH_PRI;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = NVIC_SYSLINK_PRI;
   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
-
-  vSemaphoreCreateBinary(waitUntilSendDone);
-  uartslkDataDelivery = xQueueCreate(1024, sizeof(uint8_t));
-  DEBUG_QUEUE_MONITOR_REGISTER(uartslkDataDelivery);
 
   USART_ITConfig(UARTSLK_TYPE, USART_IT_RXNE, ENABLE);
 
@@ -172,6 +177,7 @@ void uartslkInit(void)
   extiInit.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
   extiInit.EXTI_LineCmd = ENABLE;
   EXTI_Init(&extiInit);
+  EXTI_ClearITPendingBit(UARTSLK_TXEN_EXTI);
 
   NVIC_EnableIRQ(EXTI4_IRQn);
 
@@ -215,6 +221,7 @@ void uartslkSendData(uint32_t size, uint8_t* data)
 
 void uartslkSendDataIsrBlocking(uint32_t size, uint8_t* data)
 {
+  xSemaphoreTake(uartBusy, portMAX_DELAY);
   outDataIsr = data;
   dataSizeIsr = size;
   dataIndexIsr = 1;
@@ -222,6 +229,7 @@ void uartslkSendDataIsrBlocking(uint32_t size, uint8_t* data)
   USART_ITConfig(UARTSLK_TYPE, USART_IT_TXE, ENABLE);
   xSemaphoreTake(waitUntilSendDone, portMAX_DELAY);
   outDataIsr = 0;
+  xSemaphoreGive(uartBusy);
 }
 
 int uartslkPutchar(int ch)
@@ -235,7 +243,7 @@ void uartslkSendDataDmaBlocking(uint32_t size, uint8_t* data)
 {
   if (isUartDmaInitialized)
   {
-    xSemaphoreTake(waitUntilSendDone, portMAX_DELAY);
+    xSemaphoreTake(uartBusy, portMAX_DELAY);
     // Wait for DMA to be free
     while(DMA_GetCmdStatus(UARTSLK_DMA_STREAM) != DISABLE);
     //Copy data in DMA buffer
@@ -252,6 +260,8 @@ void uartslkSendDataDmaBlocking(uint32_t size, uint8_t* data)
     USART_ClearFlag(UARTSLK_TYPE, USART_FLAG_TC);
     /* Enable DMA USART TX Stream */
     DMA_Cmd(UARTSLK_DMA_STREAM, ENABLE);
+    xSemaphoreTake(waitUntilSendDone, portMAX_DELAY);
+    xSemaphoreGive(uartBusy);
   }
 }
 
@@ -308,9 +318,17 @@ void uartslkDmaIsr(void)
 void uartslkIsr(void)
 {
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  uint8_t rxDataInterrupt;
 
-  if (USART_GetITStatus(UARTSLK_TYPE, USART_IT_TXE))
+  // the following if statement replaces:
+  //   if (USART_GetITStatus(UARTSLK_TYPE, USART_IT_RXNE) == SET)
+  // we do this check as fast as possible to minimize the chance of an overrun,
+  // which occasionally cause problems and cause packet loss at high CPU usage
+  if ((UARTSLK_TYPE->SR & (1<<5)) != 0) // if the RXNE interrupt has occurred
+  {
+    uint8_t rxDataInterrupt = (uint8_t)(UARTSLK_TYPE->DR & 0xFF);
+    xQueueSendFromISR(uartslkDataDelivery, &rxDataInterrupt, &xHigherPriorityTaskWoken);
+  }
+  else if (USART_GetITStatus(UARTSLK_TYPE, USART_IT_TXE) == SET)
   {
     if (outDataIsr && (dataIndexIsr < dataSizeIsr))
     {
@@ -320,15 +338,18 @@ void uartslkIsr(void)
     else
     {
       USART_ITConfig(UARTSLK_TYPE, USART_IT_TXE, DISABLE);
-      xHigherPriorityTaskWoken = pdFALSE;
       xSemaphoreGiveFromISR(waitUntilSendDone, &xHigherPriorityTaskWoken);
     }
   }
-  USART_ClearITPendingBit(UARTSLK_TYPE, USART_IT_TXE);
-  if (USART_GetITStatus(UARTSLK_TYPE, USART_IT_RXNE))
+  else
   {
-    rxDataInterrupt = USART_ReceiveData(UARTSLK_TYPE) & 0x00FF;
-    xQueueSendFromISR(uartslkDataDelivery, &rxDataInterrupt, &xHigherPriorityTaskWoken);
+    /** if we get here, the error is most likely caused by an overrun!
+     * - PE (Parity error), FE (Framing error), NE (Noise error), ORE (OverRun error)
+     * - and IDLE (Idle line detected) pending bits are cleared by software sequence:
+     * - reading USART_SR register followed reading the USART_DR register.
+     */
+    asm volatile ("" : "=m" (UARTSLK_TYPE->SR) : "r" (UARTSLK_TYPE->SR)); // force non-optimizable reads
+    asm volatile ("" : "=m" (UARTSLK_TYPE->DR) : "r" (UARTSLK_TYPE->DR)); // of these two registers
   }
 }
 
@@ -347,7 +368,7 @@ void uartslkTxenFlowctrlIsr()
   }
 }
 
-void __attribute__((used)) EXTI4_IRQHandler(void)
+void __attribute__((used)) EXTI4_Callback(void)
 {
   uartslkTxenFlowctrlIsr();
 }
