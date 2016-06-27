@@ -1,6 +1,5 @@
 #include "unity.h"
 #include "num.h"
-#include "string.h" // memset
 #include "pptraj.h"
 
 void testTimestretch() 
@@ -53,6 +52,7 @@ void testTimestretch()
 
 	struct poly4d takeoff_stretched = poly4d_takeoff;
 	poly4d_stretchtime(&takeoff_stretched, 2.0);
+	TEST_ASSERT_FLOAT_WITHIN(TOL, takeoff_stretched.duration, poly4d_takeoff.duration * 2.0);
 	for (float t = 0; t <= poly4d_takeoff.duration; t += 0.125) {
 		struct vec ev = poly4d_eval(&poly4d_takeoff, t, 1).pos;
 		struct vec ev_stretch = poly4d_eval(&takeoff_stretched, 2*t, 1).pos;

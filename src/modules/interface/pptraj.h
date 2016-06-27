@@ -22,9 +22,10 @@ struct poly4d
 
 static inline struct poly4d poly4d_zero(float duration)
 {
-	struct poly4d p;
-	p.duration = duration;
-	memset(p.p, 0, sizeof(p.p));
+	struct poly4d p = {
+		.p = {{0}},
+		.duration = duration,
+	};
 	return p;
 }
 

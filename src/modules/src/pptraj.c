@@ -77,8 +77,8 @@ void poly4d_stretchtime(struct poly4d *p, float s)
 {
 	for (int i = 0; i < 4; ++i) {
 		polystretchtime(p->p[i], s);
-		p->duration *= s;
 	}
+	p->duration *= s;
 }
 
 // evaluate a polynomial using horner's rule.
