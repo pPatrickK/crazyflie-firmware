@@ -2,7 +2,9 @@
 #include "num.h"
 #include "pptraj.h"
 
-void testTimestretch() 
+static float const TOL = 0.0000001;
+
+void testTimestretchPiecewiseLinear() 
 {
 	float x0 = 1, x1 = -1, x2 = 3;
 	float dur0 = 0.5, dur1 = 1;
@@ -12,8 +14,6 @@ void testTimestretch()
 	pp.pieces[1] = poly4d_linear(dur1, mkvec(x1, 0, 0), mkvec(x2, 0, 0), 0, 0);
 	pp.n_pieces = 2;
 	
-	float TOL = 0.0000001;
-
 	for (int i = 0; i < 2; ++i) {
 		// sanity check - unstretched
 		pp.cursor = 0;
@@ -49,7 +49,10 @@ void testTimestretch()
 		dur0 *= 2;
 		dur1 *= 2;
 	}
+}
 
+void testTimestretchTakeoff()
+{
 	struct poly4d takeoff_stretched = poly4d_takeoff;
 	poly4d_stretchtime(&takeoff_stretched, 2.0);
 	TEST_ASSERT_FLOAT_WITHIN(TOL, takeoff_stretched.duration, poly4d_takeoff.duration * 2.0);
