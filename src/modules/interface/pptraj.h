@@ -20,6 +20,30 @@ struct poly4d
 	float duration; // TODO use int millis instead?
 };
 
+static inline struct poly4d poly4d_zero(float duration)
+{
+	struct poly4d p;
+	p.duration = duration;
+	memset(p.p, 0, sizeof(p.p));
+	return p;
+}
+
+static inline struct poly4d poly4d_linear(float duration, struct vec p0, struct vec p1, float yaw0, float yaw1)
+{
+	struct poly4d p = poly4d_zero(duration);
+	struct vec slope_p = vdiv(vsub(p1, p0), duration);
+	float slope_yaw = (yaw1 - yaw0) / duration;
+	p.p[0][0] = p0.x;
+	p.p[1][0] = p0.y;
+	p.p[2][0] = p0.z;
+	p.p[3][0] = yaw0;
+	p.p[0][1] = slope_p.x;
+	p.p[1][1] = slope_p.y;
+	p.p[2][1] = slope_p.z;
+	p.p[3][1] = slope_yaw;
+	return p;
+}
+
 struct traj_eval
 {
 	struct vec pos;

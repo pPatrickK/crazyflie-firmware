@@ -24,6 +24,8 @@ compiler:
       - 'vendor/cmock/src/'
       - 'src/utils/interface/'
       - 'src/utils/src/'
+      - 'src/modules/interface/'
+      - 'src/modules/src/'
   defines:
     prefix: '-D'
     items:
