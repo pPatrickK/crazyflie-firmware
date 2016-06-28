@@ -146,7 +146,7 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 	struct vec thrust = vadd(acc, mkvec(0, 0, GRAV));
 	float thrust_mag = mass * vmag(thrust);
 
-	struct vec z_body = vdiv(thrust, thrust_mag);
+	struct vec z_body = vnormalized(thrust);
 	struct vec x_world = mkvec(cos(out.yaw), sin(out.yaw), 0);
 	struct vec y_body = vnormalized(vcross(z_body, x_world));
 	struct vec x_body = vcross(y_body, z_body);

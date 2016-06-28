@@ -304,9 +304,9 @@ void commanderGetSetpoint(setpoint_t *setpoint, const state_t *state)
       setpoint->velocity.y = goal.velocity_y;
       setpoint->velocity.z = goal.velocity_z;
       setpoint->attitude.yaw = goal.yaw;
-      setpoint->attitudeRate.roll = 0;
-      setpoint->attitudeRate.pitch = 0;
-      setpoint->attitudeRate.yaw = 0;
+      setpoint->attitudeRate.roll = goal.omega.x;
+      setpoint->attitudeRate.pitch = goal.omega.y;
+      setpoint->attitudeRate.yaw = goal.omega.z;
       setpoint->mode.x = modeAbs;
       setpoint->mode.y = modeAbs;
       setpoint->mode.z = modeAbs;

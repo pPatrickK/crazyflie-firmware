@@ -119,6 +119,8 @@ static int trajectoryStart(void);
 static int trajectoryTakeoff();
 static int trajectoryLand();
 
+static bool stretched = false;
+
 
 void trajectoryInit(void)
 {
@@ -209,6 +211,10 @@ void trajectoryTask(void * prm)
         ret = trajectoryAdd((const struct data_add*)&p.data[1]);
         break;
       case COMMAND_START:
+        if (!stretched) {
+	       piecewise_stretchtime(ppBack, 0.75);
+         stretched = true;
+        }
         ret = trajectoryStart();
         break;
       // case COMMAND_STATE:
@@ -235,6 +241,7 @@ void trajectoryTask(void * prm)
 int trajectoryReset(void)
 {
   ppBack->n_pieces = 0;
+  stretched = false;
   DEBUG_PRINT("trajectoryReset\n");
 
   return 0;
@@ -276,6 +283,7 @@ int trajectoryStart(void)
   struct piecewise_traj* tmp = ppFront;
   ppFront = ppBack;
   ppBack = tmp;
+  *ppBack = *ppFront;
 
   DEBUG_PRINT("trajectory Start\n");
   for (int i = 0; i < ppFront->n_pieces; ++i) {
@@ -320,6 +328,7 @@ int trajectoryTakeoff()
   ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_TAKING_OFF;
+  // piecewise_stretchtime(ppBack, 2.0);
   trajectoryStart();
   return 0;
 }
@@ -337,6 +346,7 @@ int trajectoryLand()
   ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_LANDING;
+  // piecewise_stretchtime(ppBack, 2.0);
   trajectoryStart();
   return 0;
 }

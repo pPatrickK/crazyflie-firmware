@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "num.h"
 #include "configblock.h"
+#include "log.h"
 
 bool positionExternalFresh = false;
 
@@ -62,6 +63,10 @@ static float lastQ2;
 static float lastQ3;
 static uint64_t lastTime = 0;
 static uint8_t my_id;
+static float v_x;
+static float v_y;
+static float v_z;
+
 
 //Private functions
 static void positionExternalCrtpCB(CRTPPacket* pk);
@@ -116,9 +121,21 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
   struct data* d = ((struct data*)pk->data);
   for (int i=0; i < 2; ++i) {
     if (d->pose[i].id == my_id) {
-      lastX = half2single(d->pose[i].x);
-      lastY = half2single(d->pose[i].y);
-      lastZ = half2single(d->pose[i].z);
+      float x = half2single(d->pose[i].x);
+      float y = half2single(d->pose[i].y);
+      float z = half2single(d->pose[i].z);
+
+      if (lastTime != 0) {
+        float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
+        v_x = (x - lastX) / dt;
+        v_y = (y - lastY) / dt;
+        v_z = (z - lastZ) / dt;
+      }
+
+
+      lastX = x;
+      lastY = y;
+      lastZ = z;
       lastQ0 = d->pose[i].quat[0] / 32768.0;
       lastQ1 = d->pose[i].quat[1] / 32768.0;
       lastQ2 = d->pose[i].quat[2] / 32768.0;
@@ -129,3 +146,9 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
     }
   }
 }
+
+LOG_GROUP_START(vicon)
+LOG_ADD(LOG_FLOAT, v_x, &v_x)
+LOG_ADD(LOG_FLOAT, v_y, &v_y)
+LOG_ADD(LOG_FLOAT, v_z, &v_z)
+LOG_GROUP_STOP(vicon)
