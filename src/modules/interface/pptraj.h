@@ -60,6 +60,8 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass);
 // stored simple trajectories. could store only z to save memory.
 extern struct poly4d poly4d_takeoff;
 extern struct poly4d poly4d_landing;
+extern struct poly4d poly4d_hover;
+
 
 // useful for shifting the takeoff/land trajectories
 void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw);
