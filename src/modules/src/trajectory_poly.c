@@ -370,7 +370,7 @@ int trajectoryHover(const struct data_hover* data)
     return 1;
   }
 
-  ppBack->pieces[0] = poly4d_hover;
+  ppBack->pieces[0] = poly4d_zero(1.0f);
   poly4d_shift(&ppBack->pieces[0], data->x, data->y, data->z, data->yaw);
   ppBack->n_pieces = 1;
 
