@@ -322,7 +322,9 @@ static inline struct quat qeye() {
 }
 static inline struct quat qaxisangle(struct vec axis, float angle) {
 	float scale = sin(angle / 2) / vmag(axis);
-	struct quat q = { .v = vscl(scale, axis), .w = cos(angle/2) };
+	struct quat q;
+	q.v = vscl(scale, axis);
+	q.w = cos(angle/2);
 	return q;
 }
 static inline struct quat qrpy_small(struct vec rpy) {
