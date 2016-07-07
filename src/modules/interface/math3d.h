@@ -30,7 +30,8 @@ struct vec {
 
 // constructors
 static inline struct vec mkvec(float x, float y, float z) {
-	struct vec v = { .x = x, .y = y, .z = z };
+	struct vec v;
+	v.x = x; v.y = y; v.z = z;
 	return v;
 }
 static inline struct vec vrepeat(float x) {
@@ -305,11 +306,15 @@ struct quat {
 
 // constructors
 static inline struct quat mkquat(float x, float y, float z, float w) {
-	struct quat q = { .v = mkvec(x, y, z), .w = w };
+	struct quat q;
+	q.v = mkvec(x, y, z);
+	q.w = w;
 	return q;
 }
 static inline struct quat quatvw(struct vec v, float w) {
-	struct quat q = { .v = v, .w = w };
+	struct quat q;
+	q.v = v;
+	q.w = w;
 	return q;
 }
 static inline struct quat qeye() {
