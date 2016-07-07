@@ -39,6 +39,14 @@ struct poly4d poly4d_takeoff = {
 	.duration = 2
 };
 
+struct poly4d poly4d_hover = {
+	.p = {{0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	      {0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	      {0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, },
+	      {0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, }},
+	.duration = 1
+};
+
 static void polyscale(float p[PP_SIZE], float s)
 {
 	for (int i = 0; i < PP_SIZE; ++i) {
@@ -150,7 +158,7 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 	struct vec x_world = mkvec(cos(out.yaw), sin(out.yaw), 0);
 	struct vec y_body = vnormalized(vcross(z_body, x_world));
 	struct vec x_body = vcross(y_body, z_body);
-	
+
 	struct vec jerk_orth_zbody = vorthunit(jerk, z_body);
 	struct vec h_w = vscl(mass / thrust_mag, jerk_orth_zbody);
 

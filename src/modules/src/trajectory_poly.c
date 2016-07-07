@@ -56,6 +56,7 @@ enum TrajectoryCommand_e {
   //COMMAND_STATE = 3,
   COMMAND_TAKEOFF = 4,
   COMMAND_LAND    = 5,
+  COMMAND_HOVER   = 6,
 };
 
 // struct data_reset {
@@ -68,6 +69,14 @@ struct data_add {
   uint8_t size:3;
   float values[6];
 } __attribute__((packed));
+
+struct data_hover {
+  float x; // m
+  float y; // m
+  float z; // m
+  float yaw; // deg
+} __attribute__((packed));
+
 /*
 struct data_state {
   uint8_t state;
@@ -118,6 +127,7 @@ static int trajectoryStart(void);
 // static int trajectoryState(const struct data_state* data);
 static int trajectoryTakeoff();
 static int trajectoryLand();
+static int trajectoryHover(const struct data_hover* data);
 
 static bool stretched = false;
 
@@ -225,6 +235,9 @@ void trajectoryTask(void * prm)
       case COMMAND_LAND:
         ret = trajectoryLand();
         break;
+      case COMMAND_HOVER:
+        ret = trajectoryHover((const struct data_hover*)&p.data[1]);
+        break;
       default:
         ret = ENOEXEC;
         break;
@@ -242,7 +255,7 @@ int trajectoryReset(void)
 {
   ppBack->n_pieces = 0;
   stretched = false;
-  DEBUG_PRINT("trajectoryReset\n");
+  // DEBUG_PRINT("trajectoryReset\n");
 
   return 0;
 }
@@ -255,7 +268,7 @@ int trajectoryAdd(const struct data_add* data)
     uint8_t* ptr = (uint8_t*)&(data->values[0]);
     uint8_t offset = data->offset;
     if (data->offset == 0) {
-      DEBUG_PRINT("setDur: %d %f\n", data->id, data->values[0]);
+      // DEBUG_PRINT("setDur: %d %f\n", data->id, data->values[0]);
       ppBack->pieces[data->id].duration = data->values[0];
       size -= 1;
       ptr += 4;
@@ -267,7 +280,7 @@ int trajectoryAdd(const struct data_add* data)
     }
     // memcpy(ppBack->pieces[data->id].p + offset, ptr, size * sizeof(float));
     ppBack->n_pieces = data->id + 1;
-    DEBUG_PRINT("trajectoryAdd: %d, %d, %d\n", data->id, offset, size);
+    // DEBUG_PRINT("trajectoryAdd: %d, %d, %d\n", data->id, offset, size);
     return 0;
   }
 
@@ -285,17 +298,17 @@ int trajectoryStart(void)
   ppBack = tmp;
   *ppBack = *ppFront;
 
-  DEBUG_PRINT("trajectory Start\n");
-  for (int i = 0; i < ppFront->n_pieces; ++i) {
-    DEBUG_PRINT("Piece: %d (%f s)\n", i, ppFront->pieces[i].duration);
-    for (int j = 0; j < 4; ++j) {
-      DEBUG_PRINT("%d: ", j);
-      for (int k = 0; k < 8; ++k) {
-        DEBUG_PRINT("%f,", ppFront->pieces[i].p[j][k]);
-      }
-      DEBUG_PRINT("\n");
-    }
-  }
+  // DEBUG_PRINT("trajectory Start\n");
+  // for (int i = 0; i < ppFront->n_pieces; ++i) {
+  //   DEBUG_PRINT("Piece: %d (%f s)\n", i, ppFront->pieces[i].duration);
+  //   for (int j = 0; j < 4; ++j) {
+  //     DEBUG_PRINT("%d: ", j);
+  //     for (int k = 0; k < 8; ++k) {
+  //       DEBUG_PRINT("%f,", ppFront->pieces[i].p[j][k]);
+  //     }
+  //     DEBUG_PRINT("\n");
+  //   }
+  // }
 
   return 0;
 }
@@ -313,7 +326,7 @@ static void set_xyyaw_current(struct poly4d *p)
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
+  float yaw = 0;//quat2rpy(mkquat(q0, q1, q2, q3)).z;
   poly4d_shift(p, x, y, 0, yaw);
 }
 
@@ -347,6 +360,20 @@ int trajectoryLand()
 
   state = TRAJECTORY_STATE_LANDING;
   // piecewise_stretchtime(ppBack, 2.0);
+  trajectoryStart();
+  return 0;
+}
+
+int trajectoryHover(const struct data_hover* data)
+{
+  if (state != TRAJECTORY_STATE_FLYING) {
+    return 1;
+  }
+
+  ppBack->pieces[0] = poly4d_hover;
+  poly4d_shift(&ppBack->pieces[0], data->x, data->y, data->z, data->yaw);
+  ppBack->n_pieces = 1;
+
   trajectoryStart();
   return 0;
 }
