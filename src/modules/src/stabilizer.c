@@ -43,6 +43,7 @@
 #include "position_external.h"
 #include "position_controller.h"
 #include "SEGGER_RTT.h"
+#include "usec_time.h"
 
 #include "trajectory.h"
 #include "debug.h"
@@ -62,12 +63,21 @@ static float m_roll;
 static float m_pitch;
 static float m_yaw;
 
+static int usec_ekf;
+static int usec_traj;
+static int usec_ctrl;
+static int usec_idle;
+static uint64_t tic_storage;
+static void tic() { tic_storage = usecTimestamp(); }
+static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
+
 
 void stabilizerInit(void)
 {
   if(isInit)
     return;
 
+  initUsecTimer();
   sensorsInit();
   stateEstimatorInit();
   // stateControllerInit();
@@ -123,11 +133,19 @@ static void stabilizerTask(void* param)
   // Now the EKF does lazy-initialization. Do we still need to care about it here?
 
   while(1) {
+    tic();
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
+    int usec_idle_tmp = toc();
 
     sensorsAcquire(&sensorData, tick);
+
+    tic();
     stateEstimator(&state, &sensorData, tick);
+    usec_ekf = toc();
+
+    tic();
     commanderGetSetpoint(&setpoint, &state);
+    usec_traj = toc();
 
     // TODO: Disabled for now to avoid any side-effects
     //       Check if we can enable this again.
@@ -148,7 +166,9 @@ static void stabilizerTask(void* param)
         setpoint.attitudeRate.yaw = 0;
       }
 
+      tic();
       positionControllerMellinger(&control, &state, &setpoint);
+      usec_ctrl = toc();
 
       trajectoryState_t trajectoryState;
       trajectoryGetState(&trajectoryState);
@@ -176,6 +196,12 @@ static void stabilizerTask(void* param)
         trajectorySetState(TRAJECTORY_STATE_IDLE);
         setpoint.attitude.yaw = state.attitude.yaw;
       }
+    }
+    else {
+      // since we do control every other loop, iterations where 
+      // we *don't* do control will have a shorter sleep time
+      // because the previous iteration did the extra work
+      usec_idle = usec_idle_tmp;
     }
     powerDistribution(&control);
 
@@ -258,3 +284,9 @@ LOG_ADD(LOG_FLOAT, m_roll, &m_roll)
 LOG_ADD(LOG_FLOAT, m_yaw, &m_yaw)
 LOG_GROUP_STOP(mot)
 
+LOG_GROUP_START(profiling)
+LOG_ADD(LOG_UINT32, usec_ekf, &usec_ekf)
+LOG_ADD(LOG_UINT32, usec_traj, &usec_traj)
+LOG_ADD(LOG_UINT32, usec_ctrl, &usec_ctrl)
+LOG_ADD(LOG_UINT32, usec_stabilizer_idle, &usec_idle)
+LOG_GROUP_STOP(profiling)
