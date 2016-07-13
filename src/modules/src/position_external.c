@@ -49,7 +49,7 @@ struct data {
     fp16_t z; // m
     int16_t quat[4]; //Quaternion; TODO: find more compact way to store this
                       // each component between -1 and 1
-  } pose[2];
+  } pose[1];
 };
 
 // Global variables
@@ -119,7 +119,7 @@ void positionExternalGetLastData(
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
   struct data* d = ((struct data*)pk->data);
-  for (int i=0; i < 2; ++i) {
+  for (int i=0; i < 1; ++i) {
     if (d->pose[i].id == my_id) {
       float x = half2single(d->pose[i].x);
       float y = half2single(d->pose[i].y);
