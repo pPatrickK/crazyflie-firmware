@@ -106,6 +106,13 @@ static float kR_z  = 7000;
 static float kw_xy = 4000;
 static float kw_z = 3000;
 
+// "D" part for angular velocity
+static float kd_omega_rp = 1000;
+static float prev_omega_roll;
+static float prev_omega_pitch;
+static float prev_setpoint_omega_roll;
+static float prev_setpoint_omega_pitch;
+
 // "I" part for moment
 static float ki_m_xy = 0.0;
 static float ki_m_z = 0.0;
@@ -262,9 +269,19 @@ void positionControllerMellinger(
   eR.y = -eR.y;
 
   // ew
+  float err_d_roll = 0;
+  float err_d_pitch = 0;
   ew.x = setpoint->attitudeRate.roll - state->attitudeRate.roll;
-  ew.y = setpoint->attitudeRate.pitch - state->attitudeRate.pitch;
+  ew.y = -setpoint->attitudeRate.pitch - state->attitudeRate.pitch;
   ew.z = setpoint->attitudeRate.yaw - state->attitudeRate.yaw;
+  if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
+    err_d_roll = ((setpoint->attitudeRate.roll - prev_setpoint_omega_roll) - (state->attitudeRate.roll - prev_omega_roll)) / DT;
+    err_d_pitch = (-(setpoint->attitudeRate.pitch - prev_setpoint_omega_pitch) - (state->attitudeRate.pitch - prev_omega_pitch)) / DT;
+  }
+  prev_omega_roll = state->attitudeRate.roll;
+  prev_omega_pitch = state->attitudeRate.pitch;
+  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
+  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
 
   // Integral Error
   i_error_m_x += (-eR.x) * DT;
@@ -277,8 +294,8 @@ void positionControllerMellinger(
   i_error_m_z = clamp(i_error_m_z, -i_range_m_z, i_range_m_z);
 
   // Moment:
-  M.x = -kR_xy * eR.x + kw_xy * ew.x + ki_m_xy * i_error_m_x;
-  M.y = -kR_xy * eR.y + kw_xy * ew.y + ki_m_xy * i_error_m_y;
+  M.x = -kR_xy * eR.x + kw_xy * ew.x + ki_m_xy * i_error_m_x + kd_omega_rp * err_d_roll;
+  M.y = -kR_xy * eR.y + kw_xy * ew.y + ki_m_xy * i_error_m_y + kd_omega_rp * err_d_pitch;
   M.z = -kR_z  * eR.z + kw_z  * ew.z + ki_m_z  * i_error_m_z;
 
   // invert (4.1)
@@ -328,6 +345,7 @@ PARAM_ADD(PARAM_FLOAT, kw_xy, &kw_xy)
 PARAM_ADD(PARAM_FLOAT, kw_z, &kw_z)
 PARAM_ADD(PARAM_FLOAT, ki_m_xy, &ki_m_xy)
 PARAM_ADD(PARAM_FLOAT, ki_m_z, &ki_m_z)
+PARAM_ADD(PARAM_FLOAT, kd_omega_rp, &kd_omega_rp)
 PARAM_ADD(PARAM_FLOAT, i_range_m_xy, &i_range_m_xy)
 PARAM_ADD(PARAM_FLOAT, i_range_m_z, &i_range_m_z)
 PARAM_GROUP_STOP(ctrlMel)
