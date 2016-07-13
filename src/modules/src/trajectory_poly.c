@@ -163,8 +163,8 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
     goal->velocity_x = ev->vel.x;
     goal->velocity_y = ev->vel.y;
     goal->velocity_z = ev->vel.z;
-	goal->yaw = ev->yaw;
-	goal->omega = ev->omega;
+    goal->yaw = ev->yaw;
+    goal->omega = ev->omega;
 }
 
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
