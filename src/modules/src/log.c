@@ -49,6 +49,7 @@
 #include "cfassert.h"
 
 #if 0
+#include "debug.h"
 #define LOG_DEBUG(fmt, ...) DEBUG_PRINT("D/log " fmt, ## __VA_ARGS__)
 #define LOG_ERROR(fmt, ...) DEBUG_PRINT("E/log " fmt, ## __VA_ARGS__)
 #else
@@ -248,6 +249,7 @@ void logTOCProcess(int command)
       memcpy(p.data+3, group, strlen(group)+1);
       memcpy(p.data+3+strlen(group)+1, logs[ptr].name, strlen(logs[ptr].name)+1);
       p.size=3+2+strlen(group)+strlen(logs[ptr].name);
+      ASSERT(p.size <= CRTP_MAX_DATA_SIZE);
       crtpSendPacket(&p);
     } else {
       LOG_DEBUG("    Index out of range!");
