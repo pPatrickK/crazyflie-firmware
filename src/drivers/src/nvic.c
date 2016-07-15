@@ -1,6 +1,6 @@
 /**
- *    ||          ____  _ __                           
- * +------+      / __ )(_) /_______________ _____  ___ 
+ *    ||          ____  _ __
+ * +------+      / __ )(_) /_______________ _____  ___
  * | 0xBC |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
  * +------+    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
  *  ||  ||    /_____/_/\__/\___/_/   \__,_/ /___/\___/
@@ -29,12 +29,17 @@
 #include "i2cdev.h"
 #include "ws2812.h"
 
-#ifdef PLATFORM_CF1
-#include "uart.h"
-#define UART_PRINT    uartPrintf
+#if defined(DEBUG_PRINT_ON_SEGGER_RTT)
+  #include "debug.h"
+  #define FAULT_PRINT    DEBUG_PRINT
 #else
-#include "uart1.h"
-#define UART_PRINT    uart1Printf
+  #ifdef PLATFORM_CF1
+  #include "uart.h"
+  #define FAULT_PRINT    uartPrintf
+  #else
+  #include "uart1.h"
+  #define FAULT_PRINT    uart1Printf
+  #endif
 #endif
 
 #define DONT_DISCARD __attribute__((used))
@@ -65,6 +70,7 @@ void DONT_DISCARD SysTick_Handler(void)
   */
 void DONT_DISCARD SVC_Handler(void)
 {
+  FAULT_PRINT("[ERROR] SVC\n");
 }
 
 /**
@@ -72,6 +78,7 @@ void DONT_DISCARD SVC_Handler(void)
  */
 void DONT_DISCARD PendSV_Handler(void)
 {
+  FAULT_PRINT("[ERROR] PendSV\n");
 }
 #endif
 
@@ -80,6 +87,7 @@ void DONT_DISCARD PendSV_Handler(void)
   */
 void DONT_DISCARD NMI_Handler(void)
 {
+  FAULT_PRINT("[ERROR] NMI\n");
 }
 
 /**
@@ -87,6 +95,7 @@ void DONT_DISCARD NMI_Handler(void)
  */
 void DONT_DISCARD HardFault_Handler(void)
 {
+  FAULT_PRINT("[ERROR] HardFault\n");
   //http://www.st.com/mcu/forums-cat-6778-23.html
   //****************************************************
   //To test this application, you can use this snippet anywhere:
@@ -122,21 +131,20 @@ void DONT_DISCARD printHardFault(uint32_t* hardfaultArgs)
   stacked_pc = ((unsigned long) hardfaultArgs[6]);
   stacked_psr = ((unsigned long) hardfaultArgs[7]);
 
-
-  UART_PRINT("[Hard fault handler]\n");
-  UART_PRINT("R0 = %x\n", stacked_r0);
-  UART_PRINT("R1 = %x\n", stacked_r1);
-  UART_PRINT("R2 = %x\n", stacked_r2);
-  UART_PRINT("R3 = %x\n", stacked_r3);
-  UART_PRINT("R12 = %x\n", stacked_r12);
-  UART_PRINT("LR = %x\n", stacked_lr);
-  UART_PRINT("PC = %x\n", stacked_pc);
-  UART_PRINT("PSR = %x\n", stacked_psr);
-  UART_PRINT("BFAR = %x\n", (*((volatile unsigned int *)(0xE000ED38))));
-  UART_PRINT("CFSR = %x\n", (*((volatile unsigned int *)(0xE000ED28))));
-  UART_PRINT("HFSR = %x\n", (*((volatile unsigned int *)(0xE000ED2C))));
-  UART_PRINT("DFSR = %x\n", (*((volatile unsigned int *)(0xE000ED30))));
-  UART_PRINT("AFSR = %x\n", (*((volatile unsigned int *)(0xE000ED3C))));
+  FAULT_PRINT("[Hard fault handler]\n");
+  FAULT_PRINT("R0 = %x\n", stacked_r0);
+  FAULT_PRINT("R1 = %x\n", stacked_r1);
+  FAULT_PRINT("R2 = %x\n", stacked_r2);
+  FAULT_PRINT("R3 = %x\n", stacked_r3);
+  FAULT_PRINT("R12 = %x\n", stacked_r12);
+  FAULT_PRINT("LR = %x\n", stacked_lr);
+  FAULT_PRINT("PC = %x\n", stacked_pc);
+  FAULT_PRINT("PSR = %x\n", stacked_psr);
+  FAULT_PRINT("BFAR = %x\n", (*((volatile unsigned int *)(0xE000ED38))));
+  FAULT_PRINT("CFSR = %x\n", (*((volatile unsigned int *)(0xE000ED28))));
+  FAULT_PRINT("HFSR = %x\n", (*((volatile unsigned int *)(0xE000ED2C))));
+  FAULT_PRINT("DFSR = %x\n", (*((volatile unsigned int *)(0xE000ED30))));
+  FAULT_PRINT("AFSR = %x\n", (*((volatile unsigned int *)(0xE000ED3C))));
 
   while (1)
   {}
@@ -146,6 +154,7 @@ void DONT_DISCARD printHardFault(uint32_t* hardfaultArgs)
  */
 void DONT_DISCARD MemManage_Handler(void)
 {
+  FAULT_PRINT("[ERROR] MemManage\n");
   /* Go to infinite loop when Memory Manage exception occurs */
   while (1)
   {
@@ -157,6 +166,7 @@ void DONT_DISCARD MemManage_Handler(void)
  */
 void DONT_DISCARD BusFault_Handler(void)
 {
+  FAULT_PRINT("[ERROR] BusFault\n");
   /* Go to infinite loop when Bus Fault exception occurs */
   while (1)
   {
@@ -168,6 +178,7 @@ void DONT_DISCARD BusFault_Handler(void)
  */
 void DONT_DISCARD UsageFault_Handler(void)
 {
+  FAULT_PRINT("[ERROR] UsageFault\n");
   /* Go to infinite loop when Usage Fault exception occurs */
   while (1)
   {
@@ -179,6 +190,7 @@ void DONT_DISCARD UsageFault_Handler(void)
  */
 void DONT_DISCARD DebugMon_Handler(void)
 {
+  FAULT_PRINT("[ERROR] DebugMon\n");
 }
 
 void DONT_DISCARD DMA1_Stream5_IRQHandler(void)
