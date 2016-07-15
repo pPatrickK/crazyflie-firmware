@@ -198,7 +198,7 @@ static void stabilizerTask(void* param)
       }
     }
     else {
-      // since we do control every other loop, iterations where 
+      // since we do control every other loop, iterations where
       // we *don't* do control will have a shorter sleep time
       // because the previous iteration did the extra work
       usec_idle = usec_idle_tmp;
@@ -288,5 +288,5 @@ LOG_GROUP_START(profiling)
 LOG_ADD(LOG_UINT32, usec_ekf, &usec_ekf)
 LOG_ADD(LOG_UINT32, usec_traj, &usec_traj)
 LOG_ADD(LOG_UINT32, usec_ctrl, &usec_ctrl)
-LOG_ADD(LOG_UINT32, usec_stabilizer_idle, &usec_idle)
+LOG_ADD(LOG_UINT32, usec_idle, &usec_idle)
 LOG_GROUP_STOP(profiling)
