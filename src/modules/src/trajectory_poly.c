@@ -81,16 +81,17 @@ struct data_hover {
 struct data_state {
   uint8_t state;
 };
+*/
 
 struct data_takeoff {
   float height; // m (absolute)
   uint16_t time_from_start; // ms
-};
+} __attribute__((packed));
 
 struct data_land {
   float height; // m (absolute)
   uint16_t time_from_start; // ms
-};
+} __attribute__((packed));
 
 // enum state_e {
 //   STATE_IDLE       = 0,
@@ -100,7 +101,7 @@ struct data_land {
 // };
 
 // static state_e state = STATE_IDLE;
-
+/*
 #define MAX_TRAJECTORY_ENTRIES 100
 
 struct trajectoryEntry {
@@ -230,10 +231,10 @@ void trajectoryTask(void * prm)
       // case COMMAND_STATE:
       //   ret = trajectoryState((const struct data_state*)&p.data[1]);
       case COMMAND_TAKEOFF:
-        ret = trajectoryTakeoff();
+        ret = trajectoryTakeoff((const struct data_takeoff*)&p.data[1]);
         break;
       case COMMAND_LAND:
-        ret = trajectoryLand();
+        ret = trajectoryLand((const struct data_land*)&p.data[1]);
         break;
       case COMMAND_HOVER:
         ret = trajectoryHover((const struct data_hover*)&p.data[1]);
@@ -326,18 +327,31 @@ static void set_xyyaw_current(struct poly4d *p)
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-  float yaw = 0;//quat2rpy(mkquat(q0, q1, q2, q3)).z;
+  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
   poly4d_shift(p, x, y, 0, yaw);
 }
 
-int trajectoryTakeoff()
+int trajectoryTakeoff(const struct data_takeoff* data)
 {
   if (state != TRAJECTORY_STATE_IDLE) {
     return 1;
   }
 
-  ppBack->pieces[0] = poly4d_takeoff;
-  set_xyyaw_current(&ppBack->pieces[0]);
+  float x, y, z, q0, q1, q2, q3;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
+
+  float delta_z = data->height - z;
+  float duration = data->time_from_start / 1000.0;
+
+  struct poly4d p = poly4d_takeoff;
+  poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
+  poly4d_scale(&p, 1, 1, delta_z, 1);
+  poly4d_shift(&p, x, y, z, 0);
+  poly_linear(p.p[3], duration, yaw, 0);
+
+  ppBack->pieces[0] = p;
   ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_TAKING_OFF;
@@ -346,16 +360,27 @@ int trajectoryTakeoff()
   return 0;
 }
 
-int trajectoryLand()
+int trajectoryLand(const struct data_land* data)
 {
   if (state != TRAJECTORY_STATE_FLYING) {
     return 1;
   }
 
-  ppBack->pieces[0] = poly4d_takeoff;
-  poly4d_scale(&ppBack->pieces[0], 0, 0, -0.97, 0);
-  poly4d_shift(&ppBack->pieces[0], 0, 0, 1, 0);
-  set_xyyaw_current(&ppBack->pieces[0]);
+  float x, y, z, q0, q1, q2, q3;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
+
+  float delta_z = data->height - z;
+  float duration = data->time_from_start / 1000.0;
+
+  struct poly4d p = poly4d_takeoff;
+  poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
+  poly4d_scale(&p, 1, 1, delta_z, 1);
+  poly4d_shift(&p, x, y, z, 0);
+  poly_linear(p.p[3], duration, yaw, 0);
+
+  ppBack->pieces[0] = p;
   ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_LANDING;

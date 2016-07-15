@@ -29,6 +29,12 @@ static inline struct poly4d poly4d_zero(float duration)
 	return p;
 }
 
+static inline void poly_linear(float p[PP_SIZE], float duration, float x0, float x1)
+{
+	p[0] = x0;
+	p[1] = (x1 - x0) / duration;
+}
+
 static inline struct poly4d poly4d_linear(float duration, struct vec p0, struct vec p1, float yaw0, float yaw1)
 {
 	struct poly4d p = poly4d_zero(duration);
