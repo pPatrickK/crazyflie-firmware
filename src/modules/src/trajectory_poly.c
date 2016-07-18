@@ -130,7 +130,7 @@ static int trajectoryTakeoff();
 static int trajectoryLand();
 static int trajectoryHover(const struct data_hover* data);
 
-static bool stretched = false;
+// static bool stretched = false;
 
 
 void trajectoryInit(void)
@@ -171,7 +171,7 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
-  struct traj_eval ev = piecewise_eval(ppFront, t, 0.03); //  TODO mass not magic number
+  struct traj_eval ev = piecewise_eval(ppFront, t, 0.035); //  TODO mass not magic number
   pp_eval_to_trajectory_point(&ev, goal);
 
   if (piecewise_is_finished(ppFront)) {
@@ -222,10 +222,10 @@ void trajectoryTask(void * prm)
         ret = trajectoryAdd((const struct data_add*)&p.data[1]);
         break;
       case COMMAND_START:
-        if (!stretched) {
-	       piecewise_stretchtime(ppBack, 0.75);
-         stretched = true;
-        }
+        // if (!stretched) {
+	       // piecewise_stretchtime(ppBack, 0.75);
+        //  stretched = true;
+        // }
         ret = trajectoryStart();
         break;
       // case COMMAND_STATE:
@@ -255,7 +255,7 @@ void trajectoryTask(void * prm)
 int trajectoryReset(void)
 {
   ppBack->n_pieces = 0;
-  stretched = false;
+  // stretched = false;
   // DEBUG_PRINT("trajectoryReset\n");
 
   return 0;
@@ -288,8 +288,7 @@ int trajectoryAdd(const struct data_add* data)
   return ENOMEM;
 }
 
-
-int trajectoryStart(void)
+void trajectoryFlip()
 {
   ppBack->t_begin_piece = usecTimestamp() / 1e6;
   ppBack->cursor = 0;
@@ -298,7 +297,20 @@ int trajectoryStart(void)
   ppFront = ppBack;
   ppBack = tmp;
   *ppBack = *ppFront;
+}
 
+
+int trajectoryStart(void)
+{
+  float x, y, z, q0, q1, q2, q3;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+
+  struct traj_eval traj_init = poly4d_eval(&ppBack->pieces[0], 0, 0.035); // TODO mass param
+  struct vec shift_pos = vsub(mkvec(x, y, z), traj_init.pos);
+  piecewise_shift_vec(ppBack, shift_pos, 0);
+
+  trajectoryFlip();
   // DEBUG_PRINT("trajectory Start\n");
   // for (int i = 0; i < ppFront->n_pieces; ++i) {
   //   DEBUG_PRINT("Piece: %d (%f s)\n", i, ppFront->pieces[i].duration);
@@ -356,7 +368,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
 
   state = TRAJECTORY_STATE_TAKING_OFF;
   // piecewise_stretchtime(ppBack, 2.0);
-  trajectoryStart();
+  trajectoryFlip();
   return 0;
 }
 
@@ -385,7 +397,7 @@ int trajectoryLand(const struct data_land* data)
 
   state = TRAJECTORY_STATE_LANDING;
   // piecewise_stretchtime(ppBack, 2.0);
-  trajectoryStart();
+  trajectoryFlip();
   return 0;
 }
 
@@ -399,6 +411,6 @@ int trajectoryHover(const struct data_hover* data)
   poly4d_shift(&ppBack->pieces[0], data->x, data->y, data->z, data->yaw);
   ppBack->n_pieces = 1;
 
-  trajectoryStart();
+  trajectoryFlip();
   return 0;
 }

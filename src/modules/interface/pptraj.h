@@ -87,6 +87,9 @@ struct piecewise_traj
 };
 
 void piecewise_shift(struct piecewise_traj *pp, float x, float y, float z, float yaw);
+static inline void piecewise_shift_vec(struct piecewise_traj *pp, struct vec pos, float yaw) { 
+	piecewise_shift(pp, pos.x, pos.y, pos.z, yaw);
+}
 void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw);
 void piecewise_stretchtime(struct piecewise_traj *pp, float s);
 
