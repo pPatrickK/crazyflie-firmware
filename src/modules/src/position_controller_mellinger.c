@@ -38,48 +38,6 @@
 
 #define DT 0.01
 
-typedef struct {
-  float x;
-  float y;
-  float z;
-} vector3f;
-
-// computes the dot-product between the two vectors
-static float dot(
-  const vector3f* a,
-  const vector3f* b)
-{
-  return a->x * b->x + a->y * b->y + a->z * b->z;
-}
-// computes vector norm
-static float norm(
-  const vector3f* a)
-{
-  return sqrt(pow(a->x, 2) + pow(a->y, 2) + pow(a->z, 2));
-}
-
-static void normalize(
-  vector3f* a)
-{
-  float n = norm(a);
-  if (n > 0) {
-    a->x /= n;
-    a->y /= n;
-    a->z /= n;
-  }
-}
-
-// c = axb
-static void cross(
-  const vector3f* a,
-  const vector3f* b,
-  vector3f* c)
-{
-  c->x = a->y * b->z - a->z * b->y;
-  c->y = a->z * b->x - a->x * b->z;
-  c->z = a->x * b->y - a->y * b->x;
-}
-
 
 static const float g = 9.81;
 static const float mass = 0.030;
@@ -126,7 +84,7 @@ static float i_range_m_z  = 2.0;
 static float i_range_xy = 2.0;
 static float i_range_z  = 1.0;
 
-static vector3f z_axis_desired;
+static struct vec z_axis_desired;
 
 void positionControllerReset(void)
 {
@@ -149,19 +107,19 @@ void positionControllerMellinger(
   const state_t *state,
   const setpoint_t *setpoint)
 {
-  vector3f r_error;
-  vector3f v_error;
-  vector3f target_thrust;
-  vector3f z_axis;
+  struct vec r_error;
+  struct vec v_error;
+  struct vec target_thrust;
+  struct vec z_axis;
   float current_thrust;
-  // vector3f z_axis_desired;
-  vector3f x_axis_desired;
-  vector3f y_axis_desired;
-  vector3f x_c_des;
+  // struct vec z_axis_desired;
+  struct vec x_axis_desired;
+  struct vec y_axis_desired;
+  struct vec x_c_des;
 
   //float roll, pitch, yaw;
 
-  vector3f eR, ew, M;
+  struct vec eR, ew, M;
 
   //roll = state->attitude.roll / 180.0 * M_PI;
   //pitch = state->attitude.pitch / 180.0 * M_PI;
@@ -201,22 +159,17 @@ void positionControllerMellinger(
   // Z-Axis [zB]
   struct quat q = mkquat(state->attitude_q.x, state->attitude_q.y, state->attitude_q.z, state->attitude_q.w);
   struct mat33 R = quat2rotmat(q);
-  struct vec z_axis_ekf_util = mcolumn(R, 2);
-
-  z_axis.x = z_axis_ekf_util.x;
-  z_axis.y = z_axis_ekf_util.y;
-  z_axis.z = z_axis_ekf_util.z;
+  z_axis = mcolumn(R, 2);
 
   // z_axis.x = -sin(pitch) * cos(roll);
   // z_axis.y = -sin(roll);
   // z_axis.z = cos(pitch) * cos(roll);
 
   // Current thrust [F]
-  current_thrust = dot(&target_thrust, &z_axis);
+  current_thrust = vdot(target_thrust, z_axis);
 
   // Calculate axis [zB_des]
-  z_axis_desired = target_thrust;
-  normalize(&z_axis_desired);
+  z_axis_desired = vnormalized(target_thrust);
 
   // [xC_des]
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
@@ -226,10 +179,9 @@ void positionControllerMellinger(
   x_c_des.y = sin(setpoint->attitude.yaw / 180 * M_PI);
   x_c_des.z = 0;
   // [yB_des]
-  cross(&z_axis_desired, &x_c_des, &y_axis_desired);
-  normalize(&y_axis_desired);
+  y_axis_desired = vnormalized(vcross(z_axis_desired, x_c_des));
   // [xB_des]
-  cross(&y_axis_desired, &z_axis_desired, &x_axis_desired);
+  x_axis_desired = vcross(y_axis_desired, z_axis_desired);
 
   // [eR] (see mathematica notebook)
   // TODO: it might be more efficient to actually create the rotation matrix and carray out the matrix multiplication?
