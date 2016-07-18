@@ -5,6 +5,20 @@
 #include "ekf.h"
 #include "mexutil.h"
 
+// TEMP profiling
+#include "log.h"
+#include "usec_time.h"
+
+static int usec_setup;
+static int usec_innov;
+static int usec_gain;
+static int usec_corr;
+static int usec_cov;
+static uint64_t tic_storage;
+static void tic() { tic_storage = usecTimestamp(); }
+static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
+
+
 
 // measured constants
 #define VICON_VAR_XY 1.5e-7
@@ -60,6 +74,7 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 	ekf->quat = qloadf(quat);
 	//memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
 	eyeN(AS_1D(ekf->P), EKF_N);
+	initUsecTimer();
 }
 
 void dynamic_matrix(struct quat const q, struct vec const omega, struct vec const acc, float const dt, float F[EKF_N][EKF_N])
@@ -185,6 +200,7 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 
 void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3], float const quat_vicon[4])//, double *debug)
 {
+	tic();
 	*new = *old;
 
 	struct vec const p_vicon = vloadf(pos_vicon);
@@ -205,9 +221,10 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	struct mat33 meye = eye();
 	set_H_block33(H, 0, 0, &meye);
 	set_H_block33(H, 3, 6, &meye);
+	usec_setup = toc();
 
+	tic();
 	// S = H P H' + R  :  innovation
-
 	static float PHt[EKF_N][EKF_M];
 	ZEROARR(PHt);
 	SGEMM2D('n', 't', EKF_N, EKF_M, EKF_N, 1.0, old->P, H, 0.0, PHt);
@@ -226,9 +243,11 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 		S[i][i] += Rdiag[i];
 		R[i][i] = Rdiag[i];
 	}
+	usec_innov = toc();
 
 	// K = P H' S^-1   :  gain
 
+	tic();
 	static float Sinv[EKF_M][EKF_M];
 	static float scratch[EKF_M];
 	cholsl(AS_1D(S), AS_1D(Sinv), scratch, EKF_M);
@@ -242,10 +261,12 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	ZEROARR(K);
 	SGEMM2D('n', 'n', EKF_N, EKF_M, EKF_N, 1.0, old->P, HtSinv, 0.0, K);
 	checknan("K", AS_1D(K), EKF_N * EKF_M);
+	usec_gain = toc();
 
 
 	// K residual : correction
 
+	tic();
 	static float correction[EKF_N];
 	ZEROARR(correction);
 	sgemm('n', 'n', EKF_N, 1, EKF_M, 1.0, AS_1D(K), residual, 0.0, correction);
@@ -255,10 +276,12 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	struct quat error_quat = qrpy_small(vloadf(correction + 6));
 	new->quat = qnormalized(qqmul(old->quat, error_quat));
 	// TODO biases, if we use dem
+	usec_corr = toc();
 
 
 	// Pnew = (I - KH) P (I - KH)^T + KRK^T  :  covariance update
 
+	tic();
 	static float RKt[EKF_M][EKF_N];
 	ZEROARR(RKt);
 	SGEMM2D('n', 't', EKF_M, EKF_N, EKF_M, 1.0, R, K, 0.0, RKt);
@@ -282,6 +305,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	// recall that new->P already contains KRK^T, and we use beta=1.0 to add in-place
 	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_N, 1.0, IMKH, PIMKHt, 1.0, new->P);
 	checknan("P-New", AS_1D(new->P), EKF_N * EKF_N);
+	usec_cov = toc();
 }
 
 
@@ -390,3 +414,10 @@ int main()
 #endif // EKFTEST
 
 // TODO: write more tests
+LOG_GROUP_START(ekfprof)
+LOG_ADD(LOG_UINT32, usec_setup, &usec_setup)
+LOG_ADD(LOG_UINT32, usec_innov, &usec_innov)
+LOG_ADD(LOG_UINT32, usec_gain, &usec_gain)
+LOG_ADD(LOG_UINT32, usec_corr, &usec_corr)
+LOG_ADD(LOG_UINT32, usec_cov, &usec_cov)
+LOG_GROUP_STOP(ekfprof)
