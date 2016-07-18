@@ -563,6 +563,22 @@ static void siren(uint8_t buffer[][3], bool reset)
   if (++tic >= 20) tic = 0;
 }
 
+static void packetRate(uint8_t buffer[][3], bool reset)
+{
+  int i;
+  static int varid;
+  uint32_t packetsPerSecond;
+
+  varid = logGetVarId("crtp", "pps");
+  packetsPerSecond = logGetUint(varid);
+
+  for (i = 0; i < NBR_LEDS; i++) {
+    buffer[i][0] = LIMIT(LINSCALE(0, 100, 255, 0, packetsPerSecond)); // Red (low packets per second)
+    buffer[i][1] = LIMIT(LINSCALE(0, 100, 0, 255, packetsPerSecond)); // Green (high packets per second)
+    buffer[i][2] = 0;
+  }
+}
+
 /**************** Effect list ***************/
 
 
@@ -582,6 +598,7 @@ Ledring12Effect effectsFct[] =
   siren,
   gravityLight,
   virtualMemEffect,
+  packetRate,
 }; //TODO Add more
 
 /********** Ring init and switching **********/

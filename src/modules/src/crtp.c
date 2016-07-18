@@ -40,6 +40,8 @@
 #include "cfassert.h"
 #include "queuemonitor.h"
 
+#include "log.h"
+
 static bool isInit;
 
 static int nopFunc(void);
@@ -62,6 +64,10 @@ static void crtpRxTask(void *param);
 
 static xQueueHandle queues[CRTP_NBR_OF_PORTS];
 static volatile CrtpCallback callbacks[CRTP_NBR_OF_PORTS];
+
+static uint32_t packetsPerSecond = 0;
+static uint32_t packetsPerSecondTemp = 0;
+static uint32_t lastSwap = 0;
 
 void crtpInit(void)
 {
@@ -154,6 +160,14 @@ void crtpRxTask(void *param)
 
   while (true)
   {
+    const int milliSecs = 500;
+    TickType_t t = xTaskGetTickCount();
+    if (t - lastSwap >= M2T(milliSecs))
+    {
+      packetsPerSecond = packetsPerSecondTemp * 1000.0 / milliSecs;
+      packetsPerSecondTemp = 0;
+      lastSwap = t;
+    }
     if (link != &nopLink)
     {
       if (!link->receivePacket(&p))
@@ -170,6 +184,8 @@ void crtpRxTask(void *param)
 
         if (callbacks[p.port])
           callbacks[p.port](&p);  //Dangerous?
+
+        packetsPerSecondTemp++;
       }
     }
     else
@@ -237,3 +253,7 @@ static int nopFunc(void)
 {
   return ENETDOWN;
 }
+
+LOG_GROUP_START(crtp)
+LOG_ADD(LOG_UINT32, pps, &packetsPerSecond)
+LOG_GROUP_STOP(crtp)
