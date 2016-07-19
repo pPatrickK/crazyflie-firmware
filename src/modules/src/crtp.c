@@ -68,6 +68,7 @@ static volatile CrtpCallback callbacks[CRTP_NBR_OF_PORTS];
 static uint32_t packetsPerSecond = 0;
 static uint32_t packetsPerSecondTemp = 0;
 static uint32_t lastSwap = 0;
+static uint32_t packetCtr = 0;
 
 void crtpInit(void)
 {
@@ -256,4 +257,5 @@ static int nopFunc(void)
 
 LOG_GROUP_START(crtp)
 LOG_ADD(LOG_UINT32, pps, &packetsPerSecond)
+LOG_ADD(LOG_UINT32, packetCtr, &packetCtr)
 LOG_GROUP_STOP(crtp)
