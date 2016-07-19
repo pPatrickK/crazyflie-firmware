@@ -141,11 +141,9 @@ static void stabilizerTask(void* param)
 
     tic();
     stateEstimator(&state, &sensorData, tick);
-    usec_ekf = toc();
-
-    tic();
-    commanderGetSetpoint(&setpoint, &state);
-    usec_traj = toc();
+    if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
+      usec_ekf = toc();
+    }
 
     // TODO: Disabled for now to avoid any side-effects
     //       Check if we can enable this again.
@@ -153,6 +151,11 @@ static void stabilizerTask(void* param)
 
     // stateController(&control, &sensorData, &state, &setpoint, tick);
     if (RATE_DO_EXECUTE(RATE_500_HZ, tick)) {
+
+      tic();
+      commanderGetSetpoint(&setpoint, &state);
+      usec_traj = toc();
+
       // Rate-controled YAW is moving YAW angle setpoint
       if (setpoint.mode.yaw == modeVelocity) {
          setpoint.attitude.yaw -= setpoint.attitudeRate.yaw/500.0;
