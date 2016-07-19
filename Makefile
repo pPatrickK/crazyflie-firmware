@@ -255,7 +255,7 @@ STFLAGS_CF2 = -DSTM32F4XX -DSTM32F40_41xxx -DHSE_VALUE=8000000 -DUSE_STDPERIPH_D
 ifeq ($(DEBUG), 1)
   CFLAGS += -O0 -g3 -DDEBUG
 else
-  CFLAGS += -Os -g3
+  CFLAGS += -O3 -g3
 endif
 
 ifeq ($(LTO), 1)
