@@ -66,6 +66,7 @@ static uint8_t my_id;
 static float v_x;
 static float v_y;
 static float v_z;
+static uint16_t dt;
 
 
 //Private functions
@@ -114,6 +115,7 @@ void positionExternalGetLastData(
   } else {
     *last_time_in_ms = 10 * 1000;
   }
+  dt = *last_time_in_ms;
 }
 
 static void positionExternalCrtpCB(CRTPPacket* pk)
@@ -151,4 +153,5 @@ LOG_GROUP_START(vicon)
 LOG_ADD(LOG_FLOAT, v_x, &v_x)
 LOG_ADD(LOG_FLOAT, v_y, &v_y)
 LOG_ADD(LOG_FLOAT, v_z, &v_z)
+LOG_ADD(LOG_INT16, dt, &dt)
 LOG_GROUP_STOP(vicon)
