@@ -76,6 +76,7 @@ struct data_hover {
   float y; // m
   float z; // m
   float yaw; // deg
+  float duration; // sec
 } __attribute__((packed));
 
 /*
@@ -172,18 +173,29 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
     goal->omega = ev->omega;
 }
 
-void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
+// works in our structs, not public to rest of firmware
+static struct traj_eval current_goal()
 {
-  float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
+  float t = usecTimestamp() / 1e6;
   if (state == TRAJECTORY_STATE_ELLIPSE) {
     t = t - ellipse.t_begin;
-    struct traj_eval ev = ellipse_traj_eval(&ellipse, t, 0.033);
-    pp_eval_to_trajectory_point(&ev, goal);
+    return ellipse_traj_eval(&ellipse, t, 0.033);
   }
   else {
-    struct traj_eval ev = piecewise_eval(ppFront, t, 0.035); //  TODO mass not magic number
-    pp_eval_to_trajectory_point(&ev, goal);
+    return piecewise_eval(ppFront, t, 0.033); //  TODO mass not magic number
+  }
+}
 
+// works in rest of firmware's structs
+void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
+{
+  struct traj_eval ev = current_goal();
+  pp_eval_to_trajectory_point(&ev, goal);
+
+  if (state == TRAJECTORY_STATE_ELLIPSE) {
+    // TODO make it possible for an ellipse to end
+  }
+  else {
     if (piecewise_is_finished(ppFront)) {
       if (state == TRAJECTORY_STATE_TAKING_OFF) {
         state = TRAJECTORY_STATE_FLYING;
@@ -429,13 +441,17 @@ int trajectoryLand(const struct data_land* data)
 
 int trajectoryHover(const struct data_hover* data)
 {
-  if (state != TRAJECTORY_STATE_FLYING) {
+  if (state != TRAJECTORY_STATE_FLYING && state != TRAJECTORY_STATE_ELLIPSE) {
     return 1;
   }
 
-  ppBack->pieces[0] = poly4d_zero(1.0f);
-  poly4d_shift(&ppBack->pieces[0], data->x, data->y, data->z, data->yaw);
-  ppBack->n_pieces = 1;
+  struct traj_eval setpoint = current_goal();
+  struct vec hover_pos = mkvec(data->x, data->y, data->z);
+  float hover_yaw = data->yaw;
+
+  piecewise_plan_5th_order(ppBack, data->duration,
+    setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
+    hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
   trajectoryFlip();
   return 0;
