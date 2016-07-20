@@ -21,10 +21,10 @@ struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float 
 	float cos_t = cos(s * t);
 	float sin_t = sin(s * t);
 
-	out.pos  = vadd(aubv( cos_t, e->major,  sin(t), e->minor), e->center);
-	out.vel  = aubv(-s*sin_t, e->major,  s*cos(t), e->minor);
-	struct vec acc  = aubv(-s2*cos_t, e->major, -s2*sin(t), e->minor);
-	struct vec jerk = aubv( s3*sin_t, e->major, -s3*cos(t), e->minor);
+	out.pos  = vadd(aubv( cos_t, e->major,  sin_t, e->minor), e->center);
+	out.vel  = aubv(-s*sin_t, e->major,  s*cos_t, e->minor);
+	struct vec acc  = aubv(-s2*cos_t, e->major, -s2*sin_t, e->minor);
+	struct vec jerk = aubv( s3*sin_t, e->major, -s3*cos_t, e->minor);
 
 	out.yaw = 0; // TODO: care about yaw?
 	float dyaw = 0;
