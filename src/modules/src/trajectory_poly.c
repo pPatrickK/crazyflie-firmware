@@ -132,6 +132,7 @@ static int trajectoryStart(void);
 static int trajectoryTakeoff();
 static int trajectoryLand();
 static int trajectoryHover(const struct data_hover* data);
+static int ellipseStart();
 
 // static bool stretched = false;
 
@@ -175,6 +176,7 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
   if (state == TRAJECTORY_STATE_ELLIPSE) {
+    t = t - ellipse.t_begin;
     struct traj_eval ev = ellipse_traj_eval(&ellipse, t, 0.033);
     pp_eval_to_trajectory_point(&ev, goal);
   }
@@ -247,6 +249,9 @@ void trajectoryTask(void * prm)
         break;
       case COMMAND_HOVER:
         ret = trajectoryHover((const struct data_hover*)&p.data[1]);
+        break;
+      case COMMAND_ELLIPSE:
+        ret = ellipseStart();
         break;
       default:
         ret = ENOEXEC;
@@ -342,6 +347,7 @@ int ellipseStart(void)
   ellipse.major = mkvec(-1, 0, 0);
   ellipse.minor = mkvec(0, 0.5, 0);
   ellipse.period = 10;
+  ellipse.t_begin = usecTimestamp() / 1e6;
   state = TRAJECTORY_STATE_ELLIPSE;
   return 0;
 }
