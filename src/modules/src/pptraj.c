@@ -213,7 +213,7 @@ static void poly5(float poly[PP_SIZE], float T,
 	poly[3] = (-12*dx0*T - 8*dxf*T - 3*ddx0*T2 + ddxf*T2 - 20*x0 + 20*xf)/(2*T3);
 	poly[4] = (16*dx0*T + 14*dxf*T + 3*ddx0*T2 - 2*ddxf*T2 + 30*x0 - 30*xf)/(2*T4);
 	poly[5] = (-6*dx0*T - 6*dxf*T - ddx0*T2 + ddxf*T2 - 12*x0 + 12*xf)/(2*T5);
-	for (int i = 5; i < PP_SIZE; ++i) {
+	for (int i = 6; i < PP_SIZE; ++i) {
 		poly[i] = 0;
 	}
 };
