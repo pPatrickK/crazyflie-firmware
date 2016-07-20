@@ -179,6 +179,9 @@ static struct traj_eval current_goal()
   float t = usecTimestamp() / 1e6;
   if (state == TRAJECTORY_STATE_ELLIPSE) {
     t = t - ellipse.t_begin;
+    if (ellipse.period > ellipse.goal_period) {
+      ellipse.period -= 0.001;
+    }
     return ellipse_traj_eval(&ellipse, t, 0.033);
   }
   else {
@@ -359,6 +362,7 @@ int ellipseStart(void)
   ellipse.major = mkvec(-1, 0, 0);
   ellipse.minor = mkvec(0, 0.5, 0);
   ellipse.period = 10;
+  ellipse.goal_period = 3;
   ellipse.t_begin = usecTimestamp() / 1e6;
   state = TRAJECTORY_STATE_ELLIPSE;
   return 0;

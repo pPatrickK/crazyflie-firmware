@@ -113,6 +113,7 @@ struct ellipse_traj
 	struct vec major;
 	struct vec minor;
 	float period;
+	float goal_period;
 	float t_begin;
 	//float phase;
 };
