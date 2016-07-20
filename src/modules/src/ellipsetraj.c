@@ -5,14 +5,6 @@
 // or mush everything together into e.g. analytictraj.c?
 #include "pptraj.h"
 
-struct ellipse_traj
-{
-	struct vec major;
-	struct vec minor;
-	float phase;
-	float time_scale;
-};
-
 struct vec aubv(float a, struct vec u, float b, struct vec v)
 {
 	return mkvec(a*u.x + b*v.x, a*u.y + b*v.y, a*u.z + b*v.z);
@@ -22,7 +14,7 @@ struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float 
 {
 	struct traj_eval out;
 
-	float s = e->time_scale;
+	float s = 2 * M_PI / e->period;
 	float s2 = s * s;
 	float s3 = s2 * s;
 
@@ -41,7 +33,7 @@ struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float 
 	struct vec thrust = vadd(acc, mkvec(0, 0, GRAV));
 	float thrust_mag = mass * vmag(thrust);
 
-	struct vec z_body = vdiv(thrust, thrust_mag);
+	struct vec z_body = vnormalized(thrust);
 	struct vec x_world = mkvec(cos(out.yaw), sin(out.yaw), 0);
 	struct vec y_body = vnormalized(vcross(z_body, x_world));
 	struct vec x_body = vcross(y_body, z_body);

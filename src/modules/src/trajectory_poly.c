@@ -57,6 +57,7 @@ enum TrajectoryCommand_e {
   COMMAND_TAKEOFF = 4,
   COMMAND_LAND    = 5,
   COMMAND_HOVER   = 6,
+  COMMAND_ELLIPSE = 7,
 };
 
 // struct data_reset {
@@ -120,6 +121,8 @@ static struct piecewise_traj* ppBack;
 static struct piecewise_traj pp1;
 static struct piecewise_traj pp2;
 
+static struct ellipse_traj ellipse;
+
 // Private functions
 static void trajectoryTask(void * prm);
 static int trajectoryReset(void);
@@ -171,15 +174,21 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   float t = usecTimestamp() / 1e6; //xTaskGetTickCount() / 1000.0; // TODO not magic number
-  struct traj_eval ev = piecewise_eval(ppFront, t, 0.035); //  TODO mass not magic number
-  pp_eval_to_trajectory_point(&ev, goal);
+  if (state == TRAJECTORY_STATE_ELLIPSE) {
+    struct traj_eval ev = ellipse_traj_eval(&ellipse, t, 0.033);
+    pp_eval_to_trajectory_point(&ev, goal);
+  }
+  else {
+    struct traj_eval ev = piecewise_eval(ppFront, t, 0.035); //  TODO mass not magic number
+    pp_eval_to_trajectory_point(&ev, goal);
 
-  if (piecewise_is_finished(ppFront)) {
-    if (state == TRAJECTORY_STATE_TAKING_OFF) {
-      state = TRAJECTORY_STATE_FLYING;
-    }
-    if (state == TRAJECTORY_STATE_LANDING) {
-      state = TRAJECTORY_STATE_IDLE;
+    if (piecewise_is_finished(ppFront)) {
+      if (state == TRAJECTORY_STATE_TAKING_OFF) {
+        state = TRAJECTORY_STATE_FLYING;
+      }
+      if (state == TRAJECTORY_STATE_LANDING) {
+        state = TRAJECTORY_STATE_IDLE;
+      }
     }
   }
 }
@@ -323,6 +332,17 @@ int trajectoryStart(void)
   //   }
   // }
 
+  return 0;
+}
+
+int ellipseStart(void)
+{
+  // TODO
+  ellipse.center = mkvec(1, 0, 1);
+  ellipse.major = mkvec(-1, 0, 0);
+  ellipse.minor = mkvec(0, 0.5, 0);
+  ellipse.period = 10;
+  state = TRAJECTORY_STATE_ELLIPSE;
   return 0;
 }
 

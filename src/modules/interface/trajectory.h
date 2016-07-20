@@ -56,6 +56,7 @@ typedef enum {
   TRAJECTORY_STATE_FLYING     = 1,
   TRAJECTORY_STATE_TAKING_OFF = 2,
   TRAJECTORY_STATE_LANDING    = 3,
+  TRAJECTORY_STATE_ELLIPSE    = 4,
 } trajectoryState_t;
 
 void trajectoryGetState(trajectoryState_t* state);

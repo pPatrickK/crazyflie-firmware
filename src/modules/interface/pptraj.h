@@ -99,3 +99,16 @@ static inline bool piecewise_is_finished(struct piecewise_traj const *traj)
 {
 	return traj->cursor == traj->n_pieces;
 }
+
+
+// TODO own file?
+struct ellipse_traj
+{
+	struct vec center;
+	struct vec major;
+	struct vec minor;
+	float period;
+	//float phase;
+};
+
+struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float mass);
