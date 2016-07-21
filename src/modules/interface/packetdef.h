@@ -38,24 +38,24 @@
 // ----------------------------------------------------------------------- //
 
 static float const POSITION_LIMIT = 8.0f; // meters
+typedef int16_t posFixed16_t;
 
-static inline int16_t position_float2fix(float x)
+static inline posFixed16_t position_float2fix(float x)
 {
   return (INT16_MAX / POSITION_LIMIT) * x;
 }
 
-static inline float position_fix2float(int16_t x)
+static inline float position_fix2float(posFixed16_t x)
 {
   return (POSITION_LIMIT / INT16_MAX) * ((float)x);
 }
 
-typedef uint16_t fp16_t;
 struct data_vicon {
   struct {
     uint8_t id;
-    int16_t x; // m
-    int16_t y; // m
-    int16_t z; // m
+    posFixed16_t x; // m
+    posFixed16_t y; // m
+    posFixed16_t z; // m
     uint32_t quat; // compressed quat, see quatcompress.h
   } __attribute__((packed)) pose[1];
 } __attribute__((packed));
@@ -68,14 +68,15 @@ struct data_vicon {
 
 // TODO explain where this is used
 enum TrajectoryCommand_e {
-  COMMAND_RESET   = 0,
-  COMMAND_ADD     = 1,
-  COMMAND_START   = 2,
-  //COMMAND_STATE = 3,
-  COMMAND_TAKEOFF = 4,
-  COMMAND_LAND    = 5,
-  COMMAND_HOVER   = 6,
-  COMMAND_ELLIPSE = 7,
+  COMMAND_RESET             = 0,
+  COMMAND_ADD               = 1,
+  COMMAND_START_TRAJECTORY  = 2,
+  COMMAND_TAKEOFF           = 3,
+  COMMAND_LAND              = 4,
+  COMMAND_HOVER             = 5,
+  COMMAND_GOHOME            = 6,
+  COMMAND_SET_ELLIPSE       = 7,
+  COMMAND_START_ELLIPSE     = 8,
 };
 
 // multi-packet piecewise polynomial definition
@@ -110,3 +111,15 @@ struct data_land {
   uint16_t time_from_start; // ms
 } __attribute__((packed));
 
+struct data_set_ellipse {
+  posFixed16_t centerx;
+  posFixed16_t centery;
+  posFixed16_t centerz;
+  posFixed16_t majorx;
+  posFixed16_t majory;
+  posFixed16_t majorz;
+  posFixed16_t minorx;
+  posFixed16_t minory;
+  posFixed16_t minorz;
+  float period;
+} __attribute__((packed));

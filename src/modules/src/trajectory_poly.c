@@ -45,6 +45,7 @@
 #include "pptraj.h"
 #include "packetdef.h"
 #include "usec_time.h"
+#include "log.h"
 
 //#include "console.h"
 //#include "cfassert.h"
@@ -79,6 +80,8 @@ static struct piecewise_traj pp2;
 
 static struct ellipse_traj ellipse;
 
+struct vec home;
+
 // Private functions
 static void trajectoryTask(void * prm);
 static int trajectoryReset(void);
@@ -88,10 +91,19 @@ static int trajectoryStart(void);
 static int trajectoryTakeoff();
 static int trajectoryLand();
 static int trajectoryHover(const struct data_hover* data);
-static int ellipseStart();
+static int startEllipse();
+static int goHome();
+static int setEllipse(const struct data_set_ellipse* data);
 
 // static bool stretched = false;
 
+static struct vec mkvec_position_fix2float(posFixed16_t x, posFixed16_t y, posFixed16_t z)
+{
+  return mkvec(
+    position_fix2float(x),
+    position_fix2float(y),
+    position_fix2float(z));
+}
 
 void trajectoryInit(void)
 {
@@ -202,7 +214,7 @@ void trajectoryTask(void * prm)
       case COMMAND_ADD:
         ret = trajectoryAdd((const struct data_add*)&p.data[1]);
         break;
-      case COMMAND_START:
+      case COMMAND_START_TRAJECTORY:
         // if (!stretched) {
 	       // piecewise_stretchtime(ppBack, 0.75);
         //  stretched = true;
@@ -220,8 +232,14 @@ void trajectoryTask(void * prm)
       case COMMAND_HOVER:
         ret = trajectoryHover((const struct data_hover*)&p.data[1]);
         break;
-      case COMMAND_ELLIPSE:
-        ret = ellipseStart();
+      case COMMAND_START_ELLIPSE:
+        ret = startEllipse();
+        break;
+      case COMMAND_GOHOME:
+        ret = goHome();
+        break;
+      case COMMAND_SET_ELLIPSE:
+        ret = setEllipse((const struct data_set_ellipse*)&p.data[1]);
         break;
       default:
         ret = ENOEXEC;
@@ -310,14 +328,8 @@ int trajectoryStart(void)
   return 0;
 }
 
-int ellipseStart(void)
+int startEllipse(void)
 {
-  // TODO
-  ellipse.center = mkvec(1, 0, 1);
-  ellipse.major = mkvec(-1, 0, 0);
-  ellipse.minor = mkvec(0, 0.5, 0);
-  ellipse.period = 10;
-  ellipse.goal_period = 3;
   ellipse.t_begin = usecTimestamp() / 1e6;
   state = TRAJECTORY_STATE_ELLIPSE;
   return 0;
@@ -364,6 +376,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
   ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_TAKING_OFF;
+  home = mkvec(x, y, data->height);
   // piecewise_stretchtime(ppBack, 2.0);
   trajectoryFlip();
   return 0;
@@ -412,6 +425,34 @@ int trajectoryHover(const struct data_hover* data)
     setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
     hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
+  state = TRAJECTORY_STATE_FLYING;
   trajectoryFlip();
   return 0;
 }
+
+int goHome(void)
+{
+  struct data_hover data;
+  data.x = home.x;
+  data.y = home.y;
+  data.z = home.z;
+  data.yaw = 0;
+  data.duration = 2;
+
+  return trajectoryHover(&data);
+}
+
+int setEllipse(const struct data_set_ellipse* data)
+{
+  ellipse.center = mkvec_position_fix2float(data->centerx, data->centery, data->centerz);
+  ellipse.major = mkvec_position_fix2float(data->majorx, data->majory, data->majorz);
+  ellipse.minor = mkvec_position_fix2float(data->minorx, data->minory, data->minorz);
+  ellipse.period = data->period;
+  ellipse.goal_period = data->period;
+
+  return 0;
+}
+
+LOG_GROUP_START(ellipse)
+LOG_ADD(LOG_FLOAT, period, &ellipse.period)
+LOG_GROUP_STOP(ellipse)
