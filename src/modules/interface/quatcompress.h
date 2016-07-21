@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <math.h>
 
 // 
 // Compress and decompress a quaternion into a 32-bit value.
@@ -6,10 +7,10 @@
 // MIT License.
 //
 
-static uint32_t quatcompress(float const q[4])
+// assumes input quaternion is normalized. will fail if not.
+static inline uint32_t quatcompress(float const q[4])
 {
 	// we send the values of the quaternion's smallest 3 elements.
-	// this minimizes reconstruction error.
 	unsigned i_largest = 0;
 	for (unsigned i = 1; i < 4; ++i) {
 		if (fabs(q[i]) > fabs(q[i_largest])) {
@@ -31,6 +32,7 @@ static uint32_t quatcompress(float const q[4])
 	for (unsigned i = 0; i < 4; ++i) {
 		if (i != i_largest) {
 			unsigned negbit = (q[i] < 0) ^ negate;
+			// TODO rounding?
 			unsigned mag = ((1 << 9) - 1) * (fabs(q[i]) / SMALL_MAX);
 			comp = (comp << 10) | (negbit << 9) | mag;
 		}
@@ -39,7 +41,7 @@ static uint32_t quatcompress(float const q[4])
 	return comp;
 }
 
-static void quatdecompress(uint32_t comp, float q[4])
+static inline void quatdecompress(uint32_t comp, float q[4])
 {
 	float const SMALL_MAX = 0.70710678118;
 	unsigned const mask = (1 << 9) - 1;

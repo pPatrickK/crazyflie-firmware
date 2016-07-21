@@ -37,26 +37,12 @@
 #include "configblock.h"
 #include "log.h"
 #include "math3d.h"
+#include "packetdef.h"
+#include "quatcompress.h"
 
-bool positionExternalFresh = false;
-
-// Private types
-typedef uint16_t fp16_t;
-struct data {
-  struct {
-    uint8_t id;
-    // fp16_t x; // m
-    // fp16_t y; // m
-    // fp16_t z; // m
-    float x;
-    float y;
-    float z;
-    int16_t quat[4]; //Quaternion; TODO: find more compact way to store this
-                      // each component between -1 and 1
-  } __attribute__((packed)) pose[1];
-} __attribute__((packed));
 
 // Global variables
+bool positionExternalFresh = false;
 static bool isInit = false;
 static float lastX;
 static float lastY;
@@ -128,12 +114,9 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
   struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 1; ++i) {
     if (d->pose[i].id == my_id) {
-      // float x = half2single(d->pose[i].x);
-      // float y = half2single(d->pose[i].y);
-      // float z = half2single(d->pose[i].z);
-      float x = d->pose[i].x;
-      float y = d->pose[i].y;
-      float z = d->pose[i].z;
+      float x = position_fix2float(d->pose[i].x);
+      float y = position_fix2float(d->pose[i].y);
+      float z = position_fix2float(d->pose[i].z);
 
       if (lastTime != 0) {
         float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
@@ -142,14 +125,16 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
         v_z = (z - lastZ) / dt;
       }
 
-
       lastX = x;
       lastY = y;
       lastZ = z;
-      lastQ0 = d->pose[i].quat[0] / 32768.0;
-      lastQ1 = d->pose[i].quat[1] / 32768.0;
-      lastQ2 = d->pose[i].quat[2] / 32768.0;
-      lastQ3 = d->pose[i].quat[3] / 32768.0;
+
+      float q[4];
+      quatdecompress(d->pose[i].quat, q);
+      lastQ0 = q[0];
+      lastQ1 = q[1];
+      lastQ2 = q[2];
+      lastQ3 = q[3];
 
       lastRPY = vscl(180 / M_PI, quat2rpy(mkquat(lastQ0, lastQ1, lastQ2, lastQ3)));
 

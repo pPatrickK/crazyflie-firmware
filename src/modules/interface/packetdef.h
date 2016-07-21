@@ -34,23 +34,36 @@
 
 // ----------------------------------------------------------------------- //
 //                            Vicon Positions                              //
+//                       arrive on CRTP_PORT_POSEXT                        //
 // ----------------------------------------------------------------------- //
+
+static float const POSITION_LIMIT = 8.0f; // meters
+
+static inline int16_t position_float2fix(float x)
+{
+  return (INT16_MAX / POSITION_LIMIT) * x;
+}
+
+static inline float position_fix2float(int16_t x)
+{
+  return (POSITION_LIMIT / INT16_MAX) * ((float)x);
+}
 
 typedef uint16_t fp16_t;
 struct data_vicon {
   struct {
     uint8_t id;
-    fp16_t x; // m
-    fp16_t y; // m
-    fp16_t z; // m
-    int16_t quat[4]; //Quaternion; TODO: find more compact way to store this
-                      // each component between -1 and 1
+    int16_t x; // m
+    int16_t y; // m
+    int16_t z; // m
+    uint32_t quat; // compressed quat, see quatcompress.h
   } pose[1];
-};
+} __attribute__((packed));
 
 
 // ----------------------------------------------------------------------- //
 //                              Trajectories                               //
+//                     arrive on CRTP_PORT_TRAJECTORY                      //
 // ----------------------------------------------------------------------- //
 
 // TODO explain where this is used
