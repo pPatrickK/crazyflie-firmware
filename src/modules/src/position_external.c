@@ -36,21 +36,9 @@
 #include "num.h"
 #include "configblock.h"
 #include "log.h"
+#include "packetdef.h"
 
 bool positionExternalFresh = false;
-
-// Private types
-typedef uint16_t fp16_t;
-struct data {
-  struct {
-    uint8_t id;
-    fp16_t x; // m
-    fp16_t y; // m
-    fp16_t z; // m
-    int16_t quat[4]; //Quaternion; TODO: find more compact way to store this
-                      // each component between -1 and 1
-  } pose[1];
-};
 
 // Global variables
 static bool isInit = false;
@@ -120,7 +108,7 @@ void positionExternalGetLastData(
 
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
-  struct data* d = ((struct data*)pk->data);
+  struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 1; ++i) {
     if (d->pose[i].id == my_id) {
       float x = half2single(d->pose[i].x);

@@ -43,57 +43,12 @@
 #include "debug.h"
 #include "position_external.h"
 #include "pptraj.h"
+#include "packetdef.h"
 #include "usec_time.h"
 
 //#include "console.h"
 //#include "cfassert.h"
 
-// Private types
-enum TrajectoryCommand_e {
-  COMMAND_RESET   = 0,
-  COMMAND_ADD     = 1,
-  COMMAND_START   = 2,
-  //COMMAND_STATE = 3,
-  COMMAND_TAKEOFF = 4,
-  COMMAND_LAND    = 5,
-  COMMAND_HOVER   = 6,
-  COMMAND_ELLIPSE = 7,
-};
-
-// struct data_reset {
-// } __attribute__((packed));
-
-
-struct data_add {
-  uint8_t id;
-  uint8_t offset:5;
-  uint8_t size:3;
-  float values[6];
-} __attribute__((packed));
-
-struct data_hover {
-  float x; // m
-  float y; // m
-  float z; // m
-  float yaw; // deg
-  float duration; // sec
-} __attribute__((packed));
-
-/*
-struct data_state {
-  uint8_t state;
-};
-*/
-
-struct data_takeoff {
-  float height; // m (absolute)
-  uint16_t time_from_start; // ms
-} __attribute__((packed));
-
-struct data_land {
-  float height; // m (absolute)
-  uint16_t time_from_start; // ms
-} __attribute__((packed));
 
 // enum state_e {
 //   STATE_IDLE       = 0,
