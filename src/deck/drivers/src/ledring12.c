@@ -571,6 +571,7 @@ static void packetRate(uint8_t buffer[][3], bool reset)
   static int pmstateid;
   int8_t pmstate;
   static int tic = 0;
+  static bool batteryEverLow = false;
 
   // varid = logGetVarId("crtp", "pps");
   varid = logGetVarId("vicon", "dt");
@@ -579,9 +580,12 @@ static void packetRate(uint8_t buffer[][3], bool reset)
 
   pmstateid = logGetVarId("pm", "state");
   pmstate = logGetInt(pmstateid);
+  if (pmstate == lowPower) {
+    batteryEverLow = true;
+  }
 
   for (i = 0; i < NBR_LEDS; i++) {
-    if (pmstate == lowPower && tic < 10) {
+    if (batteryEverLow && tic < 10) {
       buffer[i][0] = 0;
       buffer[i][1] = 0;
       buffer[i][2] = 0;
