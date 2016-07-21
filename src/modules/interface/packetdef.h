@@ -57,7 +57,7 @@ struct data_vicon {
     int16_t y; // m
     int16_t z; // m
     uint32_t quat; // compressed quat, see quatcompress.h
-  } pose[1];
+  } __attribute__((packed)) pose[1];
 } __attribute__((packed));
 
 
