@@ -23,7 +23,7 @@ static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
 // measured constants
 #define VICON_VAR_XY 1.5e-7
 // #define VICON_VAR_Z  1.0e-8
-#define VICON_VAR_Q  4.5e-5
+#define VICON_VAR_Q  4.5e-3
 #define GYRO_VAR_XYZ 0.2e-4
 // #define ACC_VAR_XY   1.5e-5
 // #define ACC_VAR_Z    3.9e-5

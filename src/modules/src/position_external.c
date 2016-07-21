@@ -36,9 +36,25 @@
 #include "num.h"
 #include "configblock.h"
 #include "log.h"
-#include "packetdef.h"
+#include "math3d.h"
 
 bool positionExternalFresh = false;
+
+// Private types
+typedef uint16_t fp16_t;
+struct data {
+  struct {
+    uint8_t id;
+    // fp16_t x; // m
+    // fp16_t y; // m
+    // fp16_t z; // m
+    float x;
+    float y;
+    float z;
+    int16_t quat[4]; //Quaternion; TODO: find more compact way to store this
+                      // each component between -1 and 1
+  } __attribute__((packed)) pose[1];
+} __attribute__((packed));
 
 // Global variables
 static bool isInit = false;
@@ -49,6 +65,7 @@ static float lastQ0;
 static float lastQ1;
 static float lastQ2;
 static float lastQ3;
+static struct vec lastRPY;
 static uint64_t lastTime = 0;
 static uint8_t my_id;
 static float v_x;
@@ -111,9 +128,12 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
   struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 1; ++i) {
     if (d->pose[i].id == my_id) {
-      float x = half2single(d->pose[i].x);
-      float y = half2single(d->pose[i].y);
-      float z = half2single(d->pose[i].z);
+      // float x = half2single(d->pose[i].x);
+      // float y = half2single(d->pose[i].y);
+      // float z = half2single(d->pose[i].z);
+      float x = d->pose[i].x;
+      float y = d->pose[i].y;
+      float z = d->pose[i].z;
 
       if (lastTime != 0) {
         float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
@@ -131,6 +151,8 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       lastQ2 = d->pose[i].quat[2] / 32768.0;
       lastQ3 = d->pose[i].quat[3] / 32768.0;
 
+      lastRPY = vscl(180 / M_PI, quat2rpy(mkquat(lastQ0, lastQ1, lastQ2, lastQ3)));
+
       lastTime = xTaskGetTickCount();
       positionExternalFresh = true;
     }
@@ -142,4 +164,10 @@ LOG_ADD(LOG_FLOAT, v_x, &v_x)
 LOG_ADD(LOG_FLOAT, v_y, &v_y)
 LOG_ADD(LOG_FLOAT, v_z, &v_z)
 LOG_ADD(LOG_INT16, dt, &dt)
+LOG_ADD(LOG_FLOAT, roll, &lastRPY.x)
+LOG_ADD(LOG_FLOAT, pitch, &lastRPY.y)
+LOG_ADD(LOG_FLOAT, yaw, &lastRPY.z)
+LOG_ADD(LOG_FLOAT, x, &lastX)
+LOG_ADD(LOG_FLOAT, y, &lastY)
+LOG_ADD(LOG_FLOAT, z, &lastZ)
 LOG_GROUP_STOP(vicon)
