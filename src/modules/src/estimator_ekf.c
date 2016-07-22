@@ -47,6 +47,7 @@ static void ekf_flip()
 static bool initialized = false;
 static bool first_vicon = false;
 
+
 // TODO change EKF funcs to take struct vec,
 // then make a function that wraps positionExternalBringupGetLastData
 
@@ -107,6 +108,7 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 
 	state->position = ekf2vec(ekf_back->pos);
 	state->velocity = ekf2vec(ekf_back->vel);
+  state->acc = ekf2vec(ekf_back->acc);
 
 	struct vec rpy = quat2rpy(ekf_back->quat);
 	state->attitude.roll = degrees(rpy.x);

@@ -108,6 +108,11 @@ bool stabilizerTest(void)
   return pass;
 }
 
+state_t const *stabilizerState()
+{
+  return &state;
+}
+
 /* The stabilizer loop runs at 1kHz. It is the responsability or the different
  * functions to run slower by skipping call (ie. returning without modifying
  * the output structure).

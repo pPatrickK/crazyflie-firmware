@@ -46,6 +46,7 @@
 #include "packetdef.h"
 #include "usec_time.h"
 #include "log.h"
+#include "stabilizer.h" // to get current state estimate
 
 //#include "console.h"
 //#include "cfassert.h"
@@ -81,6 +82,7 @@ static struct piecewise_traj pp2;
 static struct ellipse_traj ellipse;
 
 struct vec home;
+
 
 // Private functions
 static void trajectoryTask(void * prm);
@@ -156,10 +158,38 @@ static struct traj_eval current_goal()
   }
 }
 
+static struct vec state2vec(struct vec3_s v)
+{
+  return mkvec(v.x, v.y, v.z);
+}
+
 // works in rest of firmware's structs
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   struct traj_eval ev = current_goal();
+
+#ifdef ENABLE_CHASE_MODE
+  state_t const *stateEstimate = stabilizerState();
+  struct vec pos = state2vec(stateEstimate->position);
+
+  if (vdist2(pos, ev.pos) > fsqr(0.1)) {
+    struct vec vel = state2vec(stateEstimate->velocity);
+    struct vec acc = state2vec(stateEstimate->acc);
+    float yaw = radians(stateEstimate->attitude.yaw);
+    float dyaw = stateEstimate->attitudeRate.yaw; // yes, one's degrees other radians!
+
+    static struct piecewise_traj ppChaseMode;
+    float duration = 1.0; // LOL need to try harder to find a good duration
+
+    piecewise_plan_5th_order(&ppChaseMode, duration,
+         pos,    yaw,    vel,       dyaw,    acc,
+      ev.pos, ev.yaw, ev.vel, ev.omega.z, ev.acc);
+
+    // replace trajectory goal with chase-planner goal
+    ev = piecewise_eval(&ppChaseMode, 0, 0.33); // TODO mass
+  }
+#endif
+
   pp_eval_to_trajectory_point(&ev, goal);
 
   if (state == TRAJECTORY_STATE_ELLIPSE) {
@@ -304,6 +334,7 @@ void trajectoryFlip()
 
 int trajectoryStart(void)
 {
+  // TODO use state estimator, not vicon
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
@@ -345,6 +376,7 @@ int startEllipse(void)
 // for takeoff/landing traj, set x, y, and yaw to current position
 static void set_xyyaw_current(struct poly4d *p)
 {
+  // TODO use state estimator, not vicon
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
@@ -358,6 +390,7 @@ int trajectoryTakeoff(const struct data_takeoff* data)
     return 1;
   }
 
+  // TODO use state estimator, not vicon
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
@@ -388,6 +421,7 @@ int trajectoryLand(const struct data_land* data)
     return 1;
   }
 
+  // TODO use state estimator, not vicon
   float x, y, z, q0, q1, q2, q3;
   uint16_t last_time_in_ms;
   positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
