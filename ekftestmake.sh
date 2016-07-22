@@ -1,1 +1,0 @@
-arm-none-eabi-gcc -fconserve-stack -Wstack-usage=150 -Wall -Wextra -pedantic -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wstrict-overflow=5 -Wundef -Wno-variadic-macros -Wno-parentheses -fdiagnostics-show-option -Wno-unused-parameter -std=gnu11 -c -Isrc/modules/interface src/modules/src/ekf.c -lm
