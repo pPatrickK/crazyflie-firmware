@@ -28,10 +28,13 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "stabilizer_types.h"
 
 void stabilizerInit(void);
 
 bool stabilizerTest(void);
+
+state_t const *stabilizerState();
 
 
 #endif /* STABALIZER_H_ */

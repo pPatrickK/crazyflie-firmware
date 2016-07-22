@@ -69,6 +69,14 @@ static inline float vmag2(struct vec v) {
 static inline float vmag(struct vec v) {
 	return sqrt(vmag2(v));
 }
+static inline float vdist2(struct vec a, struct vec b)
+{
+  return vmag2(vsub(a, b));
+}
+static inline float vdist(struct vec a, struct vec b)
+{
+  return sqrt(vdist2(a, b));
+}
 static inline struct vec vnormalized(struct vec v) {
 	return vdiv(v, vmag(v));
 }

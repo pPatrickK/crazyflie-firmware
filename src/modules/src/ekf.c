@@ -176,12 +176,15 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	// compute true acceleration
 	//struct vec const acc_imu = vsub(float2vec(acc), ekf->bias_acc);
 	struct vec const acc_imu = vloadf(acc);
-    struct vec acc_world = qvrot(ekf->quat, acc_imu);
-    acc_world.z -= GRAV;
+  struct vec acc_world = qvrot(ekf->quat, acc_imu);
+  acc_world.z -= GRAV;
 
 	// propagate position + velocity
 	ekf->vel = vadd(ekf_prev->vel, vscl(dt, acc_world));
 	ekf->pos = vadd(ekf_prev->pos, vscl(dt, ekf->vel));
+
+  // provide smoothed acceleration as a convenience for other system components
+  ekf->acc = vadd(vscl(0.7, ekf_prev->acc), vscl(0.3, acc_world));
 
 	//-------------------------- update covariance --------------------------//
 	// TODO should use old quat??
