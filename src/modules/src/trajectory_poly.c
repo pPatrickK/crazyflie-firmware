@@ -107,6 +107,21 @@ static struct vec mkvec_position_fix2float(posFixed16_t x, posFixed16_t y, posFi
     position_fix2float(z));
 }
 
+static struct vec state2vec(struct vec3_s v)
+{
+  return mkvec(v.x, v.y, v.z);
+}
+
+static struct vec statePos()
+{
+	return state2vec(stabilizerState()->position);
+}
+
+static float stateYaw()
+{
+	return radians(stabilizerState()->attitude.yaw);
+}
+
 void trajectoryInit(void)
 {
   if(isInit) {
@@ -120,7 +135,7 @@ void trajectoryInit(void)
   xTaskCreate(trajectoryTask, TRAJECTORY_TASK_NAME,
               TRAJECTORY_TASK_STACKSIZE, NULL, TRAJECTORY_TASK_PRI, NULL);
 
-  initUsecTimer(); // TODO: Move somewhere "central"
+  initUsecTimer();
   isInit = true;
   DEBUG_PRINT("traj. initialized.\n");
 }
@@ -156,11 +171,6 @@ static struct traj_eval current_goal()
   else {
     return piecewise_eval(ppFront, t, 0.033); //  TODO mass not magic number
   }
-}
-
-static struct vec state2vec(struct vec3_s v)
-{
-  return mkvec(v.x, v.y, v.z);
 }
 
 // works in rest of firmware's structs
@@ -334,13 +344,8 @@ void trajectoryFlip()
 
 int trajectoryStart(void)
 {
-  // TODO use state estimator, not vicon
-  float x, y, z, q0, q1, q2, q3;
-  uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-
   struct traj_eval traj_init = poly4d_eval(&ppBack->pieces[0], 0, 0.035); // TODO mass param
-  struct vec shift_pos = vsub(mkvec(x, y, z), traj_init.pos);
+  struct vec shift_pos = vsub(statePos(), traj_init.pos);
   piecewise_shift_vec(ppBack, shift_pos, 0);
 
   trajectoryFlip();
@@ -372,44 +377,28 @@ int startEllipse(void)
 //   return 0;
 // }
 
-
-// for takeoff/landing traj, set x, y, and yaw to current position
-static void set_xyyaw_current(struct poly4d *p)
-{
-  // TODO use state estimator, not vicon
-  float x, y, z, q0, q1, q2, q3;
-  uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
-  poly4d_shift(p, x, y, 0, yaw);
-}
-
 int trajectoryTakeoff(const struct data_takeoff* data)
 {
   if (state != TRAJECTORY_STATE_IDLE) {
     return 1;
   }
 
-  // TODO use state estimator, not vicon
-  float x, y, z, q0, q1, q2, q3;
-  uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
-
-  float delta_z = data->height - z;
+  struct vec pos = statePos();
+  float yaw = stateYaw();
+  float delta_z = data->height - pos.z;
   float duration = data->time_from_start / 1000.0;
 
   struct poly4d p = poly4d_takeoff;
   poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
   poly4d_scale(&p, 1, 1, delta_z, 1);
-  poly4d_shift(&p, x, y, z, 0);
+  poly4d_shift_vec(&p, pos, 0);
   poly_linear(p.p[3], duration, yaw, 0);
 
   ppBack->pieces[0] = p;
   ppBack->n_pieces = 1;
 
   state = TRAJECTORY_STATE_TAKING_OFF;
-  home = mkvec(x, y, data->height);
+  home = mkvec(pos.x, pos.y, data->height);
   // piecewise_stretchtime(ppBack, 2.0);
   trajectoryFlip();
   return 0;
@@ -421,19 +410,15 @@ int trajectoryLand(const struct data_land* data)
     return 1;
   }
 
-  // TODO use state estimator, not vicon
-  float x, y, z, q0, q1, q2, q3;
-  uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
-  float yaw = quat2rpy(mkquat(q0, q1, q2, q3)).z;
-
-  float delta_z = data->height - z;
+  struct vec pos = statePos();
+  float yaw = stateYaw();
+  float delta_z = data->height - pos.z;
   float duration = data->time_from_start / 1000.0;
 
   struct poly4d p = poly4d_takeoff;
   poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
   poly4d_scale(&p, 1, 1, delta_z, 1);
-  poly4d_shift(&p, x, y, z, 0);
+  poly4d_shift_vec(&p, pos, 0);
   poly_linear(p.p[3], duration, yaw, 0);
 
   ppBack->pieces[0] = p;

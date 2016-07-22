@@ -70,6 +70,9 @@ extern struct poly4d poly4d_takeoff;
 
 // useful for shifting the takeoff/land trajectories
 void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw);
+static inline void poly4d_shift_vec(struct poly4d *p, struct vec pos, float yaw) {
+	poly4d_shift(p, pos.x, pos.y, pos.z, yaw);
+}
 void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw);
 // e.g. if s==2 the new polynomial will be stretched to take 2x longer
 void poly4d_stretchtime(struct poly4d *p, float s);
