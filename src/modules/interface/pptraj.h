@@ -108,6 +108,9 @@ void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,
 	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
 	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1);
 
+void piecewise_plan_7th_order_no_jerk(struct piecewise_traj *pp, float duration,
+	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
+	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1);
 
 // TODO own file?
 struct ellipse_traj
