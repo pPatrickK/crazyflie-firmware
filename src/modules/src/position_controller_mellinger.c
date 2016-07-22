@@ -38,9 +38,8 @@
 
 #define DT 0.01
 
-
-static const float g = 9.81;
-static const float mass = 0.030;
+// HACK HACK HACK global for others to use
+float g_vehicleMass = 0.033;
 
 static float kp_xy = 0.2;
 static float kd_xy = 0.1;
@@ -147,9 +146,9 @@ void positionControllerMellinger(
 
   // Desired thrust (ignoring target accellerations) [F_des]
   if (setpoint->enablePosCtrl) {
-    target_thrust.x = kp_xy * r_error.x + kd_xy * v_error.x + mass * 0 + ki_xy * i_error_x;
-    target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + mass * 0 + ki_xy * i_error_y;
-    target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + mass * g + ki_z  * i_error_z;
+    target_thrust.x = kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
+    target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
+    target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z + g_vehicleMass * GRAV;
   } else {
     target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);
     target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);
@@ -289,7 +288,7 @@ PARAM_ADD(PARAM_FLOAT, kp_z, &kp_z)
 PARAM_ADD(PARAM_FLOAT, kd_z, &kd_z)
 PARAM_ADD(PARAM_FLOAT, ki_z, &ki_z)
 PARAM_ADD(PARAM_FLOAT, i_range_z, &i_range_z)
-PARAM_ADD(PARAM_FLOAT, mass, &mass)
+PARAM_ADD(PARAM_FLOAT, mass, &g_vehicleMass)
 PARAM_ADD(PARAM_FLOAT, massThrust, &massThrust)
 PARAM_ADD(PARAM_FLOAT, kR_xy, &kR_xy)
 PARAM_ADD(PARAM_FLOAT, kR_z, &kR_z)

@@ -99,6 +99,9 @@ static int setEllipse(const struct data_set_ellipse* data);
 
 // static bool stretched = false;
 
+// hack using global
+extern float g_vehicleMass;
+
 static struct vec mkvec_position_fix2float(posFixed16_t x, posFixed16_t y, posFixed16_t z)
 {
   return mkvec(
@@ -166,10 +169,10 @@ static struct traj_eval current_goal()
     if (ellipse.period > ellipse.goal_period) {
       ellipse.period -= 0.001;
     }
-    return ellipse_traj_eval(&ellipse, t, 0.033);
+    return ellipse_traj_eval(&ellipse, t, g_vehicleMass);
   }
   else {
-    return piecewise_eval(ppFront, t, 0.033); //  TODO mass not magic number
+    return piecewise_eval(ppFront, t, g_vehicleMass);
   }
 }
 
@@ -196,7 +199,7 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
       ev.pos, ev.yaw, ev.vel, ev.omega.z, ev.acc);
 
     // replace trajectory goal with chase-planner goal
-    ev = piecewise_eval(&ppChaseMode, 0, 0.33); // TODO mass
+    ev = piecewise_eval(&ppChaseMode, 0, g_vehicleMass);
   }
 #endif
 
@@ -344,7 +347,7 @@ void trajectoryFlip()
 
 int trajectoryStart(void)
 {
-  struct traj_eval traj_init = poly4d_eval(&ppBack->pieces[0], 0, 0.035); // TODO mass param
+  struct traj_eval traj_init = poly4d_eval(&ppBack->pieces[0], 0, g_vehicleMass);
   struct vec shift_pos = vsub(statePos(), traj_init.pos);
   piecewise_shift_vec(ppBack, shift_pos, 0);
 
