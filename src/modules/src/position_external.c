@@ -112,7 +112,7 @@ void positionExternalGetLastData(
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
   struct data_vicon* d = ((struct data_vicon*)pk->data);
-  for (int i=0; i < 1; ++i) {
+  for (int i=0; i < 2; ++i) {
     if (d->pose[i].id == my_id) {
       float x = position_fix2float(d->pose[i].x);
       float y = position_fix2float(d->pose[i].y);
