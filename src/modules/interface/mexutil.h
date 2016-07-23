@@ -14,9 +14,9 @@
 
 #define mxPrintVec(VAR) MEXUTIL_PRINTF("%s: (%f, %f, %f)\n", #VAR, (VAR).x, (VAR).y, (VAR).z);
 
+#ifdef MATLAB_MEX_FILE
 static void checknan(char const *name, float const *f, int n)
 {
-#ifdef MATLAB_MEX_FILE
 	char errbuf[ERRLEN];
 	for (int i = 0; i < n; ++i) {
 		if (!isfinite(f[i]) && (f[i] == f[i])) {
@@ -30,8 +30,10 @@ static void checknan(char const *name, float const *f, int n)
 			return;
 		}
 	}
-#endif
 }
+#else
+#define checknan(a, b, c)
+#endif
 
 /* currently unused
 static void checksym(char const *name, float const *f, int n)

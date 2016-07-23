@@ -5,20 +5,25 @@
 #include "ekf.h"
 #include "mexutil.h"
 
-// TEMP profiling
-#include "log.h"
-#include "usec_time.h"
 
 static int usec_setup;
 static int usec_innov;
 static int usec_gain;
 static int usec_corr;
 static int usec_cov;
+
+// TEMP profiling
+#ifndef CMOCK
+#include "log.h"
+#include "usec_time.h"
 static uint64_t tic_storage;
 static void tic() { tic_storage = usecTimestamp(); }
 static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
-
-
+#else
+static void tic() {}
+static int toc() { return 0; }
+void initUsecTimer() {}
+#endif
 
 // measured constants
 #define VICON_VAR_XY 1.5e-7
@@ -312,111 +317,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 }
 
 
-#ifdef EKFTEST
-
-#include <assert.h>
-#include <stdio.h>
-#include <float.h>
-
-bool close(float a, float b, float tol) { return fabs(a - b) < tol; }
-bool vclose(struct vec a, struct vec b, float tol)
-{
-	return close(a.x, b.x, tol) && close(a.y, b.y, tol) && close(a.z, b.z, tol);
-}
-bool qclose(struct quat a, struct quat b, float tol)
-{
-	return vclose(a.v, b.v, tol) && close(a.w, b.w, tol);
-}
-
-void vprintln(char const *name, struct vec v)
-{
-	printf("%s = (%f, %f, %f)\n", name, v.x, v.y, v.z);
-}
-void qprintln(char const *name, struct quat q)
-{
-	printf("%s = (%f, %f, %f | %f)\n", name, q.v.x, q.v.y, q.v.z, q.w);
-}
-
-int main()
-{
-	// math tests
-	{	// zero gyro -> no rotation
-		struct quat q = qeye();
-		struct quat q1 = quat_gyro_update(q, vzero(), 0.1);
-		assert(qclose(q, q1, FLT_MIN));
-
-		q = qaxisangle(mkvec(100,-2,3), 0.15);
-		struct quat qi = qinv(q);
-		struct quat qiq = qqmul(qi, q);
-		assert(qclose(qiq, qeye(), 0.000001));
-	}
-
-	{ // full circle pitch - the very fine dt is needed for exactness
-		struct quat q = qeye();
-		int N = 100000;
-		struct vec rpy = mkvec(0, 2 * M_PI / N, 0);
-		for (int i = 0; i < N; ++i) {
-			q = quat_gyro_update(q, rpy, 1.0 / N);
-		}
-		assert(qclose(q, qeye(), 0.0001)); // loose tolerance for dumb euler integration
-	}
-
-	{
-		struct vec x = mkvec(1, 0, 0);
-		struct vec y = mkvec(0, 1, 0);
-		struct vec z = mkvec(0, 0, 1);
-		struct vec rx;
-		rx = qvrot(qaxisangle(z, radians(90)), x);
-		assert(vclose(rx, y, 0.000001));
-		rx = qvrot(qaxisangle(z, radians(180)), x);
-		assert(vclose(rx, vneg(x), 0.000001));
-		rx = qvrot(qaxisangle(z, radians(90)), y);
-		assert(vclose(rx, vneg(x), 0.000001));
-
-		struct vec v_arbitrary = mkvec(1, 2, -1.2);
-		struct quat q_arbitrary = qaxisangle(v_arbitrary, radians(36));
-		rx = x;
-		for (int i = 0; i < 10; ++i) {
-			rx = qvrot(q_arbitrary, rx);
-		}
-		assert(vclose(rx, x, 0.000001));
-	}
-
-	// system tests
-	struct ekf a, b;
-	struct ekf *front = &a, *back = &b;
-	//back->acc_var = 0.0;
-	//back->gyro_var = 0.0;
-	//back->bias_acc_var = 0.0;
-	//back->bias_gyro_var = 0.0;
-
-	// acceleration only
-	float zeros[4] = {0, 0, 0, 0};
-	struct quat q = qeye();
-	ekf_init(back,  zeros, zeros, (float *)&q);
-	ekf_init(front, zeros, zeros, (float *)&q);
-	float dt = 1.0 / 100.0;
-	float acc[3] = {0, 0, 1 + GRAV};
-	float gyro[3] = {0, 0, 0};
-	for (int i = 0; i < 100; ++i) {
-		ekf_imu(back, front, acc, gyro, dt);
-		struct ekf *tmp = front; front = back; back = tmp; // swap
-	}
-	assert(vclose(back->vel, mkvec(0, 0, 1), 0.000001));
-
-	float vicon_pos[] = {0, 0, 0};
-	float vicon_quat[] = {0, 0, 0, 1};
-	ekf_vicon(back, front, vicon_pos, vicon_quat);
-
-	puts("All tests passed.");
-
-	printf("sizeof vec: %lu\n", sizeof(struct vec));
-	printf("sizeof quat: %lu\n", sizeof(struct quat));
-	printf("sizeof mat33: %lu\n", sizeof(struct mat33));
-}
-#endif // EKFTEST
-
-// TODO: write more tests
+#ifndef CMOCK
 LOG_GROUP_START(ekfprof)
 LOG_ADD(LOG_UINT32, usec_setup, &usec_setup)
 LOG_ADD(LOG_UINT32, usec_innov, &usec_innov)
@@ -424,3 +325,4 @@ LOG_ADD(LOG_UINT32, usec_gain, &usec_gain)
 LOG_ADD(LOG_UINT32, usec_corr, &usec_corr)
 LOG_ADD(LOG_UINT32, usec_cov, &usec_cov)
 LOG_GROUP_STOP(ekfprof)
+#endif

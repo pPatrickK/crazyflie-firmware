@@ -76,7 +76,7 @@
 #define IMU_NBR_OF_BIAS_SAMPLES  1024
 
 // Variance threshold to take zero bias for gyro
-#define GYRO_VARIANCE_BASE        2000
+#define GYRO_VARIANCE_BASE        3000
 #define GYRO_VARIANCE_THRESHOLD_X (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Y (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Z (GYRO_VARIANCE_BASE)
@@ -515,7 +515,10 @@ static bool imuFindBiasValue(BiasObj* bias)
       bias->bias.z = mean.z;
       foundBias = true;
       bias->isBiasValueFound = true;
-    }
+    } 
+    //else {
+    //  DEBUG_PRINT("Var: %d,%d,%d", (int)variance.x, (int)variance.y, (int)variance.z);
+    //}
   }
 
   return foundBias;

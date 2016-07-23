@@ -70,6 +70,9 @@ extern struct poly4d poly4d_takeoff;
 
 // useful for shifting the takeoff/land trajectories
 void poly4d_shift(struct poly4d *p, float x, float y, float z, float yaw);
+static inline void poly4d_shift_vec(struct poly4d *p, struct vec pos, float yaw) {
+	poly4d_shift(p, pos.x, pos.y, pos.z, yaw);
+}
 void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw);
 // e.g. if s==2 the new polynomial will be stretched to take 2x longer
 void poly4d_stretchtime(struct poly4d *p, float s);
@@ -105,6 +108,9 @@ void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,
 	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
 	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1);
 
+void piecewise_plan_7th_order_no_jerk(struct piecewise_traj *pp, float duration,
+	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
+	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1);
 
 // TODO own file?
 struct ellipse_traj

@@ -218,6 +218,29 @@ static void poly5(float poly[PP_SIZE], float T,
 	}
 };
 
+static void poly7_nojerk(float poly[PP_SIZE], float T,
+	float x0, float dx0, float ddx0,
+	float xf, float dxf, float ddxf)
+{
+	float T2 = T * T;
+	float T3 = T2 * T;
+	float T4 = T3 * T;
+	float T5 = T4 * T;
+	float T6 = T5 * T;
+	float T7 = T6 * T;
+	poly[0] = x0;
+	poly[1] = dx0;
+	poly[2] = ddx0/2;
+	poly[3] = 0;
+	poly[4] = -(5*(14*x0 - 14*xf + 8*T*dx0 + 6*T*dxf + 2*T2*ddx0 - T2*ddxf))/(2*T4);
+	poly[5] = (84*x0 - 84*xf + 45*T*dx0 + 39*T*dxf + 10*T2*ddx0 - 7*T2*ddxf)/T5;
+	poly[6] = -(140*x0 - 140*xf + 72*T*dx0 + 68*T*dxf + 15*T2*ddx0 - 13*T2*ddxf)/(2*T6);
+	poly[7] = (2*(10*x0 - 10*xf + 5*T*dx0 + 5*T*dxf + T2*ddx0 - T2*ddxf))/T7;
+	for (int i = 8; i < PP_SIZE; ++i) {
+		poly[i] = 0;
+	}
+}
+
 // y, dy == yaw, derivative of yaw
 void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,
 	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
@@ -231,3 +254,18 @@ void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,
 	poly5(p->p[2], duration, p0.z, v0.z, a0.z, p1.z, v1.z, a1.z);
 	poly5(p->p[3], duration, y0, dy0, 0, y1, dy1, 0);
 }
+
+// y, dy == yaw, derivative of yaw
+void piecewise_plan_7th_order_no_jerk(struct piecewise_traj *pp, float duration,
+	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
+	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1)
+{
+	pp->n_pieces = 1;
+	struct poly4d *p = &pp->pieces[0];
+	p->duration = duration;
+	poly7_nojerk(p->p[0], duration, p0.x, v0.x, a0.x, p1.x, v1.x, a1.x);
+	poly7_nojerk(p->p[1], duration, p0.y, v0.y, a0.y, p1.y, v1.y, a1.y);
+	poly7_nojerk(p->p[2], duration, p0.z, v0.z, a0.z, p1.z, v1.z, a1.z);
+	poly7_nojerk(p->p[3], duration, y0, dy0, 0, y1, dy1, 0);
+}
+
