@@ -335,6 +335,14 @@ static inline struct quat qaxisangle(struct vec axis, float angle) {
 	q.w = cos(angle/2);
 	return q;
 }
+static inline struct vec quataxis(struct quat q) {
+	// TODO this is not numerically stable for tiny rotations
+	float s = 1.0f / sqrtf(1 - q.w * q.w);
+	return vscl(s, q.v);
+}
+static inline float quatangle(struct quat q) {
+	return 2 * acos(q.w);
+}
 static inline struct quat qrpy_small(struct vec rpy) {
 	float q2 = vmag2(rpy) / 4.0f;
 	if (q2 < 1) {
