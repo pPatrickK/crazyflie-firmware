@@ -175,7 +175,11 @@ struct traj_eval piecewise_eval(struct piecewise_traj *traj, float t, float mass
 	}
 	// if we get here, the trajectory has ended
 	struct poly4d const *end_piece = &(traj->pieces[traj->n_pieces - 1]);
-	return poly4d_eval(end_piece, end_piece->duration, mass);
+	struct traj_eval ev = poly4d_eval(end_piece, end_piece->duration, mass);
+	ev.vel = vzero();
+	ev.acc = vzero();
+	ev.omega = vzero();
+	return ev;
 }
 
 void piecewise_shift(struct piecewise_traj *pp, float x, float y, float z, float yaw)
