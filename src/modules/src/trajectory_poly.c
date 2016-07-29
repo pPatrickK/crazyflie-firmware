@@ -96,6 +96,7 @@ static int trajectoryHover(const struct data_hover* data);
 static int startEllipse();
 static int goHome();
 static int setEllipse(const struct data_set_ellipse* data);
+static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
 
 // static bool stretched = false;
 
@@ -285,6 +286,9 @@ void trajectoryTask(void * prm)
       case COMMAND_SET_ELLIPSE:
         ret = setEllipse((const struct data_set_ellipse*)&p.data[1]);
         break;
+      case COMMAND_START_CANNED_TRAJECTORY:
+        ret = startCannedTrajectory((const struct data_start_canned_trajectory*)&p.data[1]);
+        break;
       default:
         ret = ENOEXEC;
         break;
@@ -450,6 +454,10 @@ int trajectoryHover(const struct data_hover* data)
     setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
     hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
+  // piecewise_plan_7th_order_no_jerk(ppBack, data->duration,
+  //   setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
+  //   hover_pos,    hover_yaw,    vzero(),      0,                vzero());
+
   state = TRAJECTORY_STATE_FLYING;
   trajectoryFlip();
   return 0;
@@ -473,6 +481,27 @@ int setEllipse(const struct data_set_ellipse* data)
   ellipse.major = mkvec_position_fix2float(data->majorx, data->majory, data->majorz);
   ellipse.minor = mkvec_position_fix2float(data->minorx, data->minory, data->minorz);
   ellipse.period = data->period;
+
+  return 0;
+}
+
+int startCannedTrajectory(const struct data_start_canned_trajectory* data)
+{
+  enum trajectory_type type = data->trajectory;
+  switch (type) {
+  case TRAJECTORY_FIGURE8:
+    *ppBack = pp_figure8;
+    break;
+  default:
+    return 1;
+  }
+
+  struct traj_eval traj_init = poly4d_eval(&ppBack->pieces[0], 0, g_vehicleMass);
+  struct vec shift_pos = vsub(statePos(), traj_init.pos);
+  piecewise_shift_vec(ppBack, shift_pos, 0);
+  piecewise_stretchtime(ppBack, data->timescale);
+
+  trajectoryFlip();
 
   return 0;
 }

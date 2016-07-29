@@ -68,15 +68,16 @@ struct data_vicon {
 
 // TODO explain where this is used
 enum TrajectoryCommand_e {
-  COMMAND_RESET             = 0,
-  COMMAND_ADD               = 1,
-  COMMAND_START_TRAJECTORY  = 2,
-  COMMAND_TAKEOFF           = 3,
-  COMMAND_LAND              = 4,
-  COMMAND_HOVER             = 5,
-  COMMAND_GOHOME            = 6,
-  COMMAND_SET_ELLIPSE       = 7,
-  COMMAND_START_ELLIPSE     = 8,
+  COMMAND_RESET                   = 0,
+  COMMAND_ADD                     = 1,
+  COMMAND_START_TRAJECTORY        = 2,
+  COMMAND_TAKEOFF                 = 3,
+  COMMAND_LAND                    = 4,
+  COMMAND_HOVER                   = 5,
+  COMMAND_GOHOME                  = 6,
+  COMMAND_SET_ELLIPSE             = 7,
+  COMMAND_START_ELLIPSE           = 8,
+  COMMAND_START_CANNED_TRAJECTORY = 9,
 };
 
 // multi-packet piecewise polynomial definition
@@ -122,4 +123,13 @@ struct data_set_ellipse {
   posFixed16_t minory;
   posFixed16_t minorz;
   float period;
+} __attribute__((packed));
+
+enum trajectory_type {
+  TRAJECTORY_FIGURE8 = 0,
+};
+
+struct data_start_canned_trajectory {
+  uint16_t trajectory; // one of trajectory_type
+  float timescale;
 } __attribute__((packed));
