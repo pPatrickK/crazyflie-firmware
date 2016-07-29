@@ -18,11 +18,10 @@ static float abserr(struct quat q)
 	float f[4];
 	qstoref(q, f);
 	uint32_t comp = quatcompress(f);
-
 	float ff[4];
 	quatdecompress(comp, ff);
 	struct quat qq = qloadf(ff);
-	struct quat diff = qnormalized(qqmul(qinv(q), qq));
+	struct quat diff = qnormalize(qqmul(qinv(q), qq));
 	float angle = quatangle(diff);
 	if (angle > M_PI) {
 		angle = angle - 2 * M_PI;

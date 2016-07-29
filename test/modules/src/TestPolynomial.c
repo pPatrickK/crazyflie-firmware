@@ -1,8 +1,69 @@
 #include "unity.h"
 #include "num.h"
 #include "pptraj.h"
+#include <stdlib.h>
+
+//
+// Utilities
+//
+
+static inline float rand01()
+{
+	return rand() / ((float)RAND_MAX);
+}
+
+static inline float randu(float min, float max)
+{
+	return min + rand01() * (max - min);
+}
+
+static inline struct vec vecrandu(float min, float max)
+{
+	return mkvec(randu(min, max), randu(min, max), randu(min, max));
+}
+
+static struct traj_eval random_traj_point()
+{
+	struct traj_eval ev;
+	ev.pos = vecrandu(-10, 10);
+	ev.vel = vecrandu(-10, 10);
+	ev.acc = vecrandu(-10, 10);
+	ev.omega = vecrandu(-10, 10);
+	ev.yaw = randu(-M_PI, M_PI);
+	return ev;
+}
+
+static bool traj_close(struct traj_eval a, struct traj_eval b)
+{
+	return vleq(vabs(vsub(a.pos, b.pos)), vrepeat(0.001))
+	    && vleq(vabs(vsub(a.vel, b.vel)), vrepeat(0.001))
+	    && vleq(vabs(vsub(a.acc, b.acc)), vrepeat(0.001))
+	    && fabs(a.yaw - b.yaw) < 0.001;
+}
+
+void print_traj_pt(char const *name, struct traj_eval ev)
+{
+	printf(
+	"%s:\n"
+	"\tpos = %f, %f, %f\n"
+	"\tvel = %f, %f, %f\n"
+	"\tacc = %f, %f, %f\n"
+	"\tomega = %f, %f, %f\n"
+	"\tyaw = %f\n\n",
+	name,
+	ev.pos.x, ev.pos.y, ev.pos.z,
+	ev.vel.x, ev.vel.y, ev.vel.z,
+	ev.acc.x, ev.acc.y, ev.acc.z,
+	ev.omega.x, ev.omega.y, ev.omega.z,
+	ev.yaw);
+}
 
 static float const TOL = 0.0000001;
+
+#define TEST_ASSERT_VEC_WITHIN(tol, a, b) \
+	TEST_ASSERT_FLOAT_WITHIN(tol, a.x, b.x); \
+	TEST_ASSERT_FLOAT_WITHIN(tol, a.y, b.y); \
+	TEST_ASSERT_FLOAT_WITHIN(tol, a.z, b.z);
 
 void testTimestretchPiecewiseLinear() 
 {
@@ -59,8 +120,39 @@ void testTimestretchTakeoff()
 	for (float t = 0; t <= poly4d_takeoff.duration; t += 0.125) {
 		struct vec ev = poly4d_eval(&poly4d_takeoff, t, 1).pos;
 		struct vec ev_stretch = poly4d_eval(&takeoff_stretched, 2*t, 1).pos;
-		TEST_ASSERT_FLOAT_WITHIN(TOL, ev.x, ev_stretch.x);
-		TEST_ASSERT_FLOAT_WITHIN(TOL, ev.y, ev_stretch.y);
-		TEST_ASSERT_FLOAT_WITHIN(TOL, ev.z, ev_stretch.z);
+		TEST_ASSERT_VEC_WITHIN(TOL, ev, ev_stretch);
 	}
 }
+
+void testPlan5thOrder()
+{
+	struct piecewise_traj pp;
+	srand(100); // deterministic
+	int TRIALS = 10000;
+	for (int i = 0; i < TRIALS; ++i) {
+		struct traj_eval p0 = random_traj_point();
+		struct traj_eval p1 = random_traj_point();
+		// since random traj points can be quite far apart,
+		// need to use only fairly long durations
+		float duration = randu(1, 5);
+
+		piecewise_plan_5th_order(&pp, duration,
+			p0.pos, p0.yaw, p0.vel, p0.omega.z, p0.acc,
+			p1.pos, p1.yaw, p1.vel, p1.omega.z, p1.acc);
+
+		struct traj_eval t0 = piecewise_eval(&pp, 0, 0.03);
+		struct traj_eval t1 = piecewise_eval(&pp, duration, 0.03);
+		if (!traj_close(p0, t0)) {
+			print_traj_pt("p0", p0);
+			print_traj_pt("t0", t0);
+			TEST_ASSERT(traj_close(p0, t0));
+		}
+		if (!traj_close(p1, t1)) {
+			print_traj_pt("p1", p1);
+			print_traj_pt("t1", t1);
+			TEST_ASSERT(traj_close(p1, t1));
+		}
+	}
+}
+
+// TODO work on 7th-order planning - right now errors are kind of large

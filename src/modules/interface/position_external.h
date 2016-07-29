@@ -26,6 +26,8 @@
 #ifndef POSITION_EXTERNAL_H_
 #define POSITION_EXTERNAL_H_
 
+#include <stdint.h>
+
 void positionExternalInit(void);
 bool positionExternalTest(void);
 

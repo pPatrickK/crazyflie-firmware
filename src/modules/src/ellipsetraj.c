@@ -1,5 +1,6 @@
 #include <math.h>
 #include "math3d.h"
+#include "mathconstants.h"
 
 // TEMP HACK - factor out common trajectory stuff?
 // or mush everything together into e.g. analytictraj.c?
@@ -33,9 +34,9 @@ struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float 
 	struct vec thrust = vadd(out.acc, mkvec(0, 0, GRAV));
 	float thrust_mag = mass * vmag(thrust);
 
-	struct vec z_body = vnormalized(thrust);
+	struct vec z_body = vnormalize(thrust);
 	struct vec x_world = mkvec(cos(out.yaw), sin(out.yaw), 0);
-	struct vec y_body = vnormalized(vcross(z_body, x_world));
+	struct vec y_body = vnormalize(vcross(z_body, x_world));
 	struct vec x_body = vcross(y_body, z_body);
 
 	struct vec jerk_orth_zbody = vorthunit(jerk, z_body);

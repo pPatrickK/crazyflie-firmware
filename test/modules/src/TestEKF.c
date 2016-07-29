@@ -1,4 +1,5 @@
 #include "ekf.h"
+#include "mathconstants.h"
 #include "unity.h"
 
 #include <float.h>
@@ -10,7 +11,8 @@ bool vclose(struct vec a, struct vec b, float tol)
 }
 bool qclose(struct quat a, struct quat b, float tol)
 {
-	return vclose(a.v, b.v, tol) && close(a.w, b.w, tol);
+	return close(a.x, b.x, tol) && close(a.y, b.y, tol) && 
+	       close(a.z, b.z, tol) && close(a.w, b.w, tol);
 }
 
 void testQuat()

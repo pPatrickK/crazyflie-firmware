@@ -29,8 +29,9 @@
  */
 
 #include "ekf.h"
-#include "stabilizer_types.h"
+#include "mathconstants.h"
 #include "position_external.h"
+#include "stabilizer_types.h"
 
 
 // EKF implementation uses double-buffered approach

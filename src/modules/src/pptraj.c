@@ -28,6 +28,7 @@
  */
 
 #include "pptraj.h"
+#include "mathconstants.h"
 
 // polynomials are stored with ascending degree
 
@@ -167,9 +168,9 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 	struct vec thrust = vadd(out.acc, mkvec(0, 0, GRAV));
 	float thrust_mag = mass * vmag(thrust);
 
-	struct vec z_body = vnormalized(thrust);
+	struct vec z_body = vnormalize(thrust);
 	struct vec x_world = mkvec(cos(out.yaw), sin(out.yaw), 0);
-	struct vec y_body = vnormalized(vcross(z_body, x_world));
+	struct vec y_body = vnormalize(vcross(z_body, x_world));
 	struct vec x_body = vcross(y_body, z_body);
 
 	struct vec jerk_orth_zbody = vorthunit(jerk, z_body);

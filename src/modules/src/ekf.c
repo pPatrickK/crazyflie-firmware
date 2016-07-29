@@ -3,6 +3,7 @@
 
 #include "cholsl.h"
 #include "ekf.h"
+#include "ekfmath.h"
 #include "mexutil.h"
 
 
@@ -41,7 +42,7 @@ void initUsecTimer() {}
 void set_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &m[row][col];
-	set_block33(blockptr, EKF_N, block);
+	set_block33_rowmaj(blockptr, EKF_N, block);
 }
 
 void mult_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *a, struct mat33 const *b)
@@ -60,13 +61,13 @@ void mult_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const 
 void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &h[row][col];
-	set_block33(blockptr, EKF_N, block);
+	set_block33_rowmaj(blockptr, EKF_N, block);
 }
 
 static void set_G_block33(float G[EKF_N][EKF_DISTURBANCE], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &G[row][col];
-	set_block33(blockptr, EKF_DISTURBANCE, block);
+	set_block33_rowmaj(blockptr, EKF_DISTURBANCE, block);
 }
 
 // -------------------------- EKF implementation -----------------------------
@@ -90,11 +91,11 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 	//float const dt_p5_120 = dt_p4_24 * dt * 0.2;
 
 	struct mat33 C_eq = quat2rotmat(q);
-	struct mat33 w_sk = crossmat(omega);
-	struct mat33 a_sk = crossmat(acc);
+	struct mat33 w_sk = mcrossmat(omega);
+	struct mat33 a_sk = mcrossmat(acc);
 	// TEMP DEBUG
 	//struct vec acc_nograv = vsub(acc, qvrot(q, mkvec(0,0,GRAV)));
-	//struct mat33 const a_sk = crossmat(acc_nograv);
+	//struct mat33 const a_sk = mcrossmat(acc_nograv);
 
 	// TODO S.Weiss doesn't subtract gravity from the accelerations here, is that right?
 	struct mat33 Ca3;
@@ -176,7 +177,7 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	// TODO only normalize every N steps to save computation?
 	//struct vec const omega = vsub(vloadf(gyro), ekf->bias_gyro);
 	struct vec const omega = vloadf(gyro);
-	ekf->quat = qnormalized(quat_gyro_update(ekf_prev->quat, omega, dt));
+	ekf->quat = qnormalize(quat_gyro_update(ekf_prev->quat, omega, dt));
 
 	// compute true acceleration
 	//struct vec const acc_imu = vsub(float2vec(acc), ekf->bias_acc);
@@ -215,7 +216,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	struct quat const q_vicon = qloadf(quat_vicon);
 
 	struct quat const q_residual = qqmul(qinv(old->quat), q_vicon);
-	struct vec const err_quat = vscl(2.0f / q_residual.w, q_residual.v);
+	struct vec const err_quat = vscl(2.0f / q_residual.w, quatimagpart(q_residual));
 	struct vec const err_pos = vsub(p_vicon, old->pos);
 
 	float residual[EKF_M];
@@ -281,8 +282,8 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 	new->pos = vadd(old->pos, vloadf(correction + 0));
 	new->vel = vadd(old->vel, vloadf(correction + 3));
-	struct quat error_quat = qrpy_small(vloadf(correction + 6));
-	new->quat = qnormalized(qqmul(old->quat, error_quat));
+	struct quat error_quat = rpy2quat_small(vloadf(correction + 6));
+	new->quat = qnormalize(qqmul(old->quat, error_quat));
 	// TODO biases, if we use dem
 	usec_corr = toc();
 

@@ -41,6 +41,7 @@
 #include "crtp.h"
 #include "trajectory.h"
 #include "debug.h"
+#include "mathconstants.h"
 #include "position_external.h"
 #include "pptraj.h"
 #include "packetdef.h"

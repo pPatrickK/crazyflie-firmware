@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "log.h"
 #include "math3d.h"
+#include "mathconstants.h"
 
 #define DT 0.01
 
@@ -168,7 +169,7 @@ void positionControllerMellinger(
   current_thrust = vdot(target_thrust, z_axis);
 
   // Calculate axis [zB_des]
-  z_axis_desired = vnormalized(target_thrust);
+  z_axis_desired = vnormalize(target_thrust);
 
   // [xC_des]
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
@@ -178,7 +179,7 @@ void positionControllerMellinger(
   x_c_des.y = sin(setpoint->attitude.yaw / 180 * M_PI);
   x_c_des.z = 0;
   // [yB_des]
-  y_axis_desired = vnormalized(vcross(z_axis_desired, x_c_des));
+  y_axis_desired = vnormalize(vcross(z_axis_desired, x_c_des));
   // [xB_des]
   x_axis_desired = vcross(y_axis_desired, z_axis_desired);
 

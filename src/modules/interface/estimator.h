@@ -26,6 +26,8 @@
 #ifndef __ESTIMATOR_H__
 #define __ESTIMATOR_H__
 
+#include <stdint.h>
+
 #include "stabilizer_types.h"
 
 void stateEstimatorInit(void);
