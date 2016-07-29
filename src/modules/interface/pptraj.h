@@ -78,6 +78,9 @@ void poly4d_scale(struct poly4d *p, float x, float y, float z, float yaw);
 // e.g. if s==2 the new polynomial will be stretched to take 2x longer
 void poly4d_stretchtime(struct poly4d *p, float s);
 
+// compute loose maximum of acceleration - 
+// uses L1 norm instead of Euclidean, evaluates polynomial instead of root-finding
+float poly4d_max_accel_approx(struct poly4d const *p);
 
 // ----------------------------------//
 // piecewise polynomial trajectories //
@@ -120,7 +123,6 @@ struct ellipse_traj
 	struct vec major;
 	struct vec minor;
 	float period;
-	float goal_period;
 	float t_begin;
 	//float phase;
 };

@@ -166,9 +166,6 @@ static struct traj_eval current_goal()
   float t = usecTimestamp() / 1e6;
   if (state == TRAJECTORY_STATE_ELLIPSE) {
     t = t - ellipse.t_begin;
-    if (ellipse.period > ellipse.goal_period) {
-      ellipse.period -= 0.001;
-    }
     return ellipse_traj_eval(&ellipse, t, g_vehicleMass);
   }
   else {
@@ -176,35 +173,39 @@ static struct traj_eval current_goal()
   }
 }
 
+void planIntoEllipse(struct traj_eval const *now,
+                     struct ellipse_traj const *ellipse,
+                     struct piecewise_traj *catchup)
+{
+  // crazyflie peak thrust is approx 60 grams, mass is approx 30 grams -
+  // should have enough to accelerate at approx gravity rate.
+  // halve it to be conservative
+  static float const MAX_ACCEL = GRAV / 2;
+
+  float t_catchup = ellipse->period / 8;
+  float amax;
+  do {
+    struct traj_eval ev_ell = 
+      ellipse_traj_eval(ellipse, t_catchup, g_vehicleMass);
+    piecewise_plan_5th_order(catchup, t_catchup,
+      now->pos,   now->yaw,   now->vel,   now->omega.z,   now->acc,
+      ev_ell.pos, ev_ell.yaw, ev_ell.vel, ev_ell.omega.z, ev_ell.acc);
+    amax = poly4d_max_accel_approx(&catchup->pieces[0]);
+    t_catchup *= 2;
+  } while (amax > MAX_ACCEL);
+}
+
 // works in rest of firmware's structs
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   struct traj_eval ev = current_goal();
-
-#ifdef ENABLE_CHASE_MODE
-  state_t const *stateEstimate = stabilizerState();
-  struct vec pos = state2vec(stateEstimate->position);
-
-  if (vdist2(pos, ev.pos) > fsqr(0.1)) {
-    struct vec vel = state2vec(stateEstimate->velocity);
-    struct vec acc = state2vec(stateEstimate->acc);
-    float yaw = radians(stateEstimate->attitude.yaw);
-    float dyaw = stateEstimate->attitudeRate.yaw; // yes, one's degrees other radians!
-
-    static struct piecewise_traj ppChaseMode;
-    float duration = 1.0; // LOL need to try harder to find a good duration
-
-    piecewise_plan_5th_order(&ppChaseMode, duration,
-         pos,    yaw,    vel,       dyaw,    acc,
-      ev.pos, ev.yaw, ev.vel, ev.omega.z, ev.acc);
-
-    // replace trajectory goal with chase-planner goal
-    ev = piecewise_eval(&ppChaseMode, 0, g_vehicleMass);
-  }
-#endif
-
   pp_eval_to_trajectory_point(&ev, goal);
 
+  if (state == TRAJECTORY_STATE_ELLIPSE_CATCHUP) {
+    if (piecewise_is_finished(ppFront)) {
+      state = TRAJECTORY_STATE_ELLIPSE;
+    }
+  }
   if (state == TRAJECTORY_STATE_ELLIPSE) {
     // TODO make it possible for an ellipse to end
   }
@@ -370,7 +371,9 @@ int trajectoryStart(void)
 int startEllipse(void)
 {
   ellipse.t_begin = usecTimestamp() / 1e6;
-  state = TRAJECTORY_STATE_ELLIPSE;
+  struct traj_eval ev_current = current_goal();
+  planIntoEllipse(&ev_current, &ellipse, ppBack);
+  state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
   return 0;
 }
 
@@ -470,11 +473,6 @@ int setEllipse(const struct data_set_ellipse* data)
   ellipse.major = mkvec_position_fix2float(data->majorx, data->majory, data->majorz);
   ellipse.minor = mkvec_position_fix2float(data->minorx, data->minory, data->minorz);
   ellipse.period = data->period;
-  ellipse.goal_period = data->period;
 
   return 0;
 }
-
-LOG_GROUP_START(ellipse)
-LOG_ADD(LOG_FLOAT, period, &ellipse.period)
-LOG_GROUP_STOP(ellipse)

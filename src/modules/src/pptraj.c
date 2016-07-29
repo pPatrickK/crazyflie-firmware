@@ -121,6 +121,27 @@ static float polyval_yaw(struct poly4d const *p, float t)
 	return polyval(p->p[3], PP_DEGREE, t);
 }
 
+// compute loose maximum of acceleration - 
+// uses L1 norm instead of Euclidean, evaluates polynomial instead of root-finding
+float poly4d_max_accel_approx(struct poly4d const *p)
+{
+	static struct poly4d acc;
+	acc = *p;
+	polyder4d(&acc);
+	polyder4d(&acc);
+	int steps = 10 * p->duration;
+	int step = p->duration / (steps - 1);
+	float t = 0;
+	float amax = 0;
+	for (int i = 0; i < steps; ++i) {
+		struct vec ddx = polyval_xyz(&acc, t);
+		float ddx_abs_L1 = fabs(ddx.x) + fabs(ddx.y) + fabs(ddx.z);
+		if (ddx_abs_L1 > amax) amax = ddx_abs_L1;
+		t += step;
+	}
+	return amax;
+}
+
 struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 {
 	// flat variables
