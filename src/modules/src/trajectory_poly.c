@@ -175,28 +175,6 @@ static struct traj_eval current_goal()
   }
 }
 
-void planIntoEllipse(struct traj_eval const *now,
-                     struct ellipse_traj const *ellipse,
-                     struct piecewise_traj *catchup)
-{
-  // crazyflie peak thrust is approx 60 grams, mass is approx 30 grams -
-  // should have enough to accelerate at approx gravity rate.
-  // halve it to be conservative
-  static float const MAX_ACCEL = GRAV / 2;
-
-  float t_catchup = ellipse->period / 8;
-  float amax;
-  do {
-    struct traj_eval ev_ell = 
-      ellipse_traj_eval(ellipse, t_catchup, g_vehicleMass);
-    piecewise_plan_5th_order(catchup, t_catchup,
-      now->pos,   now->yaw,   now->vel,   now->omega.z,   now->acc,
-      ev_ell.pos, ev_ell.yaw, ev_ell.vel, ev_ell.omega.z, ev_ell.acc);
-    amax = poly4d_max_accel_approx(&catchup->pieces[0]);
-    t_catchup *= 2;
-  } while (amax > MAX_ACCEL);
-}
-
 // works in rest of firmware's structs
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
@@ -377,7 +355,7 @@ int startEllipse(void)
 {
   ellipse.t_begin = usecTimestamp() / 1e6;
   struct traj_eval ev_current = current_goal();
-  planIntoEllipse(&ev_current, &ellipse, ppBack);
+  plan_into_ellipse(&ev_current, &ellipse, ppBack, g_vehicleMass);
   state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
   return 0;
 }

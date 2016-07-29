@@ -128,3 +128,8 @@ struct ellipse_traj
 };
 
 struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float mass);
+
+void plan_into_ellipse(struct traj_eval const *now,
+                       struct ellipse_traj const *ellipse,
+                       struct piecewise_traj *catchup,
+                       float mass);

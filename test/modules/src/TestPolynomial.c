@@ -7,6 +7,8 @@
 // Utilities
 //
 
+static float const MASS = 0.03;
+
 static inline float rand01()
 {
 	return rand() / ((float)RAND_MAX);
@@ -26,8 +28,8 @@ static struct traj_eval random_traj_point()
 {
 	struct traj_eval ev;
 	ev.pos = vecrandu(-10, 10);
-	ev.vel = vecrandu(-10, 10);
-	ev.acc = vecrandu(-10, 10);
+	ev.vel = vecrandu(-5, 5);
+	ev.acc = vecrandu(-2, 2);
 	ev.omega = vecrandu(-10, 10);
 	ev.yaw = randu(-M_PI, M_PI);
 	return ev;
@@ -139,9 +141,11 @@ void testPlan5thOrder()
 		piecewise_plan_5th_order(&pp, duration,
 			p0.pos, p0.yaw, p0.vel, p0.omega.z, p0.acc,
 			p1.pos, p1.yaw, p1.vel, p1.omega.z, p1.acc);
+		pp.cursor = 0;
+		pp.t_begin_piece = 0;
 
-		struct traj_eval t0 = piecewise_eval(&pp, 0, 0.03);
-		struct traj_eval t1 = piecewise_eval(&pp, duration, 0.03);
+		struct traj_eval t0 = piecewise_eval(&pp, 0, MASS);
+		struct traj_eval t1 = piecewise_eval(&pp, duration, MASS);
 		if (!traj_close(p0, t0)) {
 			print_traj_pt("p0", p0);
 			print_traj_pt("t0", t0);
@@ -156,3 +160,41 @@ void testPlan5thOrder()
 }
 
 // TODO work on 7th-order planning - right now errors are kind of large
+
+void testPlanIntoEllipse()
+{
+	srand(100); // deterministic
+	int TRIALS = 10000;
+	for (int i = 0; i < TRIALS; ++i) {
+		struct ellipse_traj ellipse;
+		ellipse.center = vecrandu(-5, 5);
+		ellipse.major = vecrandu(-5, 5);
+		ellipse.minor = vecrandu(-5, 5);
+		ellipse.period = 20; // TODO shorten if ellipse isn't too big
+		ellipse.t_begin = 0;
+
+		struct traj_eval now = random_traj_point();
+		struct piecewise_traj pp;
+
+		plan_into_ellipse(&now, &ellipse, &pp, MASS);
+		pp.t_begin_piece = 0;
+		float duration = pp.pieces[0].duration;
+		//printf("dur guess: %f, dur: %f\n", ellipse.period / 8, duration);
+
+		struct traj_eval t0 = piecewise_eval(&pp, 0, MASS);
+		if (!traj_close(now, t0)) {
+			print_traj_pt("now", now);
+			print_traj_pt("t0", t0);
+			TEST_ASSERT(traj_close(now, t0));
+		}
+
+		struct traj_eval ellipse_join = 
+			ellipse_traj_eval(&ellipse, duration, MASS);
+		struct traj_eval t1 = piecewise_eval(&pp, duration, MASS);
+		if (!traj_close(ellipse_join, t1)) {
+			print_traj_pt("ellipse_join", ellipse_join);
+			print_traj_pt("t1", t1);
+			TEST_ASSERT(traj_close(ellipse_join, t1));
+		}
+	}
+}
