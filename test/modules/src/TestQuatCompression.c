@@ -35,7 +35,7 @@ void testQuatCodecFuzz()
 	double worst_angle = 0.0;
 	int const N = 1000000;
 	for (int i = 0; i < N; ++i) {
-		struct quat q = qnormalized(mkquat(r(), r(), r(), r()));
+		struct quat q = qnormalize(mkquat(r(), r(), r(), r()));
 		float angle = abserr(q);
 		angle_sum += angle;
 		if (angle > worst_angle) {
@@ -53,7 +53,7 @@ void testQuatCodecFuzzTiny()
 	double worst_angle = 0.0;
 	int const N = 1000000;
 	for (int i = 0; i < N; ++i) {
-		struct quat q = qnormalized(mkquat(r()/1000.0, r()/1000.0, r()/1000.0, r()));
+		struct quat q = qnormalize(mkquat(r()/1000.0, r()/1000.0, r()/1000.0, r()));
 		float angle = abserr(q);
 		angle_sum += angle;
 		if (angle > worst_angle) {
