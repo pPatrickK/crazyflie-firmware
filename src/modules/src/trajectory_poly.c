@@ -356,6 +356,7 @@ int startEllipse(void)
   ellipse.t_begin = usecTimestamp() / 1e6;
   struct traj_eval ev_current = current_goal();
   plan_into_ellipse(&ev_current, &ellipse, ppBack, g_vehicleMass);
+  trajectoryFlip();
   state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
   return 0;
 }
