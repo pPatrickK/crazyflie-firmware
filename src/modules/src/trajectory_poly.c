@@ -28,16 +28,12 @@
 #include <string.h>
 #include <errno.h>
 #include <math.h>
-// #include <stdint.h>
-// #include <stdbool.h>
 
 /* FreeRtos includes */
 #include "FreeRTOS.h"
 #include "task.h"
-// #include "timers.h"
-// #include "semphr.h"
 
-// #include "config.h"
+// Crazyswarm includes
 #include "avoidtarget.h"
 #include "crtp.h"
 #include "trajectory.h"
@@ -50,26 +46,6 @@
 #include "log.h"
 #include "stabilizer.h" // to get current state estimate
 
-//#include "console.h"
-//#include "cfassert.h"
-
-
-// enum state_e {
-//   STATE_IDLE       = 0,
-//   STATE_TAKING_OFF = 1,
-//   STATE_LANDING    = 2,
-//   STATE_FLYING     = 3,
-// };
-
-// static state_e state = STATE_IDLE;
-/*
-#define MAX_TRAJECTORY_ENTRIES 100
-
-struct trajectoryEntry {
-  uint16_t time_from_start;
-  trajectoryPoint_t point;
-};
-*/
 
 // Global variables
 static bool isInit = false;
@@ -88,10 +64,11 @@ struct vec home;
 
 
 // Private functions
+// TODO consistent naming - should they all start with "trajectory" or not?`
 static void trajectoryTask(void * prm);
-static int trajectoryReset(void);
-static int trajectoryAdd(const struct data_add* data);
-static int trajectoryStart(void);
+static int trajectoryResetPoly(void);
+static int trajectoryAddPoly(const struct data_add_poly* data);
+static int trajectoryStartPoly(void);
 // static int trajectoryState(const struct data_state* data);
 static int trajectoryTakeoff();
 static int trajectoryLand();
@@ -102,8 +79,6 @@ static int setEllipse(const struct data_set_ellipse* data);
 static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
 static int startAvoidTarget(const struct data_start_avoid_target* data);
 static int updateAvoidTarget(const struct data_target_position *data);
-
-// static bool stretched = false;
 
 // hack using global
 extern float g_vehicleMass;
@@ -133,7 +108,7 @@ static float stateYaw()
 
 void trajectoryInit(void)
 {
-  if(isInit) {
+  if (isInit) {
     return;
   }
 
@@ -212,16 +187,6 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
   }
 }
 
-// void trajectoryIsIdle()
-// {
-//   return state == STATE_IDLE;
-// }
-
-// void trajectorySetIdle()
-// {
-//   state = STATE_IDLE;
-// }
-
 void trajectoryGetState(trajectoryState_t* st)
 {
   *st = state;
@@ -243,18 +208,14 @@ void trajectoryTask(void * prm)
 
     switch(p.data[0])
     {
-      case COMMAND_RESET:
-        ret = trajectoryReset();
+      case COMMAND_RESET_POLY:
+        ret = trajectoryResetPoly();
         break;
-      case COMMAND_ADD:
-        ret = trajectoryAdd((const struct data_add*)&p.data[1]);
+      case COMMAND_ADD_POLY:
+        ret = trajectoryAddPoly((const struct data_add_poly*)&p.data[1]);
         break;
-      case COMMAND_START_TRAJECTORY:
-        // if (!stretched) {
-	       // piecewise_stretchtime(ppBack, 0.75);
-        //  stretched = true;
-        // }
-        ret = trajectoryStart();
+      case COMMAND_START_POLY:
+        ret = trajectoryStartPoly();
         break;
       // case COMMAND_STATE:
       //   ret = trajectoryState((const struct data_state*)&p.data[1]);
@@ -298,16 +259,13 @@ void trajectoryTask(void * prm)
 }
 
 
-int trajectoryReset(void)
+int trajectoryResetPoly(void)
 {
   ppBack->n_pieces = 0;
-  // stretched = false;
-  // DEBUG_PRINT("trajectoryReset\n");
-
   return 0;
 }
 
-int trajectoryAdd(const struct data_add* data)
+int trajectoryAddPoly(const struct data_add_poly* data)
 {
   if (data->id < PP_MAX_PIECES
       && data->offset + data->size < sizeof(ppBack->pieces[data->id])) {
@@ -325,7 +283,6 @@ int trajectoryAdd(const struct data_add* data)
     for (int i = offset; i < offset + size; ++i) {
       ppBack->pieces[data->id].p[i/8][i%8] = data->values[offset == 0 ? i+1 : i-offset];
     }
-    // memcpy(ppBack->pieces[data->id].p + offset, ptr, size * sizeof(float));
     ppBack->n_pieces = data->id + 1;
     // DEBUG_PRINT("trajectoryAdd: %d, %d, %d\n", data->id, offset, size);
     return 0;
@@ -345,8 +302,7 @@ void trajectoryFlip()
   *ppBack = *ppFront;
 }
 
-
-int trajectoryStart(void)
+int trajectoryStartPoly(void)
 {
   struct traj_eval traj_init = poly4d_eval(&ppBack->pieces[0], 0, g_vehicleMass);
   struct vec shift_pos = vsub(statePos(), traj_init.pos);
@@ -378,12 +334,6 @@ int startEllipse(void)
   return 0;
 }
 
-// int trajectoryState(const struct data_state* data)
-// {
-//   state = data->state;
-//   return 0;
-// }
-
 int trajectoryTakeoff(const struct data_takeoff* data)
 {
   if (state != TRAJECTORY_STATE_IDLE) {
@@ -406,7 +356,6 @@ int trajectoryTakeoff(const struct data_takeoff* data)
 
   state = TRAJECTORY_STATE_TAKING_OFF;
   home = mkvec(pos.x, pos.y, data->height);
-  // piecewise_stretchtime(ppBack, 2.0);
   trajectoryFlip();
   return 0;
 }

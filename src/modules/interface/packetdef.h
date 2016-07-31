@@ -68,9 +68,9 @@ struct data_vicon {
 
 // TODO explain where this is used
 enum TrajectoryCommand_e {
-  COMMAND_RESET                   = 0,
-  COMMAND_ADD                     = 1,
-  COMMAND_START_TRAJECTORY        = 2,
+  COMMAND_RESET_POLY              = 0,
+  COMMAND_ADD_POLY                = 1,
+  COMMAND_START_POLY              = 2,
   COMMAND_TAKEOFF                 = 3,
   COMMAND_LAND                    = 4,
   COMMAND_HOVER                   = 5,
@@ -83,7 +83,7 @@ enum TrajectoryCommand_e {
 };
 
 // multi-packet piecewise polynomial definition
-struct data_add {
+struct data_add_poly {
   uint8_t id;
   uint8_t offset:5;
   uint8_t size:3;
