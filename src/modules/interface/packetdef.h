@@ -78,6 +78,8 @@ enum TrajectoryCommand_e {
   COMMAND_SET_ELLIPSE             = 7,
   COMMAND_START_ELLIPSE           = 8,
   COMMAND_START_CANNED_TRAJECTORY = 9,
+  COMMAND_START_AVOID_TARGET      = 10,
+  COMMAND_TARGET_POSITION         = 11,
 };
 
 // multi-packet piecewise polynomial definition
@@ -133,3 +135,17 @@ struct data_start_canned_trajectory {
   uint16_t trajectory; // one of trajectory_type
   float timescale;
 } __attribute__((packed));
+
+struct data_start_avoid_target {
+  float x;
+  float y;
+  float z;
+  float max_speed;
+  float max_displacement;
+};
+
+struct data_target_position {
+  float x;
+  float y;
+  float z;
+};

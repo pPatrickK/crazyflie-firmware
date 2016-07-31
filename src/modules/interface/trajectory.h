@@ -52,12 +52,13 @@ typedef struct {
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal);
 
 typedef enum {
-  TRAJECTORY_STATE_IDLE       = 0,
-  TRAJECTORY_STATE_FLYING     = 1,
-  TRAJECTORY_STATE_TAKING_OFF = 2,
-  TRAJECTORY_STATE_LANDING    = 3,
-  TRAJECTORY_STATE_ELLIPSE    = 4,
+  TRAJECTORY_STATE_IDLE            = 0,
+  TRAJECTORY_STATE_FLYING          = 1,
+  TRAJECTORY_STATE_TAKING_OFF      = 2,
+  TRAJECTORY_STATE_LANDING         = 3,
+  TRAJECTORY_STATE_ELLIPSE         = 4,
   TRAJECTORY_STATE_ELLIPSE_CATCHUP = 5,
+  TRAJECTORY_STATE_AVOID_TARGET    = 6,
 } trajectoryState_t;
 
 void trajectoryGetState(trajectoryState_t* state);

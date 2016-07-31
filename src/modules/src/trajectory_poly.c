@@ -38,6 +38,7 @@
 // #include "semphr.h"
 
 // #include "config.h"
+#include "avoidtarget.h"
 #include "crtp.h"
 #include "trajectory.h"
 #include "debug.h"
@@ -81,6 +82,7 @@ static struct piecewise_traj pp1;
 static struct piecewise_traj pp2;
 
 static struct ellipse_traj ellipse;
+static struct avoid_target avoid;
 
 struct vec home;
 
@@ -98,6 +100,8 @@ static int startEllipse();
 static int goHome();
 static int setEllipse(const struct data_set_ellipse* data);
 static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
+static int startAvoidTarget(const struct data_start_avoid_target* data);
+static int updateAvoidTarget(const struct data_target_position *data);
 
 // static bool stretched = false;
 
@@ -166,16 +170,19 @@ void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *
 static struct traj_eval current_goal()
 {
   float t = usecTimestamp() / 1e6;
-  if (state == TRAJECTORY_STATE_ELLIPSE) {
+  switch (state) {
+  // NOTE using return instead of break
+  case TRAJECTORY_STATE_ELLIPSE:
     t = t - ellipse.t_begin;
     return ellipse_traj_eval(&ellipse, t, g_vehicleMass);
-  }
-  else {
+  case TRAJECTORY_STATE_AVOID_TARGET:
+    return eval_avoid_target(&avoid, t);
+  default:
     return piecewise_eval(ppFront, t, g_vehicleMass);
   }
 }
 
-// works in rest of firmware's structs
+// works in rest of firmware's structs, updates states
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   struct traj_eval ev = current_goal();
@@ -186,10 +193,14 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
       state = TRAJECTORY_STATE_ELLIPSE;
     }
   }
-  if (state == TRAJECTORY_STATE_ELLIPSE) {
+  else if (state == TRAJECTORY_STATE_ELLIPSE) {
     // TODO make it possible for an ellipse to end
   }
+  else if (state == TRAJECTORY_STATE_AVOID_TARGET) {
+    // TODO anything??
+  }
   else {
+    // FLYING, TAKING_OFF, or LANDING
     if (piecewise_is_finished(ppFront)) {
       if (state == TRAJECTORY_STATE_TAKING_OFF) {
         state = TRAJECTORY_STATE_FLYING;
@@ -267,6 +278,12 @@ void trajectoryTask(void * prm)
         break;
       case COMMAND_START_CANNED_TRAJECTORY:
         ret = startCannedTrajectory((const struct data_start_canned_trajectory*)&p.data[1]);
+        break;
+      case COMMAND_START_AVOID_TARGET:
+        ret = startAvoidTarget((const struct data_start_avoid_target*)&p.data[1]);
+        break;
+      case COMMAND_TARGET_POSITION:
+        ret = updateAvoidTarget((const struct data_target_position*)&p.data[1]);
         break;
       default:
         ret = ENOEXEC;
@@ -422,7 +439,9 @@ int trajectoryLand(const struct data_land* data)
 
 int trajectoryHover(const struct data_hover* data)
 {
-  if (state != TRAJECTORY_STATE_FLYING && state != TRAJECTORY_STATE_ELLIPSE) {
+  if (state != TRAJECTORY_STATE_FLYING &&
+      state != TRAJECTORY_STATE_ELLIPSE &&
+      state != TRAJECTORY_STATE_AVOID_TARGET) {
     return 1;
   }
 
@@ -430,13 +449,10 @@ int trajectoryHover(const struct data_hover* data)
   struct vec hover_pos = mkvec(data->x, data->y, data->z);
   float hover_yaw = data->yaw;
 
+  // TODO try out 7th order planner
   piecewise_plan_5th_order(ppBack, data->duration,
     setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
     hover_pos,    hover_yaw,    vzero(),      0,                vzero());
-
-  // piecewise_plan_7th_order_no_jerk(ppBack, data->duration,
-  //   setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
-  //   hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
   state = TRAJECTORY_STATE_FLYING;
   trajectoryFlip();
@@ -457,9 +473,12 @@ int goHome(void)
 
 int setEllipse(const struct data_set_ellipse* data)
 {
-  ellipse.center = mkvec_position_fix2float(data->centerx, data->centery, data->centerz);
-  ellipse.major = mkvec_position_fix2float(data->majorx, data->majory, data->majorz);
-  ellipse.minor = mkvec_position_fix2float(data->minorx, data->minory, data->minorz);
+  ellipse.center = mkvec_position_fix2float(
+    data->centerx, data->centery, data->centerz);
+  ellipse.major = mkvec_position_fix2float(
+    data->majorx, data->majory, data->majorz);
+  ellipse.minor = mkvec_position_fix2float(
+    data->minorx, data->minory, data->minorz);
   ellipse.period = data->period;
 
   return 0;
@@ -483,5 +502,22 @@ int startCannedTrajectory(const struct data_start_canned_trajectory* data)
 
   trajectoryFlip();
 
+  return 0;
+}
+
+int startAvoidTarget(const struct data_start_avoid_target* data)
+{
+  struct vec home = mkvec(data->x, data->y, data->z);
+  float t = usecTimestamp() / 1e6;
+  init_avoid_target(&avoid, home, data->max_speed, data->max_displacement, t);
+  state = TRAJECTORY_STATE_AVOID_TARGET;
+  return 0;
+}
+
+int updateAvoidTarget(const struct data_target_position *data)
+{
+  float t = usecTimestamp() / 1e6;
+  struct vec targetPos = mkvec(data->x, data->y, data->z);
+  update_avoid_target(&avoid, targetPos, t);
   return 0;
 }
