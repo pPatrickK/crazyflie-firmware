@@ -334,54 +334,45 @@ int startEllipse(void)
   return 0;
 }
 
+static void planTakeoffLanding(float height, float duration)
+{
+  struct vec pos = statePos();
+  float yaw = stateYaw();
+  float delta_z = height - pos.z;
+
+  struct poly4d p = poly4d_takeoff;
+  poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
+  poly4d_scale(&p, 1, 1, delta_z, 1);
+  poly4d_shift_vec(&p, pos, 0);
+  poly_linear(p.p[3], duration, yaw, 0);
+
+  ppBack->pieces[0] = p;
+  ppBack->n_pieces = 1;
+}
+
 int trajectoryTakeoff(const struct data_takeoff* data)
 {
   if (state != TRAJECTORY_STATE_IDLE) {
     return 1;
   }
 
-  struct vec pos = statePos();
-  float yaw = stateYaw();
-  float delta_z = data->height - pos.z;
-  float duration = data->time_from_start / 1000.0;
-
-  struct poly4d p = poly4d_takeoff;
-  poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
-  poly4d_scale(&p, 1, 1, delta_z, 1);
-  poly4d_shift_vec(&p, pos, 0);
-  poly_linear(p.p[3], duration, yaw, 0);
-
-  ppBack->pieces[0] = p;
-  ppBack->n_pieces = 1;
-
+  home = statePos();
+  planTakeoffLanding(data->height, data->time_from_start / 1000.0);
   state = TRAJECTORY_STATE_TAKING_OFF;
-  home = mkvec(pos.x, pos.y, data->height);
   trajectoryFlip();
   return 0;
 }
 
 int trajectoryLand(const struct data_land* data)
 {
+  // TODO this means we can't land from ELLIPSE or AVOID_TARGET
+  // states... you must GO_HOME first. Is this good?
   if (state != TRAJECTORY_STATE_FLYING) {
     return 1;
   }
 
-  struct vec pos = statePos();
-  float yaw = stateYaw();
-  float delta_z = data->height - pos.z;
-  float duration = data->time_from_start / 1000.0;
-
-  struct poly4d p = poly4d_takeoff;
-  poly4d_stretchtime(&p, duration / poly4d_takeoff.duration);
-  poly4d_scale(&p, 1, 1, delta_z, 1);
-  poly4d_shift_vec(&p, pos, 0);
-  poly_linear(p.p[3], duration, yaw, 0);
-
-  ppBack->pieces[0] = p;
-  ppBack->n_pieces = 1;
-
+  planTakeoffLanding(data->height, data->time_from_start / 1000.0);
   state = TRAJECTORY_STATE_LANDING;
-  // piecewise_stretchtime(ppBack, 2.0);
   trajectoryFlip();
   return 0;
 }
