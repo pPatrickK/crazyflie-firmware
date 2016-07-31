@@ -42,7 +42,7 @@
 #endif
 
 #ifndef LOW_VOLTAGE
-  #define PM_BAT_LOW_VOLTAGE   3.2f
+  #define PM_BAT_LOW_VOLTAGE   3.4f
 #else
   #define PM_BAT_LOW_VOLTAGE   LOW_VOLTAGE
 #endif
