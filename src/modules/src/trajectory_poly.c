@@ -401,12 +401,16 @@ int trajectoryHover(const struct data_hover* data)
 
 int goHome(void)
 {
+  struct traj_eval setpoint = current_goal();
+  float distance = vdist(home, setpoint.pos);
+  float duration = 1.0f + distance;
+
   struct data_hover data;
   data.x = home.x;
   data.y = home.y;
   data.z = home.z;
   data.yaw = 0;
-  data.duration = 2;
+  data.duration = duration;
 
   return trajectoryHover(&data);
 }
