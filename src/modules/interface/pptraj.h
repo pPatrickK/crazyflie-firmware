@@ -89,8 +89,7 @@ float poly4d_max_accel_approx(struct poly4d const *p);
 struct piecewise_traj
 {
 	struct poly4d pieces[PP_MAX_PIECES];
-	float t_begin_piece;
-	unsigned char cursor;
+	float t_begin;
 	unsigned char n_pieces;
 };
 
@@ -101,11 +100,16 @@ static inline void piecewise_shift_vec(struct piecewise_traj *pp, struct vec pos
 void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw);
 void piecewise_stretchtime(struct piecewise_traj *pp, float s);
 
-struct traj_eval piecewise_eval(struct piecewise_traj *traj, float t, float mass);
+struct traj_eval piecewise_eval(
+  struct piecewise_traj const *traj, float t, float mass);
 
-static inline bool piecewise_is_finished(struct piecewise_traj const *traj)
+static inline bool piecewise_is_finished(struct piecewise_traj const *traj, float t)
 {
-	return traj->cursor == traj->n_pieces;
+  float total_dur = 0;
+  for (int i = 0; i < traj->n_pieces; ++i) {
+    total_dur += traj->pieces[i].duration;
+  }
+  return (t - traj->t_begin) >= total_dur;
 }
 
 void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,

@@ -160,11 +160,12 @@ static struct traj_eval current_goal()
 // works in rest of firmware's structs, updates states
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
+  float t = usecTimestamp() / 1e6;
   struct traj_eval ev = current_goal();
   pp_eval_to_trajectory_point(&ev, goal);
 
   if (state == TRAJECTORY_STATE_ELLIPSE_CATCHUP) {
-    if (piecewise_is_finished(ppFront)) {
+    if (piecewise_is_finished(ppFront, t)) {
       state = TRAJECTORY_STATE_ELLIPSE;
     }
   }
@@ -176,7 +177,7 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
   }
   else {
     // FLYING, TAKING_OFF, or LANDING
-    if (piecewise_is_finished(ppFront)) {
+    if (piecewise_is_finished(ppFront, t)) {
       if (state == TRAJECTORY_STATE_TAKING_OFF) {
         state = TRAJECTORY_STATE_FLYING;
       }
@@ -293,12 +294,12 @@ int trajectoryAddPoly(const struct data_add_poly* data)
 
 void trajectoryFlip()
 {
-  ppBack->t_begin_piece = usecTimestamp() / 1e6;
-  ppBack->cursor = 0;
-
+  ppBack->t_begin = usecTimestamp() / 1e6;
   struct piecewise_traj* tmp = ppFront;
   ppFront = ppBack;
   ppBack = tmp;
+  // this is necessary because we might recieve the startTrajectory command
+  // repeatedly in a short time... TODO avoid doing this
   *ppBack = *ppFront;
 }
 

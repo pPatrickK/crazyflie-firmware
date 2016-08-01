@@ -79,8 +79,7 @@ void testTimestretchPiecewiseLinear()
 	
 	for (int i = 0; i < 2; ++i) {
 		// sanity check - unstretched
-		pp.cursor = 0;
-		pp.t_begin_piece = 0;
+		pp.t_begin = 0;
 		struct traj_eval ev = piecewise_eval(&pp, 0, 1);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, x0, ev.pos.x);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.y);
@@ -93,15 +92,7 @@ void testTimestretchPiecewiseLinear()
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.z);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.yaw);
 
-		pp.cursor = 1;
-		pp.t_begin_piece = 0;
-		ev = piecewise_eval(&pp, 0, 1);
-		TEST_ASSERT_FLOAT_WITHIN(TOL, x1, ev.pos.x);
-		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.y);
-		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.z);
-		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.yaw);
-
-		ev = piecewise_eval(&pp, dur1, 1);
+		ev = piecewise_eval(&pp, dur0 + dur1, 1);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, x2, ev.pos.x);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.y);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.z);
@@ -141,8 +132,7 @@ void testPlan5thOrder()
 		piecewise_plan_5th_order(&pp, duration,
 			p0.pos, p0.yaw, p0.vel, p0.omega.z, p0.acc,
 			p1.pos, p1.yaw, p1.vel, p1.omega.z, p1.acc);
-		pp.cursor = 0;
-		pp.t_begin_piece = 0;
+		pp.t_begin = 0;
 
 		struct traj_eval t0 = piecewise_eval(&pp, 0, MASS);
 		struct traj_eval t1 = piecewise_eval(&pp, duration, MASS);
@@ -177,7 +167,7 @@ void testPlanIntoEllipse()
 		struct piecewise_traj pp;
 
 		plan_into_ellipse(&now, &ellipse, &pp, MASS);
-		pp.t_begin_piece = 0;
+		pp.t_begin = 0;
 		float duration = pp.pieces[0].duration;
 		//printf("dur guess: %f, dur: %f\n", ellipse.period / 8, duration);
 
