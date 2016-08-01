@@ -142,6 +142,6 @@ struct data_start_avoid_target {
   float x;
   float y;
   float z;
-  float max_speed;
   float max_displacement;
+  float max_speed;
 };
