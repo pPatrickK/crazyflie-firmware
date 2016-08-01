@@ -28,19 +28,24 @@
 
 #include <stdint.h>
 
+#include "math3d.h"
+
 void positionExternalInit(void);
 bool positionExternalTest(void);
 
-void positionExternalGetLastData(
-  float* x,
-  float* y,
-  float* z,
-  float* q0,
-  float* q1,
-  float* q2,
-  float* q3,
-  uint16_t* last_time_in_ms);
+struct position_message
+{
+	struct vec pos;
+	struct quat quat;
+	uint32_t timestamp_ms; // xTaskGetTickCount ticks
+};
 
 extern bool positionExternalFresh;
+void positionExternalGetLastData(struct position_message *msg);
+
+extern bool positionInteractiveFresh;
+void positionInteractiveGetLastData(struct position_message *msg);
+typedef void (*positionInteractiveCallback)(struct position_message const *msg);
+void positionInteractiveSetCallback(positionInteractiveCallback cb);
 
 #endif /* POSITION_EXTERNAL_H_ */

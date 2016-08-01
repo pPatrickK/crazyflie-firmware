@@ -77,24 +77,18 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
     // }
   }
 
-  float x, y, z, q0, q1, q2, q3;
-  uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  static struct position_message msg;
+  positionExternalGetLastData(&msg);
 
-  sensors->position.timestamp = tick - last_time_in_ms;
-  sensors->position.x = x;
-  sensors->position.y = y;
-  sensors->position.z = z;
-  sensors->quaternion.q0 = q0;
-  sensors->quaternion.q1 = q1;
-  sensors->quaternion.q2 = q2;
-  sensors->quaternion.q3 = q3;
-
-  if (last_time_in_ms > 500) {
-    sensors->valid = false;
-  } else {
-    sensors->valid = true;
-  }
+  sensors->position.timestamp = msg.timestamp_ms;
+  sensors->position.x = msg.pos.x;
+  sensors->position.y = msg.pos.y;
+  sensors->position.z = msg.pos.z;
+  sensors->quaternion.q0 = msg.quat.w;
+  sensors->quaternion.q1 = msg.quat.x;
+  sensors->quaternion.q2 = msg.quat.y;
+  sensors->quaternion.q3 = msg.quat.z;
+  sensors->valid = (tick - msg.timestamp_ms <= 500);
 }
 
 bool sensorsAreCalibrated()

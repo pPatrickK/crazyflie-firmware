@@ -78,7 +78,7 @@ static int goHome();
 static int setEllipse(const struct data_set_ellipse* data);
 static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
 static int startAvoidTarget(const struct data_start_avoid_target* data);
-static int updateAvoidTarget(const struct data_target_position *data);
+static void updateAvoidTarget(const struct position_message *msg);
 
 // hack using global
 extern float g_vehicleMass;
@@ -118,6 +118,8 @@ void trajectoryInit(void)
   //Start the trajectory task
   xTaskCreate(trajectoryTask, TRAJECTORY_TASK_NAME,
               TRAJECTORY_TASK_STACKSIZE, NULL, TRAJECTORY_TASK_PRI, NULL);
+
+  positionInteractiveSetCallback(&updateAvoidTarget);
 
   initUsecTimer();
   isInit = true;
@@ -243,9 +245,6 @@ void trajectoryTask(void * prm)
         break;
       case COMMAND_START_AVOID_TARGET:
         ret = startAvoidTarget((const struct data_start_avoid_target*)&p.data[1]);
-        break;
-      case COMMAND_TARGET_POSITION:
-        ret = updateAvoidTarget((const struct data_target_position*)&p.data[1]);
         break;
       default:
         ret = ENOEXEC;
@@ -455,10 +454,8 @@ int startAvoidTarget(const struct data_start_avoid_target* data)
   return 0;
 }
 
-int updateAvoidTarget(const struct data_target_position *data)
+void updateAvoidTarget(const struct position_message *msg)
 {
   float t = usecTimestamp() / 1e6;
-  struct vec targetPos = mkvec(data->x, data->y, data->z);
-  update_avoid_target(&avoid, targetPos, t);
-  return 0;
+  update_avoid_target(&avoid, msg->pos, t);
 }

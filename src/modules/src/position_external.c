@@ -41,23 +41,30 @@
 #include "quatcompress.h"
 
 
-// Global variables
-bool positionExternalFresh = false;
 static bool isInit = false;
-static float lastX;
-static float lastY;
-static float lastZ;
-static float lastQ0;
-static float lastQ1;
-static float lastQ2;
-static float lastQ3;
-static struct vec lastRPY;
-static uint64_t lastTime = 0;
 static uint8_t my_id;
-static float v_x;
-static float v_y;
-static float v_z;
-static uint16_t dt;
+
+struct position_state
+{
+  struct vec pos;
+  struct quat quat;
+  struct vec velocity; // for logging only
+  struct vec rpy;      // for logging only
+  uint32_t timestamp_ms;
+  uint16_t dt;
+};
+
+bool positionExternalFresh = false;
+static struct position_state external;
+// stores the position from messages with id = GLOBAL_ID.
+// these are meant to be used by special interactive planners.
+bool positionInteractiveFresh = false;
+static struct position_state interactive;
+positionInteractiveCallback interactiveCallback = NULL;
+void positionInteractiveSetCallback(positionInteractiveCallback cb)
+{
+  interactiveCallback = cb;
+}
 
 
 //Private functions
@@ -65,18 +72,21 @@ static void positionExternalCrtpCB(CRTPPacket* pk);
 
 void positionExternalInit(void)
 {
-  if(isInit) {
+  if (isInit) {
     return;
   }
 
   crtpInit();
   crtpRegisterPortCB(CRTP_PORT_POSEXT, positionExternalCrtpCB);
 
-  isInit = true;
-
   uint64_t address = configblockGetRadioAddress();
   my_id = address & 0xFF;
   DEBUG_PRINT("posextbrinup. initialized: %d\n", my_id);
+
+  external.timestamp_ms = 0;
+  interactive.timestamp_ms = 0;
+
+  isInit = true;
 }
 
 bool positionExternalTest(void)
@@ -84,29 +94,50 @@ bool positionExternalTest(void)
   return isInit;
 }
 
-void positionExternalGetLastData(
-  float* x,
-  float* y,
-  float* z,
-  float* q0,
-  float* q1,
-  float* q2,
-  float* q3,
-  uint16_t* last_time_in_ms)
+static void update(struct data_vicon const *d, int i, struct position_state *state)
 {
-  *x = lastX;
-  *y = lastY;
-  *z = lastZ;
-  *q0 = lastQ0;
-  *q1 = lastQ1;
-  *q2 = lastQ2;
-  *q3 = lastQ3;
-  if (xTaskGetTickCount() - lastTime < 10 * 1000) {
-    *last_time_in_ms = xTaskGetTickCount() - lastTime;
-  } else {
-    *last_time_in_ms = 10 * 1000;
+  float x = position_fix2float(d->pose[i].x);
+  float y = position_fix2float(d->pose[i].y);
+  float z = position_fix2float(d->pose[i].z);
+  struct vec pos = mkvec(x, y, z);
+
+  uint32_t tick = xTaskGetTickCount();
+
+  // logging-only stuff, not used by rest of firmware
+  if (state->timestamp_ms != 0) {
+    float dt_sec = (tick - state->timestamp_ms) / 1000.0f;
+    state->velocity = vdiv(vsub(pos, state->pos), dt_sec);
   }
-  dt = *last_time_in_ms;
+  state->rpy = vscl(180 / M_PI, quat2rpy(state->quat));
+
+  state->pos = pos;
+  float q[4];
+  quatdecompress(d->pose[i].quat, q);
+  state->quat = qloadf(q);
+
+  if ((tick - state->timestamp_ms) > 10 * 1000) {
+    state->dt = 10 * 1000;
+  } else {
+    state->dt = tick - state->timestamp_ms;
+  }
+  state->timestamp_ms = tick;
+}
+
+static void read(struct position_state *state, struct position_message *msg)
+{
+  msg->pos = state->pos;
+  msg->quat = state->quat;
+  msg->timestamp_ms = state->timestamp_ms;
+}
+
+void positionExternalGetLastData(struct position_message *msg)
+{
+  read(&external, msg);
+}
+
+void positionInteractiveGetLastData(struct position_message *msg)
+{
+  read(&interactive, msg);
 }
 
 static void positionExternalCrtpCB(CRTPPacket* pk)
@@ -114,45 +145,30 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
   struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 2; ++i) {
     if (d->pose[i].id == my_id) {
-      float x = position_fix2float(d->pose[i].x);
-      float y = position_fix2float(d->pose[i].y);
-      float z = position_fix2float(d->pose[i].z);
-
-      if (lastTime != 0) {
-        float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
-        v_x = (x - lastX) / dt;
-        v_y = (y - lastY) / dt;
-        v_z = (z - lastZ) / dt;
-      }
-
-      lastX = x;
-      lastY = y;
-      lastZ = z;
-
-      float q[4];
-      quatdecompress(d->pose[i].quat, q);
-      lastQ0 = q[0];
-      lastQ1 = q[1];
-      lastQ2 = q[2];
-      lastQ3 = q[3];
-
-      lastRPY = vscl(180 / M_PI, quat2rpy(mkquat(lastQ0, lastQ1, lastQ2, lastQ3)));
-
-      lastTime = xTaskGetTickCount();
+      update(d, i, &external);
       positionExternalFresh = true;
+    }
+    else if (d->pose[i].id == INTERACTIVE_ID) {
+      update(d, i, &interactive);
+      positionInteractiveFresh = true;
+      if (interactiveCallback != NULL) {
+        struct position_message msg;
+        read(&interactive, &msg);
+        (*interactiveCallback)(&msg);
+      }
     }
   }
 }
 
 LOG_GROUP_START(vicon)
-LOG_ADD(LOG_FLOAT, v_x, &v_x)
-LOG_ADD(LOG_FLOAT, v_y, &v_y)
-LOG_ADD(LOG_FLOAT, v_z, &v_z)
-LOG_ADD(LOG_INT16, dt, &dt)
-LOG_ADD(LOG_FLOAT, roll, &lastRPY.x)
-LOG_ADD(LOG_FLOAT, pitch, &lastRPY.y)
-LOG_ADD(LOG_FLOAT, yaw, &lastRPY.z)
-LOG_ADD(LOG_FLOAT, x, &lastX)
-LOG_ADD(LOG_FLOAT, y, &lastY)
-LOG_ADD(LOG_FLOAT, z, &lastZ)
+LOG_ADD(LOG_FLOAT, x, &external.pos.x)
+LOG_ADD(LOG_FLOAT, y, &external.pos.y)
+LOG_ADD(LOG_FLOAT, z, &external.pos.z)
+LOG_ADD(LOG_FLOAT, v_x, &external.velocity.x)
+LOG_ADD(LOG_FLOAT, v_y, &external.velocity.y)
+LOG_ADD(LOG_FLOAT, v_z, &external.velocity.z)
+LOG_ADD(LOG_FLOAT, roll, &external.rpy.x)
+LOG_ADD(LOG_FLOAT, pitch, &external.rpy.y)
+LOG_ADD(LOG_FLOAT, yaw, &external.rpy.z)
+LOG_ADD(LOG_INT16, dt, &external.dt)
 LOG_GROUP_STOP(vicon)
