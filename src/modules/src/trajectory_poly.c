@@ -47,6 +47,16 @@
 #include "stabilizer.h" // to get current state estimate
 
 
+typedef enum {
+  TRAJECTORY_STATE_IDLE            = 0,
+  TRAJECTORY_STATE_FLYING          = 1,
+  TRAJECTORY_STATE_TAKING_OFF      = 2,
+  TRAJECTORY_STATE_LANDING         = 3,
+  TRAJECTORY_STATE_ELLIPSE         = 4,
+  TRAJECTORY_STATE_ELLIPSE_CATCHUP = 5,
+  TRAJECTORY_STATE_AVOID_TARGET    = 6,
+} trajectoryState_t;
+
 // Global variables
 static bool isInit = false;
 static CRTPPacket p;
@@ -131,6 +141,16 @@ bool trajectoryTest(void)
   return isInit;
 }
 
+void trajectoryStop()
+{
+  state = TRAJECTORY_STATE_IDLE;
+}
+
+bool trajectoryIsStopped()
+{
+  return state == TRAJECTORY_STATE_IDLE;
+}
+
 void pp_eval_to_trajectory_point(struct traj_eval const *ev, trajectoryPoint_t *goal)
 {
     goal->x = ev->pos.x;
@@ -188,16 +208,6 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
       }
     }
   }
-}
-
-void trajectoryGetState(trajectoryState_t* st)
-{
-  *st = state;
-}
-
-void trajectorySetState(trajectoryState_t st)
-{
-  state = st;
 }
 
 void trajectoryTask(void * prm)

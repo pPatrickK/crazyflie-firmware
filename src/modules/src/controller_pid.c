@@ -100,13 +100,9 @@ void stateController(control_t *control, const sensorData_t *sensors,
     control->thrust = actuatorThrust;
   // }
 
-  trajectoryState_t trajectoryState;
-  trajectoryGetState(&trajectoryState);
-
   if (control->thrust == 0
       || ( setpoint->enablePosCtrl &&
-         ( !sensors->valid
-          || trajectoryState == TRAJECTORY_STATE_IDLE)))
+         ( !sensors->valid || trajectoryIsStopped())))
   {
     control->thrust = 0;
     control->roll = 0;
@@ -115,7 +111,7 @@ void stateController(control_t *control, const sensorData_t *sensors,
 
     attitudeControllerResetAllPID();
     positionControllerReset();
-    trajectorySetState(TRAJECTORY_STATE_IDLE);
+    trajectoryStop();
 
     // Reset the calculated YAW angle for rate control
     attitudeDesired.yaw = state->attitude.yaw;
