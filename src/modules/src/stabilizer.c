@@ -178,9 +178,6 @@ static void stabilizerTask(void* param)
       positionControllerMellinger(&control, &state, &setpoint);
       usec_ctrl = toc();
 
-      trajectoryState_t trajectoryState;
-      trajectoryGetState(&trajectoryState);
-
       if (!setpoint.enablePosCtrl) {
         control.thrust = setpoint.thrust;
       }
@@ -191,8 +188,7 @@ static void stabilizerTask(void* param)
 
       if (control.thrust == 0
           || ( setpoint.enablePosCtrl &&
-             ( !sensorData.valid
-              || trajectoryState == TRAJECTORY_STATE_IDLE)))
+             ( !sensorData.valid || trajectoryIsStopped())))
       {
         control.thrust = 0;
         control.roll = 0;
@@ -201,7 +197,8 @@ static void stabilizerTask(void* param)
 
         // attitudeControllerResetAllPID();
         positionControllerReset();
-        trajectorySetState(TRAJECTORY_STATE_IDLE);
+
+        trajectoryStop();
         setpoint.attitude.yaw = state.attitude.yaw;
       }
     }
