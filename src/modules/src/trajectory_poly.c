@@ -54,15 +54,16 @@ static struct planner planner;
 // Private functions
 // TODO consistent naming - should they all start with "trajectory" or not?`
 static void trajectoryTask(void * prm);
+
 static int trajectoryResetPoly(void);
 static int trajectoryAddPoly(const struct data_add_poly* data);
 static int trajectoryStartPoly(void);
 // static int trajectoryState(const struct data_state* data);
-static int trajectoryTakeoff();
-static int trajectoryLand();
+static int trajectoryTakeoff(const struct data_takeoff* data);
+static int trajectoryLand(const struct data_land* data);
 static int trajectoryHover(const struct data_hover* data);
-static int startEllipse();
-static int goHome();
+static int startEllipse(void);
+static int goHome(void);
 static int setEllipse(const struct data_set_ellipse* data);
 static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
 static int startAvoidTarget(const struct data_start_avoid_target* data);
