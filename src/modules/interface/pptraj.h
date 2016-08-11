@@ -60,6 +60,9 @@ struct traj_eval
 	float yaw;
 };
 
+struct traj_eval traj_eval_invalid();
+bool is_traj_eval_valid(struct traj_eval const *ev);
+
 // evaluate a single polynomial piece
 struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass);
 

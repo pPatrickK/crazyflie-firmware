@@ -143,6 +143,18 @@ float poly4d_max_accel_approx(struct poly4d const *p)
 	return amax;
 }
 
+struct traj_eval traj_eval_invalid()
+{
+	struct traj_eval ev;
+	ev.pos = vrepeat(NAN);
+	return ev;
+}
+
+bool is_traj_eval_valid(struct traj_eval const *ev)
+{
+	return visnan(ev->pos);
+}
+
 struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 {
 	// flat variables
