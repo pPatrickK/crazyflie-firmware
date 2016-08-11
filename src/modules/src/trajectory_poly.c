@@ -55,15 +55,10 @@ static struct planner planner;
 // TODO consistent naming - should they all start with "trajectory" or not?`
 static void trajectoryTask(void * prm);
 
-static int trajectoryResetPoly(void);
 static int trajectoryAddPoly(const struct data_add_poly* data);
-static int trajectoryStartPoly(void);
-// static int trajectoryState(const struct data_state* data);
 static int trajectoryTakeoff(const struct data_takeoff* data);
 static int trajectoryLand(const struct data_land* data);
 static int trajectoryHover(const struct data_hover* data);
-static int startEllipse(void);
-static int goHome(void);
 static int setEllipse(const struct data_set_ellipse* data);
 static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
 static int startAvoidTarget(const struct data_start_avoid_target* data);
@@ -152,18 +147,20 @@ void trajectoryTask(void * prm)
 
   while(1) {
     crtpReceivePacketBlock(CRTP_PORT_TRAJECTORY, &p);
-    // DEBUG_PRINT("Recv. sth.\n");
+    float const t = usecTimestamp() / 1e6;
 
     switch(p.data[0])
     {
       case COMMAND_RESET_POLY:
-        ret = trajectoryResetPoly();
+        planner.ppBack->n_pieces = 0;
+        ret = 0;
         break;
       case COMMAND_ADD_POLY:
         ret = trajectoryAddPoly((const struct data_add_poly*)&p.data[1]);
         break;
       case COMMAND_START_POLY:
-        ret = trajectoryStartPoly();
+        plan_start_poly(&planner, statePos(), t);
+        ret = 0;
         break;
       // case COMMAND_STATE:
       //   ret = trajectoryState((const struct data_state*)&p.data[1]);
@@ -177,10 +174,11 @@ void trajectoryTask(void * prm)
         ret = trajectoryHover((const struct data_hover*)&p.data[1]);
         break;
       case COMMAND_START_ELLIPSE:
-        ret = startEllipse();
+        plan_start_ellipse(&planner, t);
+        ret = 0;
         break;
       case COMMAND_GOHOME:
-        ret = goHome();
+        ret = plan_go_home(&planner, t);
         break;
       case COMMAND_SET_ELLIPSE:
         ret = setEllipse((const struct data_set_ellipse*)&p.data[1]);
@@ -206,12 +204,6 @@ void trajectoryTask(void * prm)
   }
 }
 
-
-int trajectoryResetPoly(void)
-{
-  planner.ppBack->n_pieces = 0;
-  return 0;
-}
 
 int trajectoryAddPoly(const struct data_add_poly* data)
 {
@@ -239,20 +231,6 @@ int trajectoryAddPoly(const struct data_add_poly* data)
   return ENOMEM;
 }
 
-int trajectoryStartPoly(void)
-{
-  float t = usecTimestamp() / 1e6;
-  plan_start_poly(&planner, statePos(), t);
-  return 0;
-}
-
-int startEllipse(void)
-{
-  float t = usecTimestamp() / 1e6;
-  plan_start_ellipse(&planner, t);
-  return 0;
-}
-
 int trajectoryTakeoff(const struct data_takeoff* data)
 {
   float t = usecTimestamp() / 1e6;
@@ -272,12 +250,6 @@ int trajectoryHover(const struct data_hover* data)
   float t = usecTimestamp() / 1e6;
   struct vec hover_pos = mkvec(data->x, data->y, data->z);
   return plan_hover(&planner, hover_pos, data->yaw, data->duration, t);
-}
-
-int goHome(void)
-{
-  float t = usecTimestamp() / 1e6;
-  return plan_go_home(&planner, t);
 }
 
 int setEllipse(const struct data_set_ellipse* data)
