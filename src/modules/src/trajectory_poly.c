@@ -48,7 +48,6 @@
 
 // Global variables
 static bool isInit = false;
-static CRTPPacket p;
 static struct planner planner;
 
 // Private functions
@@ -143,6 +142,7 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 void trajectoryTask(void * prm)
 {
   int ret;
+  CRTPPacket p;
   crtpInitTaskQueue(CRTP_PORT_TRAJECTORY);
 
   while(1) {
