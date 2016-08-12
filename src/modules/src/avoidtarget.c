@@ -27,7 +27,11 @@
  */
 
 #include "avoidtarget.h"
+#include "pptraj.h"
 //#include "stdio.h"
+
+static float dist_to_velocity_poly[PP_SIZE];
+static float const DIST_OF_MAX_VELOCITY = 0.7;
 
 void init_avoid_target(struct avoid_target *at, struct vec home, float max_speed, float max_displace, float t)
 {
@@ -37,6 +41,9 @@ void init_avoid_target(struct avoid_target *at, struct vec home, float max_speed
 	at->max_speed = max_speed;
 	at->max_displace = max_displace;
 	at->last_t = t;
+
+	poly5(dist_to_velocity_poly, DIST_OF_MAX_VELOCITY,
+		0, 0, 0, max_speed, 0, 0);
 }
 
 void update_avoid_target(struct avoid_target *at, struct vec target_pos, float t)
@@ -78,7 +85,10 @@ void update_avoid_target(struct avoid_target *at, struct vec target_pos, float t
 		at->last_t = t;
 		return;
 	}
-	float speed = fmin(4 * dist2goal, at->max_speed);
+	float speed = fmin(
+		polyval(dist_to_velocity_poly, PP_DEGREE, dist2goal),
+		at->max_speed);
+
 	float dt = t - at->last_t;
 	at->vel = vscl(speed / dist2goal, pos2goal);
 	at->pos = vadd(at->pos, vscl(dt, at->vel));

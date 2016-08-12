@@ -60,6 +60,9 @@ struct traj_eval
 	float yaw;
 };
 
+// evaluate a polynomial using horner's rule.
+float polyval(float const *poly, int deg, float t);
+
 struct traj_eval traj_eval_invalid();
 bool is_traj_eval_valid(struct traj_eval const *ev);
 
@@ -114,6 +117,12 @@ static inline bool piecewise_is_finished(struct piecewise_traj const *traj, floa
   }
   return (t - traj->t_begin) >= total_dur;
 }
+
+// plan a degree-5 polynomial with the given duration T,
+// and given initial/final position, velocity, and acceleration
+void poly5(float poly[PP_SIZE], float T,
+	float x0, float dx0, float ddx0,
+	float xf, float dxf, float ddxf);
 
 void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,
 	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,

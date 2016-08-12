@@ -76,20 +76,19 @@ void testAvoidTarget()
 	struct vec home = vecrandu(-1, 1);
 	float const MAX_SPEED = 2.0;
 	float const MAX_DISP = 1.0;
-	float const t0 = 0;
-	init_avoid_target(&a, home, MAX_SPEED, MAX_DISP, t0);
 
 	// initial goal should be hover at home
+	init_avoid_target(&a, home, MAX_SPEED, MAX_DISP, 0);
 	struct traj_eval ev = eval_avoid_target(&a, 1.0f);
 	TEST_ASSERT_VEC_WITHIN(TOL, ev.pos, home);
 	TEST_ASSERT_VEC_WITHIN(TOL, ev.vel, vzero());
 	TEST_ASSERT_VEC_WITHIN(TOL, ev.omega, vzero());
 
 	// if target is very far away, goal should be close to hover at home
+	init_avoid_target(&a, home, MAX_SPEED, MAX_DISP, 0);
 	struct vec target = vrepeat(1e9);
 	update_avoid_target(&a, target, 1.0f);
 	ev = eval_avoid_target(&a, 1.0f);
-	print_traj_pt("avoid target far", ev);
 	TEST_ASSERT_VEC_WITHIN(0.001, ev.pos, home);
 	TEST_ASSERT_VEC_WITHIN(0.001, ev.vel, vzero());
 	TEST_ASSERT_VEC_WITHIN(0.001, ev.omega, vzero());
@@ -97,11 +96,20 @@ void testAvoidTarget()
 	// same, but via planner
 	struct planner p;
 	plan_init(&p, MASS);
-	plan_start_avoid_target(&p, home, MAX_DISP, MAX_SPEED, t0);
+	plan_start_avoid_target(&p, home, MAX_DISP, MAX_SPEED, 0);
 	plan_update_avoid_target(&p, target, 1.0f);
 	ev = plan_current_goal(&p, 1.0f);
-	print_traj_pt("avoid target far planner", ev);
 	TEST_ASSERT_VEC_WITHIN(0.001, ev.pos, home);
 	TEST_ASSERT_VEC_WITHIN(0.001, ev.vel, vzero());
 	TEST_ASSERT_VEC_WITHIN(0.001, ev.omega, vzero());
+
+	// test that displacement is in the right direction
+	home = vzero();
+	target = mkvec(1, 0, 0);
+	init_avoid_target(&a, home, MAX_SPEED, MAX_DISP, 0);
+	update_avoid_target(&a, target, 0.0f);
+	ev = eval_avoid_target(&a, 1.0f);
+	TEST_ASSERT(ev.pos.x < -0.001);
+	TEST_ASSERT_FLOAT_WITHIN(TOL, ev.pos.y, home.y);
+	TEST_ASSERT_FLOAT_WITHIN(TOL, ev.pos.z, home.z);
 }

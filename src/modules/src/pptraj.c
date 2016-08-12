@@ -83,7 +83,7 @@ void poly4d_stretchtime(struct poly4d *p, float s)
 }
 
 // evaluate a polynomial using horner's rule.
-static float polyval(float const *poly, int deg, float t)
+float polyval(float const *poly, int deg, float t)
 {
     float x = 0.0;
     for (int i = deg; i >= 0; --i) {
@@ -239,7 +239,7 @@ void piecewise_stretchtime(struct piecewise_traj *pp, float s)
 	}
 }
 
-static void poly5(float poly[PP_SIZE], float T,
+void poly5(float poly[PP_SIZE], float T,
 	float x0, float dx0, float ddx0,
 	float xf, float dxf, float ddxf)
 {
