@@ -61,7 +61,12 @@ static int trajectoryHover(const struct data_hover* data);
 static int setEllipse(const struct data_set_ellipse* data);
 static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
 static int startAvoidTarget(const struct data_start_avoid_target* data);
-static int updateAvoidTarget(const struct data_target_position *data);
+
+static void posInteractiveCB(const struct vec *pos, const struct quat *quat)
+{
+  float t = usecTimestamp() / 1e6;
+  plan_update_avoid_target(&planner, *pos, t);
+}
 
 // hack using global
 extern float g_vehicleMass;
@@ -102,6 +107,9 @@ void trajectoryInit(void)
               TRAJECTORY_TASK_STACKSIZE, NULL, TRAJECTORY_TASK_PRI, NULL);
 
   initUsecTimer();
+
+  setPositionInteractiveCallback(&posInteractiveCB);
+
   isInit = true;
   DEBUG_PRINT("traj. initialized.\n");
 }
@@ -162,8 +170,6 @@ void trajectoryTask(void * prm)
         plan_start_poly(&planner, statePos(), t);
         ret = 0;
         break;
-      // case COMMAND_STATE:
-      //   ret = trajectoryState((const struct data_state*)&p.data[1]);
       case COMMAND_TAKEOFF:
         ret = trajectoryTakeoff((const struct data_takeoff*)&p.data[1]);
         break;
@@ -188,9 +194,6 @@ void trajectoryTask(void * prm)
         break;
       case COMMAND_START_AVOID_TARGET:
         ret = startAvoidTarget((const struct data_start_avoid_target*)&p.data[1]);
-        break;
-      case COMMAND_TARGET_POSITION:
-        ret = updateAvoidTarget((const struct data_target_position*)&p.data[1]);
         break;
       default:
         ret = ENOEXEC;
@@ -286,13 +289,5 @@ int startAvoidTarget(const struct data_start_avoid_target* data)
   float t = usecTimestamp() / 1e6;
   struct vec home = mkvec(data->x, data->y, data->z);
   plan_start_avoid_target(&planner, home, data->max_displacement, data->max_speed, t);
-  return 0;
-}
-
-int updateAvoidTarget(const struct data_target_position *data)
-{
-  float t = usecTimestamp() / 1e6;
-  struct vec targetPos = mkvec(data->x, data->y, data->z);
-  plan_update_avoid_target(&planner, targetPos, t);
   return 0;
 }

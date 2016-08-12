@@ -59,6 +59,7 @@ static float v_y;
 static float v_z;
 static uint16_t dt;
 
+positionInteractiveCallback interactiveCallback = NULL;
 
 //Private functions
 static void positionExternalCrtpCB(CRTPPacket* pk);
@@ -109,6 +110,11 @@ void positionExternalGetLastData(
   dt = *last_time_in_ms;
 }
 
+void setPositionInteractiveCallback(positionInteractiveCallback cb)
+{
+  interactiveCallback = cb;
+}
+
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
   struct data_vicon* d = ((struct data_vicon*)pk->data);
@@ -140,6 +146,18 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
 
       lastTime = xTaskGetTickCount();
       positionExternalFresh = true;
+    }
+    else if (d->pose[i].id == INTERACTIVE_ID && interactiveCallback != NULL) {
+      float x = position_fix2float(d->pose[i].x);
+      float y = position_fix2float(d->pose[i].y);
+      float z = position_fix2float(d->pose[i].z);
+      struct vec pos = mkvec(x, y, z);
+
+      float q[4];
+      quatdecompress(d->pose[i].quat, q);
+      struct quat quat = qloadf(q);
+
+      (*interactiveCallback)(&pos, &quat);
     }
   }
 }

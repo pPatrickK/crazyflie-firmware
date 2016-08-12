@@ -27,6 +27,7 @@
  */
 
 #include "avoidtarget.h"
+//#include "stdio.h"
 
 void init_avoid_target(struct avoid_target *at, struct vec home, float max_speed, float max_displace, float t)
 {
@@ -43,6 +44,11 @@ void update_avoid_target(struct avoid_target *at, struct vec target_pos, float t
 	// this is an xy controller only... for now
 	target_pos.z = at->home.z;
 
+	//printf("update: target pos (%f %f %f)\n", target_pos.x, target_pos.y, target_pos.z);
+	//printf("            my pos (%f %f %f)\n", at->pos.x, at->pos.y, at->pos.z);
+	//printf("      max_displace %f\n", at->max_displace);
+	//printf("         max_speed %f\n", at->max_speed);
+
 	// compute goal position
 	// this should really be relative to at->home instead of at->pos,
 	// but for some reason this gives a nicer, more smooth + organic movement -
@@ -51,14 +57,27 @@ void update_avoid_target(struct avoid_target *at, struct vec target_pos, float t
 	float dist = vmag(delta);
 	struct vec delta_unit = vdiv(delta, dist);
 	// d + d^2 for strong repulsion when near, but also long tail
+	if (dist < 0.001) {
+		// avoid div by 0 (target is too close)
+		at->vel = vzero();
+		at->last_t = t;
+		return;
+	}
 	// TODO: prove no collisions
 	float desired_displacement = 1.5 / (dist + fsqr(dist));
 	float displacement = fmin(desired_displacement, at->max_displace);
 	struct vec goal = vadd(at->home, vscl(displacement, delta_unit));
+	//printf("              goal (%f %f %f)\n", goal.x, goal.y, goal.z);
 
 	// move towards goal position
 	struct vec pos2goal = vsub(goal, at->pos);
 	float dist2goal = vmag(pos2goal);
+	if (dist2goal < 0.001) {
+		// avoid div by 0 (target is very far) (target is very far)
+		at->vel = vzero();
+		at->last_t = t;
+		return;
+	}
 	float speed = fmin(4 * dist2goal, at->max_speed);
 	float dt = t - at->last_t;
 	at->vel = vscl(speed / dist2goal, pos2goal);

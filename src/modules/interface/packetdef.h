@@ -50,6 +50,10 @@ static inline float position_fix2float(posFixed16_t x)
   return (POSITION_LIMIT / INT16_MAX) * ((float)x);
 }
 
+// special id for the "interactive object" e.g. in "avoid human" demo
+// this id is reserved and should not be used for a Crazyflie
+static int const INTERACTIVE_ID = 0xFF;
+
 struct data_vicon {
   struct {
     uint8_t id;
@@ -79,7 +83,6 @@ enum TrajectoryCommand_e {
   COMMAND_START_ELLIPSE           = 8,
   COMMAND_START_CANNED_TRAJECTORY = 9,
   COMMAND_START_AVOID_TARGET      = 10,
-  COMMAND_TARGET_POSITION         = 11,
 };
 
 // multi-packet piecewise polynomial definition
@@ -142,10 +145,4 @@ struct data_start_avoid_target {
   float z;
   float max_displacement;
   float max_speed;
-};
-
-struct data_target_position {
-  float x;
-  float y;
-  float z;
 };

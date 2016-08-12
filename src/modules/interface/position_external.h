@@ -27,6 +27,7 @@
 #define POSITION_EXTERNAL_H_
 
 #include <stdint.h>
+#include "math3d.h"
 
 void positionExternalInit(void);
 bool positionExternalTest(void);
@@ -42,5 +43,10 @@ void positionExternalGetLastData(
   uint16_t* last_time_in_ms);
 
 extern bool positionExternalFresh;
+
+
+// position of the "interactive object" i.e. in "avoid human" demo
+typedef void (*positionInteractiveCallback)(struct vec const *, struct quat const *);
+void setPositionInteractiveCallback(positionInteractiveCallback cb);
 
 #endif /* POSITION_EXTERNAL_H_ */

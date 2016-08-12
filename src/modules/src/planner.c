@@ -149,7 +149,7 @@ int plan_takeoff(struct planner *p, struct vec pos, float yaw, float height, flo
 		return 1;
 	}
 
-	p->home = pos;
+	p->home = vadd(pos, mkvec(0, 0, height));
 	plan_takeoff_or_landing(p, pos, yaw, height, duration);
 	p->state = TRAJECTORY_STATE_TAKING_OFF;
 	plan_pp_flip(p, t);
