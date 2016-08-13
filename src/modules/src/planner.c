@@ -51,7 +51,7 @@ static void plan_takeoff_or_landing(struct planner *p, struct vec pos, float yaw
 	poly4d_stretchtime(&takeoff, duration / takeoff.duration);
 	poly4d_scale(&takeoff, 1, 1, height - pos.z, 1);
 	poly4d_shift_vec(&takeoff, pos, 0);
-	poly_linear(takeoff.p[3], duration, yaw, 0);
+	polylinear(takeoff.p[3], duration, yaw, 0);
 
 	p->ppBack->pieces[0] = takeoff;
 	p->ppBack->n_pieces = 1;

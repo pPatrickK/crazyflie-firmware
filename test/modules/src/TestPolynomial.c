@@ -93,6 +93,7 @@ void testTimestretchPiecewiseLinear()
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.yaw);
 
 		ev = piecewise_eval(&pp, dur0 + dur1, 1);
+		printf("x2 = %f, ev = %f\n", x2, ev.pos.x);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, x2, ev.pos.x);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.y);
 		TEST_ASSERT_FLOAT_WITHIN(TOL, 0, ev.pos.z);

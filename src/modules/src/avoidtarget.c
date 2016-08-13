@@ -85,9 +85,7 @@ void update_avoid_target(struct avoid_target *at, struct vec target_pos, float t
 		at->last_t = t;
 		return;
 	}
-	float speed = fmin(
-		polyval(dist_to_velocity_poly, PP_DEGREE, dist2goal),
-		at->max_speed);
+	float speed = fmin(polyval(dist_to_velocity_poly, dist2goal), at->max_speed);
 
 	float dt = t - at->last_t;
 	at->vel = vscl(speed / dist2goal, pos2goal);
