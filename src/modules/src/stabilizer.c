@@ -175,7 +175,8 @@ static void stabilizerTask(void* param)
       }
 
       tic();
-      positionControllerMellinger(&control, &state, &setpoint);
+      float const dt = 1.0f / RATE_500_HZ;
+      positionControllerMellinger(&control, &state, &setpoint, dt);
       usec_ctrl = toc();
 
       if (!setpoint.enablePosCtrl) {

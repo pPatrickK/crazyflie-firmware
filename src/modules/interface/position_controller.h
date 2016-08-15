@@ -38,6 +38,7 @@ void positionControllerReset(void);
 void positionControllerMellinger(
   control_t *control,
   const state_t *state,
-  const setpoint_t *setpoint);
+  const setpoint_t *setpoint,
+  float dt);
 
 #endif /* POSITION_CONTROLLER_H_ */

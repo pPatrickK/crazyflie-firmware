@@ -279,6 +279,8 @@ int startCannedTrajectory(const struct data_start_canned_trajectory* data)
     return 1;
   }
 
+  piecewise_stretchtime(planner.ppBack, data->timescale);
+
   float t = usecTimestamp() / 1e6;
   plan_start_poly(&planner, statePos(), t);
   return 0;

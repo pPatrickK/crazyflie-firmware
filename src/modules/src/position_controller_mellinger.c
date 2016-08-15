@@ -37,7 +37,6 @@
 #include "math3d.h"
 #include "mathconstants.h"
 
-#define DT 0.01
 
 // HACK HACK HACK global for others to use
 float g_vehicleMass = 0.033;
@@ -105,7 +104,8 @@ float clamp(float value, float min, float max) {
 void positionControllerMellinger(
   control_t *control,
   const state_t *state,
-  const setpoint_t *setpoint)
+  const setpoint_t *setpoint,
+  float dt)
 {
   struct vec r_error;
   struct vec v_error;
@@ -136,13 +136,13 @@ void positionControllerMellinger(
   v_error.z = setpoint->velocity.z - state->velocity.z;
 
   // Integral Error
-  i_error_z += r_error.z * DT;
+  i_error_z += r_error.z * dt;
   i_error_z = clamp(i_error_z, -i_range_z, i_range_z);
 
-  i_error_x += r_error.x * DT;
+  i_error_x += r_error.x * dt;
   i_error_x = clamp(i_error_x, -i_range_xy, i_range_xy);
 
-  i_error_y += r_error.y * DT;
+  i_error_y += r_error.y * dt;
   i_error_y = clamp(i_error_y, -i_range_xy, i_range_xy);
 
   // Desired thrust (ignoring target accellerations) [F_des]
@@ -227,8 +227,8 @@ void positionControllerMellinger(
   ew.y = -setpoint->attitudeRate.pitch - state->attitudeRate.pitch;
   ew.z = setpoint->attitudeRate.yaw - state->attitudeRate.yaw;
   if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
-    err_d_roll = ((setpoint->attitudeRate.roll - prev_setpoint_omega_roll) - (state->attitudeRate.roll - prev_omega_roll)) / DT;
-    err_d_pitch = (-(setpoint->attitudeRate.pitch - prev_setpoint_omega_pitch) - (state->attitudeRate.pitch - prev_omega_pitch)) / DT;
+    err_d_roll = ((setpoint->attitudeRate.roll - prev_setpoint_omega_roll) - (state->attitudeRate.roll - prev_omega_roll)) / dt;
+    err_d_pitch = (-(setpoint->attitudeRate.pitch - prev_setpoint_omega_pitch) - (state->attitudeRate.pitch - prev_omega_pitch)) / dt;
   }
   prev_omega_roll = state->attitudeRate.roll;
   prev_omega_pitch = state->attitudeRate.pitch;
@@ -236,13 +236,13 @@ void positionControllerMellinger(
   prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
 
   // Integral Error
-  i_error_m_x += (-eR.x) * DT;
+  i_error_m_x += (-eR.x) * dt;
   i_error_m_x = clamp(i_error_m_x, -i_range_m_xy, i_range_m_xy);
 
-  i_error_m_y += (-eR.y) * DT;
+  i_error_m_y += (-eR.y) * dt;
   i_error_m_y = clamp(i_error_m_y, -i_range_m_xy, i_range_m_xy);
 
-  i_error_m_z += (-eR.z) * DT;
+  i_error_m_z += (-eR.z) * dt;
   i_error_m_z = clamp(i_error_m_z, -i_range_m_z, i_range_m_z);
 
   // Moment:
