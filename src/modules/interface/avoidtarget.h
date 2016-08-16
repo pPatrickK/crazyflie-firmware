@@ -34,6 +34,7 @@
 struct avoid_target
 {
 	struct vec home;
+	struct vec goal;
 	struct vec pos;
 	struct vec vel;
 	float max_speed;
