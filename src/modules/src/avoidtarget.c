@@ -98,7 +98,7 @@ struct traj_eval eval_avoid_target(struct avoid_target *at, float t)
 	}
 	else {
 		float speed = fmin(
-			polyval(dist_to_velocity_poly, PP_DEGREE, dist2goal),
+			polyval(dist_to_velocity_poly, dist2goal),
 			at->max_speed);
 		float dt = t - at->last_t;
 		struct vec desired_vel = vscl(speed / dist2goal, pos2goal);
