@@ -187,7 +187,10 @@ static void stabilizerTask(void* param)
       m_pitch = control.pitch;
       m_yaw = control.yaw;
 
+      bool upsideDown = sensorData.acc.z < -0.5;
+
       if (control.thrust == 0
+          || upsideDown
           || ( setpoint.enablePosCtrl &&
              ( !sensorData.valid || trajectoryIsStopped())))
       {
