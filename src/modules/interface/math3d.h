@@ -61,7 +61,7 @@ static inline struct vec vrepeat(float x) {
 	return mkvec(x, x, x);
 }
 // construct a zero-vector.
-static inline struct vec vzero() {
+static inline struct vec vzero(void) {
 	return vrepeat(0.0f);
 }
 
@@ -222,7 +222,7 @@ struct mat33 {
 //
 
 // construct a zero matrix.
-static inline struct mat33 mzero() {
+static inline struct mat33 mzero(void) {
 	struct mat33 m;
 	for (int i = 0; i < 3; ++i) {
 		for (int j = 0; j < 3; ++j) {
@@ -244,7 +244,7 @@ static inline struct mat33 eyescl(float a) {
 	return diag(a, a, a);
 }
 // construct an identity matrix.
-static inline struct mat33 eye() {
+static inline struct mat33 eye(void) {
 	return eyescl(1.0f);
 }
 // construct a matrix from three column vectors.
@@ -430,7 +430,7 @@ static inline struct quat quatvw(struct vec v, float w) {
 	return q;
 }
 // construct an identity quaternion.
-static inline struct quat qeye() {
+static inline struct quat qeye(void) {
 	return mkquat(0, 0, 0, 1);
 }
 // construct a quaternion from an axis and angle of rotation.

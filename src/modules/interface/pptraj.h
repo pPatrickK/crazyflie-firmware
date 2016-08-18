@@ -88,7 +88,7 @@ struct traj_eval
 };
 
 // a special value of traj_eval that indicates an invalid result.
-struct traj_eval traj_eval_invalid();
+struct traj_eval traj_eval_invalid(void);
 
 // check if a traj_eval represents an invalid result.
 bool is_traj_eval_valid(struct traj_eval const *ev);
