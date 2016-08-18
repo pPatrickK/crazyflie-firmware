@@ -255,7 +255,7 @@ int takeoff(const struct data_takeoff* data)
 {
   if (isGroup(data->group)) {
     float t = usecTimestamp() / 1e6;
-    float duration =  data->time_from_start / 1000.0;
+    float duration = data->time_from_start / 1000.0;
     return plan_takeoff(&planner, statePos(), stateYaw(), data->height, duration, t);
   }
   return 0;
@@ -265,7 +265,7 @@ int land(const struct data_land* data)
 {
   if (isGroup(data->group)) {
     float t = usecTimestamp() / 1e6;
-    float duration =  data->time_from_start / 1000.0;
+    float duration = data->time_from_start / 1000.0;
     return plan_land(&planner, statePos(), stateYaw(), data->height, duration, t);
   }
   return 0;
@@ -312,19 +312,9 @@ int set_ellipse(const struct data_set_ellipse* data)
 int start_canned_trajectory(const struct data_start_canned_trajectory* data)
 {
   if (isGroup(data->group)) {
-    enum trajectory_type type = data->trajectory;
-    switch (type) {
-    case TRAJECTORY_FIGURE8:
-      *planner.ppBack = pp_figure8;
-      break;
-    default:
-      return 1;
-    }
-
-    piecewise_stretchtime(planner.ppBack, data->timescale);
-
     float t = usecTimestamp() / 1e6;
-    plan_start_poly(&planner, statePos(), t);
+    return plan_start_canned_trajectory(&planner, 
+      data->trajectory, data->timescale, statePos(), t);
   }
   return 0;
 }

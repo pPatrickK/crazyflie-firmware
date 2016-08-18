@@ -132,6 +132,22 @@ void plan_start_poly(struct planner *p, struct vec current_pos, float t)
 	plan_pp_flip(p, t);
 }
 
+int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
+	float timescale, struct vec current_pos, float t)
+{
+	switch (type) {
+	case TRAJECTORY_FIGURE8:
+		*p->ppBack = pp_figure8;
+		break;
+	default:
+		return 1;
+	}
+
+	piecewise_stretchtime(p->ppBack, timescale);
+	plan_start_poly(p, current_pos, t);
+	return 0;
+}
+
 // build the ellipse yourself in planner->ellipse, then call this function.
 //
 void plan_start_ellipse(struct planner *p, float t)

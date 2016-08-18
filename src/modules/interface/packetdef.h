@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  *    ______
  *   / ____/________ _____  __  ________      ______ __________ ___
@@ -27,6 +29,12 @@
                  centralized so it can be shared between server and vehicle.
  */
 
+enum trajectory_type {
+  TRAJECTORY_FIGURE8 = 0,
+};
+
+// hacks on hacks on hacks - should be fixed to do this in swig interface file
+#ifndef SWIG
 
 #include <stdint.h>
 
@@ -144,10 +152,6 @@ struct data_start_ellipse {
   uint8_t group;
 } __attribute__((packed));
 
-enum trajectory_type {
-  TRAJECTORY_FIGURE8 = 0,
-};
-
 struct data_start_canned_trajectory {
   uint8_t group;
   uint16_t trajectory; // one of trajectory_type
@@ -166,3 +170,4 @@ struct data_set_group {
   uint8_t group;
 } __attribute__((packed));
 
+#endif // ifndef SWIG

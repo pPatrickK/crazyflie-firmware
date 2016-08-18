@@ -29,6 +29,7 @@
 
 #include "avoidtarget.h"
 #include "math3d.h"
+#include "packetdef.h"
 #include "pptraj.h"
 
 
@@ -84,6 +85,9 @@ struct traj_eval plan_current_goal(struct planner *p, float t);
 // so it starts at the current position.
 //
 void plan_start_poly(struct planner *p, struct vec current_pos, float t);
+
+int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
+	float timescale, struct vec current_pos, float t);
 
 // build the ellipse yourself in planner->ellipse, then call this function.
 //
