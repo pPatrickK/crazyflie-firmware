@@ -49,18 +49,23 @@
 // Global variables
 static bool isInit = false;
 static struct planner planner;
+static uint8_t group;
 
 // Private functions
 // TODO consistent naming - should they all start with "trajectory" or not?`
 static void trajectoryTask(void * prm);
 
-static int trajectoryAddPoly(const struct data_add_poly* data);
-static int trajectoryTakeoff(const struct data_takeoff* data);
-static int trajectoryLand(const struct data_land* data);
-static int trajectoryHover(const struct data_hover* data);
-static int setEllipse(const struct data_set_ellipse* data);
-static int startCannedTrajectory(const struct data_start_canned_trajectory* data);
-static int startAvoidTarget(const struct data_start_avoid_target* data);
+static int add_poly(const struct data_add_poly* data);
+static int start_poly(const struct data_start_poly* data);
+static int takeoff(const struct data_takeoff* data);
+static int land(const struct data_land* data);
+static int hover(const struct data_hover* data);
+static int start_ellipse(const struct data_start_ellipse* data);
+static int gohome(const struct data_gohome* data);
+static int set_ellipse(const struct data_set_ellipse* data);
+static int start_canned_trajectory(const struct data_start_canned_trajectory* data);
+static int start_avoid_target(const struct data_start_avoid_target* data);
+static int set_group(const struct data_set_group* data);
 
 static void posInteractiveCB(const struct vec *pos, const struct quat *quat)
 {
@@ -92,6 +97,10 @@ static struct vec statePos()
 static float stateYaw()
 {
 	return radians(stabilizerState()->attitude.yaw);
+}
+
+bool isGroup(uint8_t g) {
+  return g == 0 || g == group;
 }
 
 void trajectoryInit(void)
@@ -155,7 +164,6 @@ void trajectoryTask(void * prm)
 
   while(1) {
     crtpReceivePacketBlock(CRTP_PORT_TRAJECTORY, &p);
-    float const t = usecTimestamp() / 1e6;
 
     switch(p.data[0])
     {
@@ -164,36 +172,37 @@ void trajectoryTask(void * prm)
         ret = 0;
         break;
       case COMMAND_ADD_POLY:
-        ret = trajectoryAddPoly((const struct data_add_poly*)&p.data[1]);
+        ret = add_poly((const struct data_add_poly*)&p.data[1]);
         break;
       case COMMAND_START_POLY:
-        plan_start_poly(&planner, statePos(), t);
-        ret = 0;
+        ret = start_poly((const struct data_start_poly*)&p.data[1]);
         break;
       case COMMAND_TAKEOFF:
-        ret = trajectoryTakeoff((const struct data_takeoff*)&p.data[1]);
+        ret = takeoff((const struct data_takeoff*)&p.data[1]);
         break;
       case COMMAND_LAND:
-        ret = trajectoryLand((const struct data_land*)&p.data[1]);
+        ret = land((const struct data_land*)&p.data[1]);
         break;
       case COMMAND_HOVER:
-        ret = trajectoryHover((const struct data_hover*)&p.data[1]);
+        ret = hover((const struct data_hover*)&p.data[1]);
         break;
       case COMMAND_START_ELLIPSE:
-        plan_start_ellipse(&planner, t);
-        ret = 0;
+        ret = start_ellipse((const struct data_start_ellipse*)&p.data[1]);
         break;
       case COMMAND_GOHOME:
-        ret = plan_go_home(&planner, t);
+        ret = gohome((const struct data_gohome*)&p.data[1]);
         break;
       case COMMAND_SET_ELLIPSE:
-        ret = setEllipse((const struct data_set_ellipse*)&p.data[1]);
+        ret = set_ellipse((const struct data_set_ellipse*)&p.data[1]);
         break;
       case COMMAND_START_CANNED_TRAJECTORY:
-        ret = startCannedTrajectory((const struct data_start_canned_trajectory*)&p.data[1]);
+        ret = start_canned_trajectory((const struct data_start_canned_trajectory*)&p.data[1]);
         break;
       case COMMAND_START_AVOID_TARGET:
-        ret = startAvoidTarget((const struct data_start_avoid_target*)&p.data[1]);
+        ret = start_avoid_target((const struct data_start_avoid_target*)&p.data[1]);
+        break;
+      case COMMAND_SET_GROUP:
+        ret = set_group((const struct data_set_group*)&p.data[1]);
         break;
       default:
         ret = ENOEXEC;
@@ -207,8 +216,7 @@ void trajectoryTask(void * prm)
   }
 }
 
-
-int trajectoryAddPoly(const struct data_add_poly* data)
+int add_poly(const struct data_add_poly* data)
 {
   if (data->id < PP_MAX_PIECES
       && data->offset + data->size < sizeof(planner.ppBack->pieces[data->id])) {
@@ -234,28 +242,61 @@ int trajectoryAddPoly(const struct data_add_poly* data)
   return ENOMEM;
 }
 
-int trajectoryTakeoff(const struct data_takeoff* data)
+int start_poly(const struct data_start_poly* data)
 {
-  float t = usecTimestamp() / 1e6;
-  float duration =  data->time_from_start / 1000.0;
-  return plan_takeoff(&planner, statePos(), stateYaw(), data->height, duration, t);
+  if (isGroup(data->group)) {
+    float t = usecTimestamp() / 1e6;
+    plan_start_poly(&planner, statePos(), t);
+  }
+  return 0;
 }
 
-int trajectoryLand(const struct data_land* data)
+int takeoff(const struct data_takeoff* data)
 {
-  float t = usecTimestamp() / 1e6;
-  float duration =  data->time_from_start / 1000.0;
-  return plan_land(&planner, statePos(), stateYaw(), data->height, duration, t);
+  if (isGroup(data->group)) {
+    float t = usecTimestamp() / 1e6;
+    float duration =  data->time_from_start / 1000.0;
+    return plan_takeoff(&planner, statePos(), stateYaw(), data->height, duration, t);
+  }
+  return 0;
 }
 
-int trajectoryHover(const struct data_hover* data)
+int land(const struct data_land* data)
+{
+  if (isGroup(data->group)) {
+    float t = usecTimestamp() / 1e6;
+    float duration =  data->time_from_start / 1000.0;
+    return plan_land(&planner, statePos(), stateYaw(), data->height, duration, t);
+  }
+  return 0;
+}
+
+int hover(const struct data_hover* data)
 {
   float t = usecTimestamp() / 1e6;
   struct vec hover_pos = mkvec(data->x, data->y, data->z);
   return plan_hover(&planner, hover_pos, data->yaw, data->duration, t);
 }
 
-int setEllipse(const struct data_set_ellipse* data)
+int start_ellipse(const struct data_start_ellipse* data)
+{
+  if (isGroup(data->group)) {
+    float t = usecTimestamp() / 1e6;
+    plan_start_ellipse(&planner, t);
+  }
+  return 0;
+}
+
+int gohome(const struct data_gohome* data)
+{
+  if (isGroup(data->group)) {
+    float t = usecTimestamp() / 1e6;
+    plan_go_home(&planner, t);
+  }
+  return 0;
+}
+
+int set_ellipse(const struct data_set_ellipse* data)
 {
   planner.ellipse.center = mkvec_position_fix2float(
     data->centerx, data->centery, data->centerz);
@@ -268,28 +309,37 @@ int setEllipse(const struct data_set_ellipse* data)
   return 0;
 }
 
-int startCannedTrajectory(const struct data_start_canned_trajectory* data)
+int start_canned_trajectory(const struct data_start_canned_trajectory* data)
 {
-  enum trajectory_type type = data->trajectory;
-  switch (type) {
-  case TRAJECTORY_FIGURE8:
-    *planner.ppBack = pp_figure8;
-    break;
-  default:
-    return 1;
+  if (isGroup(data->group)) {
+    enum trajectory_type type = data->trajectory;
+    switch (type) {
+    case TRAJECTORY_FIGURE8:
+      *planner.ppBack = pp_figure8;
+      break;
+    default:
+      return 1;
+    }
+
+    piecewise_stretchtime(planner.ppBack, data->timescale);
+
+    float t = usecTimestamp() / 1e6;
+    plan_start_poly(&planner, statePos(), t);
   }
-
-  piecewise_stretchtime(planner.ppBack, data->timescale);
-
-  float t = usecTimestamp() / 1e6;
-  plan_start_poly(&planner, statePos(), t);
   return 0;
 }
 
-int startAvoidTarget(const struct data_start_avoid_target* data)
+int start_avoid_target(const struct data_start_avoid_target* data)
 {
   float t = usecTimestamp() / 1e6;
   struct vec home = mkvec(data->x, data->y, data->z);
   plan_start_avoid_target(&planner, home, data->max_displacement, data->max_speed, t);
+  return 0;
+}
+
+int set_group(const struct data_set_group* data)
+{
+  group = data->group;
+
   return 0;
 }

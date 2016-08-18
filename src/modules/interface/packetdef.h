@@ -83,6 +83,7 @@ enum TrajectoryCommand_e {
   COMMAND_START_ELLIPSE           = 8,
   COMMAND_START_CANNED_TRAJECTORY = 9,
   COMMAND_START_AVOID_TARGET      = 10,
+  COMMAND_SET_GROUP               = 11,
 };
 
 // multi-packet piecewise polynomial definition
@@ -93,6 +94,9 @@ struct data_add_poly {
   float values[6];
 } __attribute__((packed));
 
+struct data_start_poly {
+  uint8_t group;
+} __attribute__((packed));
 
 // "take this much time to go here, then hover"
 struct data_hover {
@@ -106,6 +110,7 @@ struct data_hover {
 
 // vertical takeoff from current x-y position to given height
 struct data_takeoff {
+  uint8_t group;
   float height; // m (absolute)
   uint16_t time_from_start; // ms
 } __attribute__((packed));
@@ -113,8 +118,13 @@ struct data_takeoff {
 
 // vertical land from current x-y position to given height
 struct data_land {
+  uint8_t group;
   float height; // m (absolute)
   uint16_t time_from_start; // ms
+} __attribute__((packed));
+
+struct data_gohome {
+  uint8_t group;
 } __attribute__((packed));
 
 struct data_set_ellipse {
@@ -130,11 +140,16 @@ struct data_set_ellipse {
   float period;
 } __attribute__((packed));
 
+struct data_start_ellipse {
+  uint8_t group;
+} __attribute__((packed));
+
 enum trajectory_type {
   TRAJECTORY_FIGURE8 = 0,
 };
 
 struct data_start_canned_trajectory {
+  uint8_t group;
   uint16_t trajectory; // one of trajectory_type
   float timescale;
 } __attribute__((packed));
@@ -146,3 +161,8 @@ struct data_start_avoid_target {
   float max_displacement;
   float max_speed;
 };
+
+struct data_set_group {
+  uint8_t group;
+} __attribute__((packed));
+
