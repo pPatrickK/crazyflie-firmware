@@ -93,6 +93,9 @@ void positionExternalGetLastData(
   float* q1,
   float* q2,
   float* q3,
+  float* vx,
+  float* vy,
+  float* vz,
   uint16_t* last_time_in_ms)
 {
   *x = lastX;
@@ -102,6 +105,9 @@ void positionExternalGetLastData(
   *q1 = lastQ1;
   *q2 = lastQ2;
   *q3 = lastQ3;
+  *vx = v_x;
+  *vy = v_y;
+  *vz = v_z;
   if (xTaskGetTickCount() - lastTime < 10 * 1000) {
     *last_time_in_ms = xTaskGetTickCount() - lastTime;
   } else {
@@ -120,9 +126,9 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
   struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 2; ++i) {
     if (d->pose[i].id == my_id) {
-      float x = position_fix2float(d->pose[i].x);
-      float y = position_fix2float(d->pose[i].y);
-      float z = position_fix2float(d->pose[i].z);
+      float x = position_fix24_to_float(d->pose[i].x);
+      float y = position_fix24_to_float(d->pose[i].y);
+      float z = position_fix24_to_float(d->pose[i].z);
 
       if (lastTime != 0) {
         float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
@@ -148,9 +154,9 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       positionExternalFresh = true;
     }
     else if (d->pose[i].id == INTERACTIVE_ID && interactiveCallback != NULL) {
-      float x = position_fix2float(d->pose[i].x);
-      float y = position_fix2float(d->pose[i].y);
-      float z = position_fix2float(d->pose[i].z);
+      float x = position_fix24_to_float(d->pose[i].x);
+      float y = position_fix24_to_float(d->pose[i].y);
+      float z = position_fix24_to_float(d->pose[i].z);
       struct vec pos = mkvec(x, y, z);
 
       float q[4];

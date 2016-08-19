@@ -47,15 +47,40 @@ enum trajectory_type {
 
 static float const POSITION_LIMIT = 8.0f; // meters
 typedef int16_t posFixed16_t;
+typedef struct posFixed24_t
+{
+  uint8_t low;
+  uint8_t middle;
+  uint8_t high;
+} posFixed24_t;
 
-static inline posFixed16_t position_float2fix(float x)
+
+static const uint32_t INT24_MAX = 8388608;
+
+static inline posFixed16_t position_float_to_fix16(float x)
 {
   return (INT16_MAX / POSITION_LIMIT) * x;
 }
 
-static inline float position_fix2float(posFixed16_t x)
+static inline float position_fix16_to_float(posFixed16_t x)
 {
   return (POSITION_LIMIT / INT16_MAX) * ((float)x);
+}
+
+static inline posFixed24_t position_float_to_fix24(float x)
+{
+  int32_t val = (INT24_MAX / POSITION_LIMIT) * x;
+  posFixed24_t result;
+  result.low = (val >> 0) & 0xFF;
+  result.middle = (val >> 8) & 0xFF;
+  result.high = (val >> 16) & 0xFF;
+  return result;
+}
+
+static inline float position_fix24_to_float(posFixed24_t x)
+{
+  int32_t val = (x.low) | (x.middle << 8) | (x.high << 16);
+  return (POSITION_LIMIT / INT24_MAX) * ((float)val);
 }
 
 // special id for the "interactive object" e.g. in "avoid human" demo
@@ -65,9 +90,9 @@ static int const INTERACTIVE_ID = 0xFF;
 struct data_vicon {
   struct {
     uint8_t id;
-    posFixed16_t x; // m
-    posFixed16_t y; // m
-    posFixed16_t z; // m
+    posFixed24_t x; // m
+    posFixed24_t y; // m
+    posFixed24_t z; // m
     uint32_t quat; // compressed quat, see quatcompress.h
   } __attribute__((packed)) pose[2];
 } __attribute__((packed));

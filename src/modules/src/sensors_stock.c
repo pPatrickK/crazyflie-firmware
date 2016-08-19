@@ -77,14 +77,17 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
     // }
   }
 
-  float x, y, z, q0, q1, q2, q3;
+  float x, y, z, q0, q1, q2, q3, vx, vy, vz;
   uint16_t last_time_in_ms;
-  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &last_time_in_ms);
+  positionExternalGetLastData(&x, &y, &z, &q0, &q1, &q2, &q3, &vx, &vy, &vz, &last_time_in_ms);
 
   sensors->position.timestamp = tick - last_time_in_ms;
   sensors->position.x = x;
   sensors->position.y = y;
   sensors->position.z = z;
+  sensors->velocity.x = vx;
+  sensors->velocity.y = vy;
+  sensors->velocity.z = vz;
   sensors->quaternion.q0 = q0;
   sensors->quaternion.q1 = q1;
   sensors->quaternion.q2 = q2;

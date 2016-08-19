@@ -76,12 +76,12 @@ static void posInteractiveCB(const struct vec *pos, const struct quat *quat)
 // hack using global
 extern float g_vehicleMass;
 
-static struct vec mkvec_position_fix2float(posFixed16_t x, posFixed16_t y, posFixed16_t z)
+static struct vec mkvec_position_fix16_to_float(posFixed16_t x, posFixed16_t y, posFixed16_t z)
 {
   return mkvec(
-    position_fix2float(x),
-    position_fix2float(y),
-    position_fix2float(z));
+    position_fix16_to_float(x),
+    position_fix16_to_float(y),
+    position_fix16_to_float(z));
 }
 
 static struct vec state2vec(struct vec3_s v)
@@ -298,11 +298,11 @@ int gohome(const struct data_gohome* data)
 
 int set_ellipse(const struct data_set_ellipse* data)
 {
-  planner.ellipse.center = mkvec_position_fix2float(
+  planner.ellipse.center = mkvec_position_fix16_to_float(
     data->centerx, data->centery, data->centerz);
-  planner.ellipse.major = mkvec_position_fix2float(
+  planner.ellipse.major = mkvec_position_fix16_to_float(
     data->majorx, data->majory, data->majorz);
-  planner.ellipse.minor = mkvec_position_fix2float(
+  planner.ellipse.minor = mkvec_position_fix16_to_float(
     data->minorx, data->minory, data->minorz);
   planner.ellipse.period = data->period;
 
