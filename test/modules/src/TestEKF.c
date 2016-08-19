@@ -87,5 +87,6 @@ void testEKF()
 
 	float vicon_pos[] = {0, 0, 0};
 	float vicon_quat[] = {0, 0, 0, 1};
-	ekf_vicon(back, front, vicon_pos, vicon_quat);
+	float vicon_vel[] = {0, 0, 0};
+	ekf_vicon(back, front, vicon_pos, vicon_vel, vicon_quat);
 }

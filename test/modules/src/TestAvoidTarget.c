@@ -3,6 +3,7 @@
 
 #include "avoidtarget.h"
 #include "pptraj.h"
+#include "fig8traj.c" // hack - how to link in?
 #include "planner.h"
 #include <stdlib.h>
 

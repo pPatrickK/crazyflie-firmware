@@ -15,7 +15,7 @@
 // which is a good thing [citation needed].
 
 #define EKF_N 9           // state dimension
-#define EKF_M 6           // measurement dimension
+#define EKF_M 9           // measurement dimension
 #define EKF_DISTURBANCE 6 // control (IMU) noise dimension
 
 struct ekf
@@ -42,4 +42,4 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 
 void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], float const gyro[3], float dt);
 
-void ekf_vicon(struct ekf const *ekf_prev, struct ekf *ekf, float const pos_vicon[3], float const quat_vicon[4]);
+void ekf_vicon(struct ekf const *ekf_prev, struct ekf *ekf, float const pos_vicon[3], float const vel_vicon[3], float const quat_vicon[4]);

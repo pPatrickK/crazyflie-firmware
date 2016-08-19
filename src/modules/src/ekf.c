@@ -7,8 +7,6 @@
 #include "mexutil.h"
 
 
-static int usec_setup;
-static int usec_innov;
 static int usec_gain;
 static int usec_corr;
 static int usec_cov;
@@ -28,6 +26,7 @@ void initUsecTimer() {}
 
 // measured constants
 #define VICON_VAR_XY 1.5e-7
+#define VICON_VAR_VEL 1e-3
 // #define VICON_VAR_Z  1.0e-8
 #define VICON_VAR_Q  4.5e-3
 #define GYRO_VAR_XYZ 0.2e-4
@@ -39,13 +38,13 @@ void initUsecTimer() {}
 
 // ------ utility functions for manipulating blocks of the EKF matrices ------
 
-void set_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *block)
+static void set_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &m[row][col];
 	set_block33_rowmaj(blockptr, EKF_N, block);
 }
 
-void mult_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *a, struct mat33 const *b)
+static void mult_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const *a, struct mat33 const *b)
 {
 	for (int i = 0; i < 3; ++i) {
 		for (int j = 0; j < 3; ++j) {
@@ -58,7 +57,7 @@ void mult_K_block33(float m[EKF_N][EKF_N], int row, int col, struct mat33 const 
 	}
 }
 
-void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 const *block)
+static void set_H_block33(float h[EKF_M][EKF_N], int row, int col, struct mat33 const *block)
 {
 	float *blockptr = &h[row][col];
 	set_block33_rowmaj(blockptr, EKF_N, block);
@@ -207,54 +206,41 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	checknan("P", AS_1D(ekf->P), EKF_N * EKF_N);
 }
 
-void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3], float const quat_vicon[4])//, double *debug)
+void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3], float const vel_vicon[3], float const quat_vicon[4])//, double *debug)
 {
-	tic();
 	*new = *old;
 
 	struct vec const p_vicon = vloadf(pos_vicon);
+	struct vec const v_vicon = vloadf(vel_vicon);
 	struct quat const q_vicon = qloadf(quat_vicon);
 
 	struct quat const q_residual = qqmul(qinv(old->quat), q_vicon);
 	struct vec const err_quat = vscl(2.0f / q_residual.w, quatimagpart(q_residual));
 	struct vec const err_pos = vsub(p_vicon, old->pos);
+	struct vec const err_vel = vsub(v_vicon, old->vel);
 
 	float residual[EKF_M];
 	vstoref(err_pos, residual);
-	vstoref(err_quat, residual + 3);
+	vstoref(err_vel, residual + 3);
+	vstoref(err_quat, residual + 6);
 
-	// TODO this matrix is just identity blocks
-	// we should be able to hand-code the multiplication to be much more efficient
-	static float H[EKF_M][EKF_N];
-	ZEROARR(H);
-	struct mat33 meye = eye();
-	set_H_block33(H, 0, 0, &meye);
-	set_H_block33(H, 3, 6, &meye);
-	usec_setup = toc();
-
-	tic();
-	// S = H P H' + R  :  innovation
-	static float PHt[EKF_N][EKF_M];
-	ZEROARR(PHt);
-	SGEMM2D('n', 't', EKF_N, EKF_M, EKF_N, 1.0, old->P, H, 0.0, PHt);
-
+	// S = (H P H' + R)  :  innovation
+	// H = Identity, so S = (P + R)
 	static float S[EKF_M][EKF_M];
-	ZEROARR(S);
-	SGEMM2D('n', 'n', EKF_M, EKF_M, EKF_N, 1.0, H, PHt, 0.0, S);
-	checknan("S", AS_1D(S), EKF_M * EKF_M);
-
-	// diag only, no cov
+	COPYMAT(S, old->P);
 	float const Rdiag[EKF_M] =
-		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
-	static float R[EKF_M][EKF_M];
+		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY, 
+		  VICON_VAR_VEL, VICON_VAR_VEL, VICON_VAR_VEL,
+		  VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
+	float R[EKF_M][EKF_M];
 	ZEROARR(R);
 	for (int i = 0; i < EKF_M; ++i) {
 		S[i][i] += Rdiag[i];
 		R[i][i] = Rdiag[i];
 	}
-	usec_innov = toc();
 
-	// K = P H' S^-1   :  gain
+	// K = P H' S^-1  :  gain
+	// H = Identity, so K = P S^-1
 
 	tic();
 	static float Sinv[EKF_M][EKF_M];
@@ -262,13 +248,9 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	cholsl(AS_1D(S), AS_1D(Sinv), scratch, EKF_M);
 	checknan("S^-1", AS_1D(Sinv), EKF_M * EKF_M);
 
-	static float HtSinv[EKF_N][EKF_M];
-	ZEROARR(HtSinv);
-	SGEMM2D('t', 'n', EKF_N, EKF_M, EKF_M, 1.0, H, Sinv, 0.0, HtSinv);
-
 	static float K[EKF_N][EKF_M];
 	ZEROARR(K);
-	SGEMM2D('n', 'n', EKF_N, EKF_M, EKF_N, 1.0, old->P, HtSinv, 0.0, K);
+	SGEMM2D('n', 'n', EKF_N, EKF_M, EKF_N, 1.0, old->P, Sinv, 0.0, K);
 	checknan("K", AS_1D(K), EKF_N * EKF_M);
 	usec_gain = toc();
 
@@ -289,7 +271,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 
 	// Pnew = (I - KH) P (I - KH)^T + KRK^T  :  covariance update
-
+	// TODO optimize KRK^T with R diagonal
 	tic();
 	static float RKt[EKF_M][EKF_N];
 	ZEROARR(RKt);
@@ -300,11 +282,14 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	checknan("KRK^T", AS_1D(new->P), EKF_N * EKF_N);
 
 	// I - KH
+	// H = Identity, so I - K
 	static float IMKH[EKF_N][EKF_N];
 	eyeN(AS_1D(IMKH), EKF_N);
-	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_M, -1.0, K, H, 1.0, IMKH);
-	checknan("I-KH", AS_1D(IMKH), EKF_N * EKF_N);
-	checknan("old->P", AS_1D(old->P), EKF_N * EKF_N);
+	for (int i = 0; i < EKF_N; ++i) {
+		for (int j = 0; j < EKF_N; ++j) {
+			IMKH[i][j] -= K[i][j];
+		}
+	}
 
 	static float PIMKHt[EKF_N][EKF_N];
 	ZEROARR(PIMKHt);
@@ -320,8 +305,6 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 #ifndef CMOCK
 LOG_GROUP_START(ekfprof)
-LOG_ADD(LOG_UINT32, usec_setup, &usec_setup)
-LOG_ADD(LOG_UINT32, usec_innov, &usec_innov)
 LOG_ADD(LOG_UINT32, usec_gain, &usec_gain)
 LOG_ADD(LOG_UINT32, usec_corr, &usec_corr)
 LOG_ADD(LOG_UINT32, usec_cov, &usec_cov)

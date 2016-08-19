@@ -101,7 +101,8 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 	// check if new vicon data available
 	if (positionExternalFresh) {
 		float pos_vicon[3] = {sensorData->position.x, sensorData->position.y, sensorData->position.z};
-		ekf_vicon(ekf_back, ekf_front, pos_vicon, sensorData->quaternion.q_arr);
+		float vel_vicon[3] = {sensorData->velocity.x, sensorData->velocity.y, sensorData->velocity.z};
+		ekf_vicon(ekf_back, ekf_front, pos_vicon, vel_vicon, sensorData->quaternion.q_arr);
 		ekf_flip();
 
 		positionExternalFresh = false;
@@ -109,7 +110,7 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 
 	state->position = ekf2vec(ekf_back->pos);
 	state->velocity = ekf2vec(ekf_back->vel);
-  state->acc = ekf2vec(ekf_back->acc);
+	state->acc = ekf2vec(ekf_back->acc);
 
 	struct vec rpy = quat2rpy(ekf_back->quat);
 	state->attitude.roll = degrees(rpy.x);

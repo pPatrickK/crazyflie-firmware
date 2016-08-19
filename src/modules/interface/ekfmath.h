@@ -68,6 +68,16 @@ do { \
 	} \
 } while(false);
 
+#define COPYMAT(dst, src) \
+do { \
+	float const *from = AS_1D(src); \
+	float const *end = from + sizeof(src) / sizeof(float); \
+	float *to = AS_1D(dst); \
+	for (; from != end; ++from) { \
+		*to = *from; \
+		++to; \
+	} \
+} while(false);
 
 #define IND(A, m, n, r, c) ((A)[(r) * (n) + (c)])
 #define INDT(A, m, n, r, c) IND(A, n, m, c, r)
