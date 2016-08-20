@@ -196,13 +196,13 @@ float poly4d_max_accel_approx(struct poly4d const *p)
 	polyder4d(&acc);
 	polyder4d(&acc);
 	int steps = 10 * p->duration;
-	int step = p->duration / (steps - 1);
+	float step = p->duration / (steps - 1);
 	float t = 0;
 	float amax = 0;
 	for (int i = 0; i < steps; ++i) {
 		struct vec ddx = polyval_xyz(&acc, t);
 		float ddx_minkowski = vminkowski(ddx);
-		if (ddx_minkowski  > amax) amax = ddx_minkowski;
+		if (ddx_minkowski > amax) amax = ddx_minkowski;
 		t += step;
 	}
 	return amax;
@@ -264,6 +264,8 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 	out.omega.x = -vdot(h_w, y_body);
 	out.omega.y = vdot(h_w, x_body);
 	out.omega.z = z_body.z * dyaw;
+
+	out.thrust = vscl(mass, thrust);
 
 	return out;
 }
@@ -384,6 +386,8 @@ struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float 
 	out.omega.y = vdot(h_w, x_body);
 	out.omega.z = z_body.z * dyaw;
 
+	out.thrust = vscl(mass, thrust);
+
 	return out;
 }
 
@@ -403,18 +407,10 @@ void plan_into_ellipse(struct traj_eval const *now,
   do {
     struct traj_eval ev_ell = 
       ellipse_traj_eval(ellipse, t_catchup, mass);
-    piecewise_plan_5th_order(catchup, t_catchup,
+    piecewise_plan_7th_order_no_jerk(catchup, t_catchup,
       now->pos,   now->yaw,   now->vel,   now->omega.z,   now->acc,
       ev_ell.pos, ev_ell.yaw, ev_ell.vel, ev_ell.omega.z, ev_ell.acc);
     amax = poly4d_max_accel_approx(&catchup->pieces[0]);
-
-    // this should rarely happen in practice, but it helps pass unit tests
-    // with randomized vectors :)
-    float a_ends = fmax(vminkowski(now->acc), vminkowski(ev_ell.acc));
-    if (a_ends > MAX_ACCEL) {
-      MAX_ACCEL = a_ends * 1.1;
-    }
-
     t_catchup *= 2;
     ++iter;
   } while (iter <= 4 && amax > MAX_ACCEL);

@@ -123,6 +123,8 @@ typedef struct setpoint_s {
   point_t position;
   velocity_t velocity;
 
+  Axis3f thrustVec;
+
   struct {
     mode_t x;
     mode_t y;
