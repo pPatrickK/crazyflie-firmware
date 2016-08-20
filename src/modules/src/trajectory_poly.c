@@ -154,6 +154,7 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
   goal->velocity_z = ev.vel.z;
   goal->yaw = ev.yaw;
   goal->omega = ev.omega;
+  goal->thrust_vec = ev.thrust;
 }
 
 void trajectoryTask(void * prm)

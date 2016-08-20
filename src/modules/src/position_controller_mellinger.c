@@ -147,9 +147,9 @@ void positionControllerMellinger(
 
   // Desired thrust (ignoring target accellerations) [F_des]
   if (setpoint->enablePosCtrl) {
-    target_thrust.x = kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
-    target_thrust.y = kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
-    target_thrust.z = kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z + g_vehicleMass * GRAV;
+    target_thrust.x = setpoint->thrustVec.x + kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
+    target_thrust.y = setpoint->thrustVec.y + kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
+    target_thrust.z = setpoint->thrustVec.z + kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z;
   } else {
     target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);
     target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);
@@ -306,4 +306,7 @@ LOG_GROUP_START(ctrlMel)
 LOG_ADD(LOG_FLOAT, zdx, &z_axis_desired.x)
 LOG_ADD(LOG_FLOAT, zdy, &z_axis_desired.y)
 LOG_ADD(LOG_FLOAT, zdz, &z_axis_desired.z)
+LOG_ADD(LOG_FLOAT, i_err_x, &i_error_x)
+LOG_ADD(LOG_FLOAT, i_err_y, &i_error_y)
+LOG_ADD(LOG_FLOAT, i_err_z, &i_error_z)
 LOG_GROUP_STOP(ctrlMel)

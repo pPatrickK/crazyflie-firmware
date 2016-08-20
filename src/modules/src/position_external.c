@@ -132,6 +132,7 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
 
       if (lastTime != 0) {
         float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
+        dt = fmax(dt, 0.005);
         v_x = (x - lastX) / dt;
         v_y = (y - lastY) / dt;
         v_z = (z - lastZ) / dt;

@@ -55,7 +55,7 @@ typedef struct posFixed24_t
 } posFixed24_t;
 
 
-static const uint32_t INT24_MAX = 8388608;
+static const uint32_t INT24_MAX = 8388607;
 
 static inline posFixed16_t position_float_to_fix16(float x)
 {
@@ -69,7 +69,7 @@ static inline float position_fix16_to_float(posFixed16_t x)
 
 static inline posFixed24_t position_float_to_fix24(float x)
 {
-  int32_t val = (INT24_MAX / POSITION_LIMIT) * x;
+  uint32_t val = (INT24_MAX / POSITION_LIMIT) * (x + POSITION_LIMIT);
   posFixed24_t result;
   result.low = (val >> 0) & 0xFF;
   result.middle = (val >> 8) & 0xFF;
@@ -79,8 +79,8 @@ static inline posFixed24_t position_float_to_fix24(float x)
 
 static inline float position_fix24_to_float(posFixed24_t x)
 {
-  int32_t val = (x.low) | (x.middle << 8) | (x.high << 16);
-  return (POSITION_LIMIT / INT24_MAX) * ((float)val);
+  uint32_t val = (x.low) | (x.middle << 8) | (x.high << 16);
+  return (POSITION_LIMIT / INT24_MAX) * ((float)val) - POSITION_LIMIT;
 }
 
 // special id for the "interactive object" e.g. in "avoid human" demo

@@ -314,6 +314,9 @@ void commanderGetSetpoint(setpoint_t *setpoint, const state_t *state)
       setpoint->mode.pitch = modeDisable;
       setpoint->mode.yaw = modeAbs;
       setpoint->enablePosCtrl = true;
+      setpoint->thrustVec.x = goal.thrust_vec.x;
+      setpoint->thrustVec.y = goal.thrust_vec.y;
+      setpoint->thrustVec.z = goal.thrust_vec.z;
   } else {
     // Thrust
     uint16_t rawThrust = commanderGetActiveThrust();
