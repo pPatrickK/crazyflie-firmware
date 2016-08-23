@@ -84,7 +84,6 @@ struct traj_eval
 	struct vec vel;
 	struct vec acc;
 	struct vec omega;
-	struct vec thrust;
 	float yaw;
 };
 

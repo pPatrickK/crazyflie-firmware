@@ -265,8 +265,6 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t, float mass)
 	out.omega.y = vdot(h_w, x_body);
 	out.omega.z = z_body.z * dyaw;
 
-	out.thrust = vscl(mass, thrust);
-
 	return out;
 }
 
@@ -385,8 +383,6 @@ struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float 
 	out.omega.x = -vdot(h_w, y_body);
 	out.omega.y = vdot(h_w, x_body);
 	out.omega.z = z_body.z * dyaw;
-
-	out.thrust = vscl(mass, thrust);
 
 	return out;
 }

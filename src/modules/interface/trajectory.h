@@ -46,7 +46,7 @@ typedef struct {
   float velocity_z;   // m/s
   float yaw;          // rad
   struct vec omega;   // rad/s
-  struct vec thrust_vec;
+  struct vec acceleration;
 } trajectoryPoint_t;
 
 // Sets the current goal of the active trajectory

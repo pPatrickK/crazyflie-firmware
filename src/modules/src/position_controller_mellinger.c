@@ -145,11 +145,11 @@ void positionControllerMellinger(
   i_error_y += r_error.y * dt;
   i_error_y = clamp(i_error_y, -i_range_xy, i_range_xy);
 
-  // Desired thrust (ignoring target accellerations) [F_des]
+  // Desired thrust [F_des]
   if (setpoint->enablePosCtrl) {
-    target_thrust.x = setpoint->thrustVec.x + kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
-    target_thrust.y = setpoint->thrustVec.y + kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
-    target_thrust.z = setpoint->thrustVec.z + kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z;
+    target_thrust.x = g_vehicleMass * setpoint->acceleration.x          + kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
+    target_thrust.y = g_vehicleMass * setpoint->acceleration.y          + kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
+    target_thrust.z = g_vehicleMass * (setpoint->acceleration.z + GRAV) + kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z;
   } else {
     target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);
     target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);
