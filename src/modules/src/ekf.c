@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdbool.h> // bool
 
+#include "addQ.h"
 #include "cholsl.h"
 #include "ekf.h"
 #include "ekfmath.h"
@@ -27,15 +28,17 @@ static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
 #endif
 
 // measured constants
-#define VICON_VAR_XY 1.5e-7
+#define VICON_VAR_XY 1.0e-4
 // #define VICON_VAR_Z  1.0e-8
-#define VICON_VAR_Q  4.5e-3
-#define GYRO_VAR_XYZ 0.2e-3
+// #define VICON_VAR_Q  4.5e-3
+#define GYRO_VAR_XYZ 0.2e-4
 // #define ACC_VAR_XY   1.5e-5
 // #define ACC_VAR_Z    3.9e-5
 // the accelerometer variance in z was quite a bit higher
 // but to keep the code simple for now we just average them
-#define ACC_VAR_XYZ  2.4e-3
+#define ACC_VAR_XYZ  2.4e-4
+
+#define PIP_VAR 1.0e-4
 
 // ------ utility functions for manipulating blocks of the EKF matrices ------
 
@@ -78,8 +81,13 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 	ekf->pos = vloadf(pos);
 	ekf->vel = vloadf(vel);
 	ekf->quat = qloadf(quat);
+	ekf->pip = vzero();
 	//memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
 	eyeN(AS_1D(ekf->P), EKF_N);
+	ekf->P[0][0] = ekf->P[1][1] = ekf->P[2][2] = 0.05; // position
+	ekf->P[3][3] = ekf->P[4][4] = ekf->P[5][5] = 0.05; // position
+	ekf->P[6][6] = ekf->P[7][7] = ekf->P[8][8] = 0.001; // position
+	ekf->P[9][9] = ekf->P[10][10] = ekf->P[11][11] = 0.1; // position
 	initUsecTimer();
 }
 
@@ -117,7 +125,6 @@ void dynamic_matrix(struct quat const q, struct vec const omega, struct vec cons
 	set_K_block33(F, 6, 6, &E);
 }
 
-/* currently unused
 static void symmetricize(float a[EKF_N][EKF_N])
 {
 	for (int i = 0; i < EKF_N; ++i) {
@@ -128,9 +135,8 @@ static void symmetricize(float a[EKF_N][EKF_N])
 		}
 	}
 }
-*/
 
-void addQ(double dt, struct quat q, struct vec ew, struct vec ea, float Q[EKF_N][EKF_N])
+void addQ_old(double dt, struct quat q, struct vec ew, struct vec ea, float Q[EKF_N][EKF_N])
 {
 	// optimize diagonal mmult or maybe A Diag A' ?
 	static float Qdiag[EKF_DISTURBANCE][EKF_DISTURBANCE];
@@ -182,15 +188,15 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	// compute true acceleration
 	//struct vec const acc_imu = vsub(float2vec(acc), ekf->bias_acc);
 	struct vec const acc_imu = vloadf(acc);
-  struct vec acc_world = qvrot(ekf->quat, acc_imu);
-  acc_world.z -= GRAV;
+	struct vec acc_world = qvrot(ekf->quat, acc_imu);
+	acc_world.z -= GRAV;
 
 	// propagate position + velocity
 	ekf->vel = vadd(ekf_prev->vel, vscl(dt, acc_world));
 	ekf->pos = vadd(ekf_prev->pos, vscl(dt, ekf->vel));
 
-  // provide smoothed acceleration as a convenience for other system components
-  ekf->acc = vadd(vscl(0.7, ekf_prev->acc), vscl(0.3, acc_world));
+	// provide smoothed acceleration as a convenience for other system components
+	ekf->acc = vadd(vscl(0.7, ekf_prev->acc), vscl(0.3, acc_world));
 
 	//-------------------------- update covariance --------------------------//
 	// TODO should use old quat??
@@ -202,8 +208,14 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	ZEROARR(PFt);
 	SGEMM2D('n', 't', EKF_N, EKF_N, EKF_N, 1.0, ekf_prev->P, F, 0.0, PFt);
 	SGEMM2D('n', 'n', EKF_N, EKF_N, EKF_N, 1.0, F, PFt, 0.0, ekf->P);
-	addQ(dt, ekf->quat, omega, acc_imu, ekf->P);
-	//symmetricize(ekf->P);
+
+
+	addQ(dt, ekf->quat, omega, acc_imu,
+	     GYRO_VAR_XYZ, ACC_VAR_XYZ, PIP_VAR,
+	     ekf->P);
+
+	//addQ(dt, ekf->quat, omega, acc_imu, ekf->P);
+	symmetricize(ekf->P);
 	checknan("P", AS_1D(ekf->P), EKF_N * EKF_N);
 }
 
@@ -212,24 +224,23 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	tic();
 	*new = *old;
 
-	struct vec const p_vicon = vloadf(pos_vicon);
-	struct quat const q_vicon = qloadf(quat_vicon);
+	struct mat33 imu_to_world = quat2rotmat(old->quat);
 
-	struct quat const q_residual = qqmul(qinv(old->quat), q_vicon);
-	struct vec const err_quat = vscl(2.0f / q_residual.w, quatimagpart(q_residual));
-	struct vec const err_pos = vsub(p_vicon, old->pos);
+	struct vec p_predict = vadd(old->pos, mvmult(imu_to_world, old->pip));
+	struct vec err_pos = vsub(vloadf(pos_vicon), p_predict);
 
 	float residual[EKF_M];
 	vstoref(err_pos, residual);
-	vstoref(err_quat, residual + 3);
 
 	// TODO this matrix is just identity blocks
 	// we should be able to hand-code the multiplication to be much more efficient
 	static float H[EKF_M][EKF_N];
 	ZEROARR(H);
 	struct mat33 meye = eye();
+	struct mat33 qblock = mneg(mmult(imu_to_world, mcrossmat(old->pip)));
 	set_H_block33(H, 0, 0, &meye);
-	set_H_block33(H, 3, 6, &meye);
+	set_H_block33(H, 0, 6, &qblock);
+	set_H_block33(H, 0, 9, &imu_to_world);
 	usec_setup = toc();
 
 	tic();
@@ -245,7 +256,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 	// diag only, no cov
 	float const Rdiag[EKF_M] =
-		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
+		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY };//, VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
 	static float R[EKF_M][EKF_M];
 	ZEROARR(R);
 	for (int i = 0; i < EKF_M; ++i) {
@@ -284,6 +295,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	new->vel = vadd(old->vel, vloadf(correction + 3));
 	struct quat error_quat = rpy2quat_small(vloadf(correction + 6));
 	new->quat = qnormalize(qqmul(old->quat, error_quat));
+	new->pip = vadd(old->pip, vloadf(correction + 9));
 	// TODO biases, if we use dem
 	usec_corr = toc();
 

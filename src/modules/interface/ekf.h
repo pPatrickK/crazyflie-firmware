@@ -14,8 +14,8 @@
 // but only 3 degrees of freedom. Also, it keeps the EKF quantities close to 0,
 // which is a good thing [citation needed].
 
-#define EKF_N 9           // state dimension
-#define EKF_M 6           // measurement dimension
+#define EKF_N 12          // state dimension
+#define EKF_M 3           // measurement dimension
 #define EKF_DISTURBANCE 6 // control (IMU) noise dimension
 
 struct ekf
@@ -26,6 +26,7 @@ struct ekf
 	struct quat quat;
 	//struct vec bias_gyro;
 	//struct vec bias_acc;
+	struct vec pip;
 
 	// TODO symmetric matrix storage optimization?
 	float P[EKF_N][EKF_N]; // error state covariance
