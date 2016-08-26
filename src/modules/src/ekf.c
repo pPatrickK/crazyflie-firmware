@@ -14,23 +14,23 @@ static int usec_corr;
 static int usec_cov;
 
 // TEMP profiling
-#ifndef CMOCK
+#if defined(CMOCK) || defined(MATLAB_MEX_FILE)
+static void tic() {}
+static int toc() { return 0; }
+void initUsecTimer() {}
+#else
 #include "log.h"
 #include "usec_time.h"
 static uint64_t tic_storage;
 static void tic() { tic_storage = usecTimestamp(); }
 static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
-#else
-static void tic() {}
-static int toc() { return 0; }
-void initUsecTimer() {}
 #endif
 
 // measured constants
 #define VICON_VAR_XY 1.5e-7
 // #define VICON_VAR_Z  1.0e-8
 #define VICON_VAR_Q  4.5e-3
-#define GYRO_VAR_XYZ 0.2e-4
+#define GYRO_VAR_XYZ 0.2e-3
 // #define ACC_VAR_XY   1.5e-5
 // #define ACC_VAR_Z    3.9e-5
 // the accelerometer variance in z was quite a bit higher
@@ -318,7 +318,8 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 }
 
 
-#ifndef CMOCK
+#if defined(CMOCK) || defined(MATLAB_MEX_FILE)
+#else
 LOG_GROUP_START(ekfprof)
 LOG_ADD(LOG_UINT32, usec_setup, &usec_setup)
 LOG_ADD(LOG_UINT32, usec_innov, &usec_innov)
