@@ -28,17 +28,17 @@ static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
 #endif
 
 // measured constants
-#define VICON_VAR_XY 1.0e-4
+#define VICON_VAR_XY 0.04
 // #define VICON_VAR_Z  1.0e-8
 // #define VICON_VAR_Q  4.5e-3
-#define GYRO_VAR_XYZ 0.2e-4
+#define GYRO_VAR_XYZ 0.2e-6
 // #define ACC_VAR_XY   1.5e-5
 // #define ACC_VAR_Z    3.9e-5
 // the accelerometer variance in z was quite a bit higher
 // but to keep the code simple for now we just average them
-#define ACC_VAR_XYZ  2.4e-4
+#define ACC_VAR_XYZ  2.4e-5
 
-#define PIP_VAR 1.0e-4
+#define PIP_VAR 1.0e-6
 
 // ------ utility functions for manipulating blocks of the EKF matrices ------
 
@@ -215,7 +215,7 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 	     ekf->P);
 
 	//addQ(dt, ekf->quat, omega, acc_imu, ekf->P);
-	symmetricize(ekf->P);
+	//symmetricize(ekf->P);
 	checknan("P", AS_1D(ekf->P), EKF_N * EKF_N);
 }
 
