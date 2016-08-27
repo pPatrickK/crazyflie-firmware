@@ -121,7 +121,7 @@ struct traj_eval plan_current_goal(struct planner *p, float t)
 // for piecewise trajectories, build the piecewise polynomial yourself
 // in planner->ppBack, then call this function.
 //
-// this function shifts the polynomial in ppBack 
+// this function shifts the polynomial in ppBack
 // so it starts at the current position.
 //
 void plan_start_poly(struct planner *p, struct vec current_pos, float t)
@@ -152,11 +152,13 @@ int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
 //
 void plan_start_ellipse(struct planner *p, float t)
 {
-	p->ellipse.t_begin = t;
-	struct traj_eval ev_current = plan_current_goal(p, t);
-	plan_into_ellipse(&ev_current, &p->ellipse, p->ppBack, p->mass);
-	plan_pp_flip(p, t);
-	p->state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
+	if (p->state != TRAJECTORY_STATE_ELLIPSE_CATCHUP) {
+		p->ellipse.t_begin = t;
+		struct traj_eval ev_current = plan_current_goal(p, t);
+		plan_into_ellipse(&ev_current, &p->ellipse, p->ppBack, p->mass);
+		plan_pp_flip(p, t);
+		p->state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
+	}
 }
 
 int plan_takeoff(struct planner *p, struct vec pos, float yaw, float height, float duration, float t)
@@ -196,8 +198,7 @@ int plan_hover(struct planner *p, struct vec hover_pos, float hover_yaw, float d
 
 	struct traj_eval setpoint = plan_current_goal(p, t);
 
-	// TODO try out 7th order planner
-	piecewise_plan_5th_order(p->ppBack, duration,
+	piecewise_plan_7th_order_no_jerk(p->ppBack, duration,
 		setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
 		hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
@@ -219,8 +220,10 @@ int plan_go_home(struct planner *p, float t)
 void plan_start_avoid_target(
 	struct planner *p, struct vec home, float max_displacement, float max_speed, float t)
 {
-	init_avoid_target(&p->avoid, home, max_speed, max_displacement, t);
-	p->state = TRAJECTORY_STATE_AVOID_TARGET;
+	if (p->state != TRAJECTORY_STATE_AVOID_TARGET) {
+		init_avoid_target(&p->avoid, home, max_speed, max_displacement, t);
+		p->state = TRAJECTORY_STATE_AVOID_TARGET;
+	}
 }
 
 void plan_update_avoid_target(struct planner *p, struct vec target_pos, float t)
