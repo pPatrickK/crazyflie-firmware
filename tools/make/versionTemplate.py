@@ -58,6 +58,15 @@ def extract_information_from_git():
     else:
         version['modified'] = 'false'
 
+    git = subprocess.Popen(("git", "diff"), stdout=subprocess.PIPE)
+    revisionChanged = subprocess.check_output(("sha1sum"), stdin=git.stdout)
+    git.wait()
+
+    version['irevChanged0'] = "0x" + revisionChanged[0:8]
+    version['irevChanged1'] = "0x" + revisionChanged[8:12]
+
+    # revisionChanged = subprocess.check_output(["git", "diff", "|", "sha1sum"], shell=True).strip()
+    # print(revisionChanged)
 
 def extract_information_from_folder_name():
     sourcefolder = path.basename(path.abspath(path.dirname(__file__) + '/..'))
@@ -88,12 +97,16 @@ def print_version():
 
 if __name__ == "__main__":
     version_source = ""
-    if os.path.isdir(".git"):
-        version['source'] = "git"
-        extract_information_from_git()
-    else:
-        version['source'] = "folder name"
-        extract_information_from_folder_name()
+#    if os.path.isdir(".git"):
+#        version['source'] = "git"
+#        extract_information_from_git()
+#    else:
+#        version['source'] = "folder name"
+#        extract_information_from_folder_name()
+#   TODO: Use always git on our branch; have to figure out why
+#         a submodule breaks the above logic
+    version['source'] = "git"
+    extract_information_from_git()
 
     if len(sys.argv) == 2 and sys.argv[1] == "--print-version":
         print_version()
