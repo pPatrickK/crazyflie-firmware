@@ -32,6 +32,12 @@
   #include "lps25h.h"
 #endif
 
+#ifdef LATENCY_DEBUG_OUTPUT
+#include "debug.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#endif
+
 // #include "param.h"
 
 // static point_t position;
@@ -92,6 +98,14 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
   sensors->quaternion.q1 = q1;
   sensors->quaternion.q2 = q2;
   sensors->quaternion.q3 = q3;
+
+  // For latency measurements: print out the gyro yaw and vicon yaw so we can measure delay in post-processing
+  #ifdef LATENCY_DEBUG_OUTPUT
+  if (RATE_DO_EXECUTE(IMU_RATE, tick)) {
+    struct vec rpy = quat2rpy(mkquat(q0, q1, q2, q3));
+    DEBUG_PRINT("%d,%f,%f\n", (int)xTaskGetTickCount(), radians(sensors->gyro.z), rpy.z);
+  }
+  #endif
 
   if (last_time_in_ms > 500) {
     sensors->valid = false;
