@@ -33,6 +33,8 @@
 #include "position_external.h"
 #include "stabilizer_types.h"
 
+#include "trajectory.h" // HACK should not be dependency - using it to know if we are in landed state
+
 
 // EKF implementation uses double-buffered approach
 static struct ekf ekfa;
@@ -92,6 +94,8 @@ void stateEstimator(state_t *state, const sensorData_t *sensorData, const uint32
 		return;
 	}
 	// TODO: should we rate-limit IMU but not vicon, so we have less vicon latency?
+
+	ekf_front->allow_pip_update = ekf_back->allow_pip_update = !trajectoryIsStopped();
 
 	float acc[3] = {sensorData->acc.x * GRAV, sensorData->acc.y * GRAV, sensorData->acc.z * GRAV};
 	float gyro[3] = {radians(sensorData->gyro.x), radians(sensorData->gyro.y), radians(sensorData->gyro.z)};

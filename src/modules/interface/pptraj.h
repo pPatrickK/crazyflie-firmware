@@ -7,7 +7,7 @@
 
 #define PP_DEGREE (7)
 #define PP_SIZE (PP_DEGREE + 1)
-#define PP_MAX_PIECES (10)
+#define PP_MAX_PIECES (24)
 
 
 //

@@ -37,6 +37,9 @@ struct ekf
   // since EKF computes acc in world frame, we save it here as convenience
   // to other parts of the system
   struct vec acc;
+
+
+	bool allow_pip_update;
 };
 
 void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float const quat[4]);

@@ -36,6 +36,7 @@
 #include "num.h"
 #include "configblock.h"
 #include "log.h"
+#include "param.h"
 #include "math3d.h"
 #include "packetdef.h"
 #include "quatcompress.h"
@@ -58,6 +59,8 @@ static float v_x;
 static float v_y;
 static float v_z;
 static uint16_t dt;
+
+static float gps_dt = 0.1;
 
 positionInteractiveCallback interactiveCallback = NULL;
 
@@ -132,6 +135,10 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
 
       if (lastTime != 0) {
         float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
+        if (dt < gps_dt) {
+          // simulate slow gps
+          return;
+        }
         dt = fmax(dt, 0.005);
         v_x = (x - lastX) / dt;
         v_y = (y - lastY) / dt;
@@ -180,4 +187,12 @@ LOG_ADD(LOG_FLOAT, yaw, &lastRPY.z)
 LOG_ADD(LOG_FLOAT, x, &lastX)
 LOG_ADD(LOG_FLOAT, y, &lastY)
 LOG_ADD(LOG_FLOAT, z, &lastZ)
+LOG_ADD(LOG_FLOAT, q0, &lastQ0)
+LOG_ADD(LOG_FLOAT, q1, &lastQ1)
+LOG_ADD(LOG_FLOAT, q2, &lastQ2)
+LOG_ADD(LOG_FLOAT, q3, &lastQ3)
 LOG_GROUP_STOP(vicon)
+
+PARAM_GROUP_START(posgps)
+PARAM_ADD(PARAM_FLOAT, dt, &gps_dt)
+PARAM_GROUP_STOP(posgps)

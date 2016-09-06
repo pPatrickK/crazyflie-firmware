@@ -528,7 +528,7 @@ static inline struct vec qvrot(struct quat q, struct vec v) {
 }
 // multiply (compose) two quaternions
 // such that qvrot(qqmul(q, p), v) == qvrot(q, qvrot(p, v)).
-static inline struct quat qqmul(struct quat q, struct quat p) {
+static inline struct quat qqmul(struct quat p, struct quat q) {
 	float x =  q.w*p.x + q.z*p.y - q.y*p.z + q.x*p.w;
 	float y = -q.z*p.x + q.w*p.y + q.x*p.z + q.y*p.w;
 	float z =  q.y*p.x - q.x*p.y + q.w*p.z + q.z*p.w;

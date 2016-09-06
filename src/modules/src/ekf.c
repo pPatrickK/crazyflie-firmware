@@ -5,6 +5,7 @@
 #include "cholsl.h"
 #include "ekf.h"
 #include "ekfmath.h"
+#include "ekf_cov_init.h"
 #include "mexutil.h"
 
 
@@ -21,24 +22,21 @@ static int toc() { return 0; }
 void initUsecTimer() {}
 #else
 #include "log.h"
+#include "param.h"
 #include "usec_time.h"
 static uint64_t tic_storage;
 static void tic() { tic_storage = usecTimestamp(); }
 static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
 #endif
 
-// measured constants
-#define VICON_VAR_XY 0.04
-// #define VICON_VAR_Z  1.0e-8
-// #define VICON_VAR_Q  4.5e-3
-#define GYRO_VAR_XYZ 0.2e-6
-// #define ACC_VAR_XY   1.5e-5
-// #define ACC_VAR_Z    3.9e-5
-// the accelerometer variance in z was quite a bit higher
-// but to keep the code simple for now we just average them
-#define ACC_VAR_XYZ  2.4e-5
+static struct vec pip;
+static struct vec pip_est;
+static struct vec pip_cov;
+static float PIP_VAR  = 0;
+static float GPS_VAR  = 1.0e-4;
+static float ACC_VAR  = 2.4e-5;
+static float GYRO_VAR = 2.0e-7;
 
-#define PIP_VAR 1.0e-6
 
 // ------ utility functions for manipulating blocks of the EKF matrices ------
 
@@ -81,13 +79,38 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 	ekf->pos = vloadf(pos);
 	ekf->vel = vloadf(vel);
 	ekf->quat = qloadf(quat);
-	ekf->pip = vzero();
-	//memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
+	/*
+	for (int i = 0; i < EKF_N; ++i) {
+		for (int j = 0; j < EKF_N; ++j) {
+			ekf->P[i][j] = ekf_cov_init[i][j];
+		}
+	}
+	*/
 	eyeN(AS_1D(ekf->P), EKF_N);
-	ekf->P[0][0] = ekf->P[1][1] = ekf->P[2][2] = 0.05; // position
-	ekf->P[3][3] = ekf->P[4][4] = ekf->P[5][5] = 0.05; // position
-	ekf->P[6][6] = ekf->P[7][7] = ekf->P[8][8] = 0.001; // position
-	ekf->P[9][9] = ekf->P[10][10] = ekf->P[11][11] = 0.1; // position
+	ekf->P[0][0] = ekf->P[1][1] = ekf->P[2][2] = 0.02; // position
+	ekf->P[3][3] = ekf->P[4][4] = ekf->P[5][5] = 0.02; // velocity
+	ekf->P[6][6] = ekf->P[7][7] = ekf->P[8][8] = 0.005; // quat
+	ekf->P[9][9] = ekf->P[10][10] = ekf->P[11][11] = 0.05; // p_ip
+	for (int i = 0; i < EKF_N; ++i) {
+		for (int j = 0; j < EKF_N; ++j) {
+			ekf->P[i][j] += 1e-6;
+		}
+	}
+
+	// increase cov of p_ip by position and velocity
+	for (int i = 9; i < 12; ++i) {
+		for (int j = 0; j < 6; ++j) {
+			ekf->P[i][j] += 1e-3;
+			ekf->P[j][i] += 1e-3;
+		}
+	}
+	
+
+	//pip = mkvec(0.1, 0.1, 0.1);
+	pip_est = vzero();
+	ekf->pip = pip_est;
+	ekf->allow_pip_update = false; // only do it while flying, assume init on ground
+
 	initUsecTimer();
 }
 
@@ -141,8 +164,8 @@ void addQ_old(double dt, struct quat q, struct vec ew, struct vec ea, float Q[EK
 	// optimize diagonal mmult or maybe A Diag A' ?
 	static float Qdiag[EKF_DISTURBANCE][EKF_DISTURBANCE];
 	ZEROARR(Qdiag);
-	Qdiag[0][0] = Qdiag[1][1] = Qdiag[2][2] = GYRO_VAR_XYZ;
-	Qdiag[3][3] = Qdiag[4][4] = Qdiag[5][5] = ACC_VAR_XYZ;
+	Qdiag[0][0] = Qdiag[1][1] = Qdiag[2][2] = GYRO_VAR;
+	Qdiag[3][3] = Qdiag[4][4] = Qdiag[5][5] = ACC_VAR;
 
 	static float G[EKF_N][EKF_DISTURBANCE];
 	ZEROARR(G);
@@ -211,12 +234,14 @@ void ekf_imu(struct ekf const *ekf_prev, struct ekf *ekf, float const acc[3], fl
 
 
 	addQ(dt, ekf->quat, omega, acc_imu,
-	     GYRO_VAR_XYZ, ACC_VAR_XYZ, PIP_VAR,
+	     GYRO_VAR, ACC_VAR, PIP_VAR,
 	     ekf->P);
 
 	//addQ(dt, ekf->quat, omega, acc_imu, ekf->P);
 	//symmetricize(ekf->P);
 	checknan("P", AS_1D(ekf->P), EKF_N * EKF_N);
+
+	pip_cov = mkvec(ekf->P[9][9], ekf->P[10][10], ekf->P[11][11]);
 }
 
 void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3], float const quat_vicon[4])//, double *debug)
@@ -224,10 +249,20 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	tic();
 	*new = *old;
 
+	// synthesize gps measurement
+	// TODO add noise
+	//int x = rand();
+#ifdef MATLAB_MEX_FILE
+	struct vec p_gps = vloadf(pos_vicon);
+#else
+	struct vec p_gps = vadd(
+		vloadf(pos_vicon), qvrot(qloadf(quat_vicon), pip));
+#endif
+
 	struct mat33 imu_to_world = quat2rotmat(old->quat);
 
 	struct vec p_predict = vadd(old->pos, mvmult(imu_to_world, old->pip));
-	struct vec err_pos = vsub(vloadf(pos_vicon), p_predict);
+	struct vec err_pos = vsub(p_gps, p_predict);
 
 	float residual[EKF_M];
 	vstoref(err_pos, residual);
@@ -256,7 +291,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 	// diag only, no cov
 	float const Rdiag[EKF_M] =
-		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY };//, VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
+		{ GPS_VAR, GPS_VAR, GPS_VAR };//, VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
 	static float R[EKF_M][EKF_M];
 	ZEROARR(R);
 	for (int i = 0; i < EKF_M; ++i) {
@@ -283,6 +318,12 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	checknan("K", AS_1D(K), EKF_N * EKF_M);
 	usec_gain = toc();
 
+	if (!old->allow_pip_update) {
+		float *blockptr = &K[9][0];
+		struct mat33 zero33 = mzero();
+		set_block33_rowmaj(blockptr, EKF_M, &zero33);
+	}
+
 
 	// K residual : correction
 
@@ -296,7 +337,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	struct quat error_quat = rpy2quat_small(vloadf(correction + 6));
 	new->quat = qnormalize(qqmul(old->quat, error_quat));
 	new->pip = vadd(old->pip, vloadf(correction + 9));
-	// TODO biases, if we use dem
+	pip_est = new->pip;
 	usec_corr = toc();
 
 
@@ -332,6 +373,25 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 #if defined(CMOCK) || defined(MATLAB_MEX_FILE)
 #else
+PARAM_GROUP_START(ekfgps)
+PARAM_ADD(PARAM_FLOAT, pip_x, &pip.x)
+PARAM_ADD(PARAM_FLOAT, pip_y, &pip.y)
+PARAM_ADD(PARAM_FLOAT, pip_z, &pip.z)
+PARAM_ADD(PARAM_FLOAT, PIP_VAR, &PIP_VAR)
+PARAM_ADD(PARAM_FLOAT, GPS_VAR, &GPS_VAR)
+PARAM_ADD(PARAM_FLOAT, GYRO_VAR, &GYRO_VAR)
+PARAM_ADD(PARAM_FLOAT, ACC_VAR, &ACC_VAR)
+PARAM_GROUP_STOP(ekfgps)
+
+LOG_GROUP_START(ekfgps)
+LOG_ADD(LOG_FLOAT, pip_est_x, &pip_est.x)
+LOG_ADD(LOG_FLOAT, pip_est_y, &pip_est.y)
+LOG_ADD(LOG_FLOAT, pip_est_z, &pip_est.z)
+LOG_ADD(LOG_FLOAT, pip_cov_x, &pip_cov.x)
+LOG_ADD(LOG_FLOAT, pip_cov_y, &pip_cov.y)
+LOG_ADD(LOG_FLOAT, pip_cov_z, &pip_cov.z)
+LOG_GROUP_STOP(ekfgps)
+
 LOG_GROUP_START(ekfprof)
 LOG_ADD(LOG_UINT32, usec_setup, &usec_setup)
 LOG_ADD(LOG_UINT32, usec_innov, &usec_innov)
