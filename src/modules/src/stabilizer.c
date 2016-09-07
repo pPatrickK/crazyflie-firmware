@@ -71,6 +71,15 @@ static uint64_t tic_storage;
 static void tic() { tic_storage = usecTimestamp(); }
 static uint32_t toc() { return (uint32_t) (usecTimestamp() - tic_storage); }
 
+// statistics
+static float error_dist; // accumulated euclidean distance error
+static float flighttime; // total flight time in seconds
+static struct vec error_pos; // accumulated error in x/y/z
+
+struct vec point2vec(point_t p)
+{
+  return mkvec(p.x, p.y, p.z);
+}
 
 void stabilizerInit(void)
 {
@@ -92,6 +101,10 @@ void stabilizerInit(void)
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
 
   isInit = true;
+
+  error_dist = 0;
+  flighttime = 0;
+  error_pos = vzero();
 }
 
 bool stabilizerTest(void)
@@ -204,6 +217,11 @@ static void stabilizerTask(void* param)
 
         trajectoryStop();
         setpoint.attitude.yaw = state.attitude.yaw;
+      } else if (trajectoryIsFlying()) {
+          struct vec dist = vsub(point2vec(setpoint.position), point2vec(state.position));
+          error_pos = vadd(error_pos, vscl(dt, vabs(dist)));
+          error_dist += dt * vmag(dist);
+          flighttime += dt;
       }
     }
     else {
@@ -299,3 +317,11 @@ LOG_ADD(LOG_UINT32, usec_traj, &usec_traj)
 LOG_ADD(LOG_UINT32, usec_ctrl, &usec_ctrl)
 LOG_ADD(LOG_UINT32, usec_idle, &usec_idle)
 LOG_GROUP_STOP(profiling)
+
+LOG_GROUP_START(ctrlStat)
+LOG_ADD(LOG_FLOAT, t, &flighttime)
+LOG_ADD(LOG_FLOAT, edist, &error_dist)
+LOG_ADD(LOG_FLOAT, ex, &error_pos.x)
+LOG_ADD(LOG_FLOAT, ey, &error_pos.y)
+LOG_ADD(LOG_FLOAT, ez, &error_pos.z)
+LOG_GROUP_STOP(ctrlStat)

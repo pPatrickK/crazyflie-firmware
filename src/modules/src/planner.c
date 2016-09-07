@@ -80,6 +80,13 @@ bool plan_is_stopped(struct planner *p)
 	return p->state == TRAJECTORY_STATE_IDLE;
 }
 
+bool plan_is_flying(struct planner *p)
+{
+	return 		p->state != TRAJECTORY_STATE_IDLE
+			&& 	p->state != TRAJECTORY_STATE_TAKING_OFF
+			&&  p->state != TRAJECTORY_STATE_LANDING;
+}
+
 struct traj_eval plan_current_goal(struct planner *p, float t)
 {
 	switch (p->state) {

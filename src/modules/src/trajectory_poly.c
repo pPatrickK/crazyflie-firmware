@@ -138,6 +138,11 @@ bool trajectoryIsStopped()
   return plan_is_stopped(&planner);
 }
 
+bool trajectoryIsFlying()
+{
+  return plan_is_flying(&planner);
+}
+
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
   float t = usecTimestamp() / 1e6;
@@ -314,7 +319,7 @@ int start_canned_trajectory(const struct data_start_canned_trajectory* data)
 {
   if (isGroup(data->group)) {
     float t = usecTimestamp() / 1e6;
-    return plan_start_canned_trajectory(&planner, 
+    return plan_start_canned_trajectory(&planner,
       data->trajectory, data->timescale, statePos(), t);
   }
   return 0;

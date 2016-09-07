@@ -59,5 +59,8 @@ void trajectoryStop();
 // True if we have landed or emergency-stopped.
 bool trajectoryIsStopped();
 
+// True if we are flying (i.e. not stopped and not during landing or takeoff)
+bool trajectoryIsFlying();
+
 
 #endif /* __TRAJECTORY_H__ */

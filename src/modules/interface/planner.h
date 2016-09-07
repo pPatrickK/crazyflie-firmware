@@ -75,13 +75,18 @@ void plan_emergency_stop(struct planner *p);
 // and also after an emergency stop.
 bool plan_is_stopped(struct planner *p);
 
+// query if the planner is flying.
+// this is similar to plan_is_stopped, with the exception
+// that takeoff and landing do not count as flying.
+bool plan_is_flying(struct planner *p);
+
 // get the planner's current goal.
 struct traj_eval plan_current_goal(struct planner *p, float t);
 
 // for piecewise trajectories, build the piecewise polynomial yourself
 // in planner->ppBack, then call this function.
 //
-// this function shifts the polynomial in ppBack 
+// this function shifts the polynomial in ppBack
 // so it starts at the current position.
 //
 void plan_start_poly(struct planner *p, struct vec current_pos, float t);
