@@ -74,7 +74,6 @@ float poly4d_max_accel_approx(struct poly4d const *p);
 
 
 // stored simple trajectories. could store only z to save memory.
-extern struct poly4d poly4d_takeoff;
 extern struct piecewise_traj pp_figure8;
 
 // output of differentially flat 4d polynomials.

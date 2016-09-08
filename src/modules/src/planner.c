@@ -47,14 +47,12 @@ static void plan_pp_flip(struct planner *p, float t)
 
 static void plan_takeoff_or_landing(struct planner *p, struct vec pos, float yaw, float height, float duration)
 {
-	struct poly4d takeoff = poly4d_takeoff;
-	poly4d_stretchtime(&takeoff, duration / takeoff.duration);
-	poly4d_scale(&takeoff, 1, 1, height - pos.z, 1);
-	poly4d_shift_vec(&takeoff, pos, 0);
-	polylinear(takeoff.p[3], duration, yaw, 0);
+	struct vec takeoff_pos = pos;
+	takeoff_pos.z = height;
 
-	p->ppBack->pieces[0] = takeoff;
-	p->ppBack->n_pieces = 1;
+	piecewise_plan_7th_order_no_jerk(p->ppBack, duration,
+		pos,         yaw, vzero(), 0, vzero(),
+		takeoff_pos,   0, vzero(), 0, vzero());
 }
 
 
