@@ -32,6 +32,7 @@
 /* FreeRtos includes */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 // Crazyswarm includes
 #include "crtp.h"
@@ -50,6 +51,10 @@
 static bool isInit = false;
 static struct planner planner;
 static uint8_t group;
+// makes sure that we don't evaluate the trajectory while it is being changed
+// It would be more efficient to put the semaphore in the planning layer, however that would introduce
+// FreeRTOS dependencies there...
+static xSemaphoreHandle lockTraj;
 
 // Private functions
 // TODO consistent naming - should they all start with "trajectory" or not?`
@@ -117,6 +122,8 @@ void trajectoryInit(void)
 
   initUsecTimer();
 
+  lockTraj = xSemaphoreCreateMutex();
+
   setPositionInteractiveCallback(&posInteractiveCB);
 
   isInit = true;
@@ -145,12 +152,14 @@ bool trajectoryIsFlying()
 
 void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
 {
+  xSemaphoreTake(lockTraj, portMAX_DELAY);
   float t = usecTimestamp() / 1e6;
   struct traj_eval ev = plan_current_goal(&planner, t);
   if (!is_traj_eval_valid(&ev)) {
     // programming error
     plan_emergency_stop(&planner);
   }
+  xSemaphoreGive(lockTraj);
   goal->x = ev.pos.x;
   goal->y = ev.pos.y;
   goal->z = ev.pos.z;
@@ -251,44 +260,57 @@ int add_poly(const struct data_add_poly* data)
 int start_poly(const struct data_start_poly* data)
 {
   if (isGroup(data->group)) {
+    xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
     plan_start_poly(&planner, statePos(), t);
+    xSemaphoreGive(lockTraj);
   }
   return 0;
 }
 
 int takeoff(const struct data_takeoff* data)
 {
+  int result = 0;
   if (isGroup(data->group)) {
-    float t = usecTimestamp() / 1e6;
     float duration = data->time_from_start / 1000.0;
-    return plan_takeoff(&planner, statePos(), stateYaw(), data->height, duration, t);
+    xSemaphoreTake(lockTraj, portMAX_DELAY);
+    float t = usecTimestamp() / 1e6;
+    result = plan_takeoff(&planner, statePos(), stateYaw(), data->height, duration, t);
+    xSemaphoreGive(lockTraj);
   }
-  return 0;
+  return result;
 }
 
 int land(const struct data_land* data)
 {
+  int result = 0;
   if (isGroup(data->group)) {
-    float t = usecTimestamp() / 1e6;
     float duration = data->time_from_start / 1000.0;
-    return plan_land(&planner, statePos(), stateYaw(), data->height, duration, t);
+    xSemaphoreTake(lockTraj, portMAX_DELAY);
+    float t = usecTimestamp() / 1e6;
+    result = plan_land(&planner, statePos(), stateYaw(), data->height, duration, t);
+    xSemaphoreGive(lockTraj);
   }
-  return 0;
+  return result;
 }
 
 int hover(const struct data_hover* data)
 {
-  float t = usecTimestamp() / 1e6;
   struct vec hover_pos = mkvec(data->x, data->y, data->z);
-  return plan_hover(&planner, hover_pos, data->yaw, data->duration, t);
+  xSemaphoreTake(lockTraj, portMAX_DELAY);
+  float t = usecTimestamp() / 1e6;
+  int result = plan_hover(&planner, hover_pos, data->yaw, data->duration, t);
+  xSemaphoreGive(lockTraj);
+  return result;
 }
 
 int start_ellipse(const struct data_start_ellipse* data)
 {
   if (isGroup(data->group)) {
+    xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
     plan_start_ellipse(&planner, t);
+    xSemaphoreGive(lockTraj);
   }
   return 0;
 }
@@ -296,8 +318,10 @@ int start_ellipse(const struct data_start_ellipse* data)
 int gohome(const struct data_gohome* data)
 {
   if (isGroup(data->group)) {
+    xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
     plan_go_home(&planner, t);
+    xSemaphoreGive(lockTraj);
   }
   return 0;
 }
@@ -317,19 +341,24 @@ int set_ellipse(const struct data_set_ellipse* data)
 
 int start_canned_trajectory(const struct data_start_canned_trajectory* data)
 {
+  int result = 0;
   if (isGroup(data->group)) {
+    xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
-    return plan_start_canned_trajectory(&planner,
+    result = plan_start_canned_trajectory(&planner,
       data->trajectory, data->timescale, statePos(), t);
+    xSemaphoreGive(lockTraj);
   }
-  return 0;
+  return result;
 }
 
 int start_avoid_target(const struct data_start_avoid_target* data)
 {
-  float t = usecTimestamp() / 1e6;
   struct vec home = mkvec(data->x, data->y, data->z);
+  xSemaphoreTake(lockTraj, portMAX_DELAY);
+  float t = usecTimestamp() / 1e6;
   plan_start_avoid_target(&planner, home, data->max_displacement, data->max_speed, t);
+  xSemaphoreGive(lockTraj);
   return 0;
 }
 
