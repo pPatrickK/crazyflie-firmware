@@ -97,6 +97,11 @@ struct data_vicon {
   } __attribute__((packed)) pose[2];
 } __attribute__((packed));
 
+struct data_packed_drops {
+  uint64_t seq;
+} __attribute__((packed));
+
+
 
 // ----------------------------------------------------------------------- //
 //                              Trajectories                               //

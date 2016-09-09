@@ -59,6 +59,12 @@ static float v_y;
 static float v_z;
 static uint16_t dt;
 
+// #define MEASURE_PACKET_DROPS
+#ifdef MEASURE_PACKET_DROPS
+static uint32_t packet_drop_counts[10];
+static uint32_t total_packet_count;
+#endif
+
 positionInteractiveCallback interactiveCallback = NULL;
 
 //Private functions
@@ -123,6 +129,21 @@ void setPositionInteractiveCallback(positionInteractiveCallback cb)
 
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
+#ifdef MEASURE_PACKET_DROPS
+  static uint64_t lastSeq = 0;
+  struct data_packed_drops* d = ((struct data_packed_drops*)pk->data);
+  if (lastSeq != 0 && d->seq > lastSeq) {
+    uint64_t diff = d->seq - lastSeq - 1;
+    if (diff < 9) {
+      ++packet_drop_counts[diff];
+    } else {
+      ++packet_drop_counts[9];
+    }
+    ++total_packet_count;
+  }
+
+  lastSeq = d->seq;
+#else
   struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 2; ++i) {
     if (d->pose[i].id == my_id) {
@@ -167,6 +188,7 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       (*interactiveCallback)(&pos, &quat);
     }
   }
+#endif
 }
 
 LOG_GROUP_START(vicon)
@@ -181,3 +203,19 @@ LOG_ADD(LOG_FLOAT, x, &lastX)
 LOG_ADD(LOG_FLOAT, y, &lastY)
 LOG_ADD(LOG_FLOAT, z, &lastZ)
 LOG_GROUP_STOP(vicon)
+
+#ifdef MEASURE_PACKET_DROPS
+LOG_GROUP_START(pacDrop)
+LOG_ADD(LOG_UINT32, d0, &packet_drop_counts[0])
+LOG_ADD(LOG_UINT32, d1, &packet_drop_counts[1])
+LOG_ADD(LOG_UINT32, d2, &packet_drop_counts[2])
+LOG_ADD(LOG_UINT32, d3, &packet_drop_counts[3])
+LOG_ADD(LOG_UINT32, d4, &packet_drop_counts[4])
+LOG_ADD(LOG_UINT32, d5, &packet_drop_counts[5])
+LOG_ADD(LOG_UINT32, d6, &packet_drop_counts[6])
+LOG_ADD(LOG_UINT32, d7, &packet_drop_counts[7])
+LOG_ADD(LOG_UINT32, d8, &packet_drop_counts[8])
+LOG_ADD(LOG_UINT32, d9p, &packet_drop_counts[9])
+LOG_ADD(LOG_UINT32, total, &total_packet_count)
+LOG_GROUP_STOP(pacDrop)
+#endif
