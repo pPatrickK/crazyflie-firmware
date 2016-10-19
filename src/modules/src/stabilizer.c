@@ -41,12 +41,6 @@
 // #include "controller.h"
 #include "power_distribution.h"
 #include "position_external.h"
-// TODO krri Remove this temp logging, only for development
-// #define USD_LOG_DATA
-#ifdef USD_LOG_DATA
-  #include "usddeck.h"
-#endif
-
 #include "position_controller.h"
 #include "SEGGER_RTT.h"
 #include "usec_time.h"
@@ -237,23 +231,6 @@ static void stabilizerTask(void* param)
       usec_idle = usec_idle_tmp;
     }
     powerDistribution(&control);
-
-#ifdef USD_LOG_DATA
-    {
-      UsdLogStruct logData;
-      logData.timestamp =  xTaskGetTickCount();
-      logData.gx = sensorData.gyro.x;
-      logData.gy = sensorData.gyro.y;
-      logData.gz = sensorData.gyro.z;
-      logData.ax = sensorData.acc.x;
-      logData.ay = sensorData.acc.y;
-      logData.az = sensorData.acc.z;
-      logData.mx = sensorData.mag.x;
-      logData.my = sensorData.mag.y;
-      logData.mz = sensorData.mag.z;
-      usdQueueLogData(&logData);
-    }
-#endif
 
     tick++;
   }
