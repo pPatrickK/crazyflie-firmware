@@ -50,6 +50,7 @@
 #define CMD_GET_INFO 1
 
 #define MISC_SETBYNAME 0
+#define MISC_SETBROADCAST 1
 
 //Private functions
 static void paramTask(void * prm);
@@ -61,7 +62,7 @@ extern struct param_s _param_start;
 extern struct param_s _param_stop;
 
 //The following two function SHALL NOT be called outside paramTask!
-static void paramWriteProcess(int id, void*);
+static void paramWriteProcess(int id, void*, bool sendResult);
 static void paramReadProcess(int id);
 static int variableGetIndex(int id);
 static char paramWriteByNameProcess(char* group, char* name, int type, void *valptr);
@@ -73,6 +74,9 @@ static uint32_t paramsCrc;
 static int paramsCount = 0;
 
 static bool isInit = false;
+
+// TODO: this should become it's own module...
+bool isGroup(uint8_t g);
 
 void paramInit(void)
 {
@@ -120,7 +124,7 @@ void paramTask(void * prm)
 	  else if (p.channel==READ_CH)
 		  paramReadProcess(p.data[0]);
 		else if (p.channel==WRITE_CH)
-		  paramWriteProcess(p.data[0], &p.data[1]);
+		  paramWriteProcess(p.data[0], &p.data[1], true);
     else if (p.channel==MISC_CH) {
       if (p.data[0] == MISC_SETBYNAME) {
         int i, nzero = 0;
@@ -148,6 +152,12 @@ void paramTask(void * prm)
         p.data[1+strlen(group)+1+strlen(name)+1] = error;
         p.size = 1+strlen(group)+1+strlen(name)+1+1;
         crtpSendPacket(&p);
+      }
+      else if (p.data[0] == MISC_SETBROADCAST) {
+        uint8_t group = p.data[1];
+        if (isGroup(group)) {
+          paramWriteProcess(p.data[2], &p.data[3], false);
+        }
       }
     }
 	}
@@ -210,19 +220,21 @@ void paramTOCProcess(int command)
   }
 }
 
-static void paramWriteProcess(int ident, void* valptr)
+static void paramWriteProcess(int ident, void* valptr, bool sendResult)
 {
   int id;
 
   id = variableGetIndex(ident);
 
   if (id<0) {
-    p.data[0] = -1;
-    p.data[1] = ident;
-    p.data[2] = ENOENT;
-    p.size = 3;
+    if (sendResult) {
+      p.data[0] = -1;
+      p.data[1] = ident;
+      p.data[2] = ENOENT;
+      p.size = 3;
 
-    crtpSendPacket(&p);
+      crtpSendPacket(&p);
+    }
     return;
   }
 
@@ -245,7 +257,9 @@ static void paramWriteProcess(int ident, void* valptr)
       break;
   }
 
-  crtpSendPacket(&p);
+  if (sendResult) {
+    crtpSendPacket(&p);
+  }
 }
 
 static char paramWriteByNameProcess(char* group, char* name, int type, void *valptr) {
