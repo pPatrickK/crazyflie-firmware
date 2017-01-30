@@ -1,6 +1,8 @@
 #include <math.h>
 #include <stdbool.h> // bool
 
+#include "param.h"
+
 #include "cholsl.h"
 #include "ekf.h"
 #include "ekfmath.h"
@@ -25,16 +27,15 @@ void initUsecTimer() {}
 #endif
 
 // measured constants
-#define VICON_VAR_XY 1.5e-7
-#define VICON_VAR_VEL 2e-4
-// #define VICON_VAR_Z  1.0e-8
-#define VICON_VAR_Q  4.5e-3
-#define GYRO_VAR_XYZ 0.2e-4
-// #define ACC_VAR_XY   1.5e-5
-// #define ACC_VAR_Z    3.9e-5
+static float ext_var_xy = 1.5e-7;
+static float ext_var_vel = 2e-4;
+static float ext_var_q = 4.5e-3;
+
+static float gyro_var_xyz = 0.2e-4;
+
 // the accelerometer variance in z was quite a bit higher
 // but to keep the code simple for now we just average them
-#define ACC_VAR_XYZ  2.4e-3
+static float acc_var_xyz = 2.4e-3;
 
 // ------ utility functions for manipulating blocks of the EKF matrices ------
 
@@ -134,8 +135,8 @@ void addQ(double dt, struct quat q, struct vec ew, struct vec ea, float Q[EKF_N]
 	// optimize diagonal mmult or maybe A Diag A' ?
 	static float Qdiag[EKF_DISTURBANCE][EKF_DISTURBANCE];
 	ZEROARR(Qdiag);
-	Qdiag[0][0] = Qdiag[1][1] = Qdiag[2][2] = GYRO_VAR_XYZ;
-	Qdiag[3][3] = Qdiag[4][4] = Qdiag[5][5] = ACC_VAR_XYZ;
+	Qdiag[0][0] = Qdiag[1][1] = Qdiag[2][2] = gyro_var_xyz;
+	Qdiag[3][3] = Qdiag[4][4] = Qdiag[5][5] = acc_var_xyz;
 
 	static float G[EKF_N][EKF_DISTURBANCE];
 	ZEROARR(G);
@@ -229,9 +230,9 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	static float S[EKF_M][EKF_M];
 	COPYMAT(S, old->P);
 	float const Rdiag[EKF_M] =
-		{ VICON_VAR_XY, VICON_VAR_XY, VICON_VAR_XY, 
-		  VICON_VAR_VEL, VICON_VAR_VEL, VICON_VAR_VEL,
-		  VICON_VAR_Q, VICON_VAR_Q, VICON_VAR_Q };
+		{ ext_var_xy, ext_var_xy, ext_var_xy, 
+		  ext_var_vel, ext_var_vel, ext_var_vel,
+		  ext_var_q, ext_var_q, ext_var_q };
 	float R[EKF_M][EKF_M];
 	ZEROARR(R);
 	for (int i = 0; i < EKF_M; ++i) {
@@ -304,6 +305,14 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 
 
 #ifndef CMOCK
+PARAM_GROUP_START(ekf)
+PARAM_ADD(PARAM_FLOAT, ext_var_xy, &ext_var_xy)
+PARAM_ADD(PARAM_FLOAT, ext_var_vel, &ext_var_vel)
+PARAM_ADD(PARAM_FLOAT, ext_var_q, &ext_var_q)
+PARAM_ADD(PARAM_FLOAT, gyro_var_xyz, &gyro_var_xyz)
+PARAM_ADD(PARAM_FLOAT, acc_var_xyz, &acc_var_xyz)
+PARAM_GROUP_STOP(ekf)
+
 LOG_GROUP_START(ekfprof)
 LOG_ADD(LOG_UINT32, usec_gain, &usec_gain)
 LOG_ADD(LOG_UINT32, usec_corr, &usec_corr)
