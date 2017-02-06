@@ -48,6 +48,8 @@
 #include "trajectory.h"
 #include "debug.h"
 
+#include "ff.h"
+
 static bool isInit;
 
 // State variables for the stabilizer
@@ -146,6 +148,21 @@ static void stabilizerTask(void* param)
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
   }
 
+  // sd-card logging
+  //Fatfs object
+  FATFS FatFs;
+  //File object
+  FIL logFile;
+
+  bool enableLogging = false;
+  if (f_mount(&FatFs, "", 1) == FR_OK) {
+    if (f_open(&logFile, "log.bin", FA_CREATE_ALWAYS | FA_READ | FA_WRITE) == FR_OK) {
+      enableLogging = true;
+    }
+  }
+
+  uint32_t totalBytesWritten = 0;
+
   // TODO before refactoring, this task used to wait
   // for a Vicon reading to initialize the EKF before entering its main loop.
   // Now the EKF does lazy-initialization. Do we still need to care about it here?
@@ -232,7 +249,94 @@ static void stabilizerTask(void* param)
     }
     powerDistribution(&control);
 
+    // SD-card logging
+    if (RATE_DO_EXECUTE(RATE_250_HZ, tick)) {
+      if (enableLogging) {
+        struct logStruct{
+          uint32_t usec;
+
+          float setpoint_roll;
+          float setpoint_pitch;
+          float setpoint_yaw;
+          float setpoint_w_roll;
+          float setpoint_w_pitch;
+          float setpoint_w_yaw;
+          float setpoint_x;
+          float setpoint_y;
+          float setpoint_z;
+          float setpoint_v_x;
+          float setpoint_v_y;
+          float setpoint_v_z;
+
+          float state_roll;
+          float state_pitch;
+          float state_yaw;
+          float state_w_roll;
+          float state_w_pitch;
+          float state_w_yaw;
+          float state_x;
+          float state_y;
+          float state_z;
+          float state_v_x;
+          float state_v_y;
+          float state_v_z;
+
+          float acc_x;
+          float acc_y;
+          float acc_z;
+
+          float gyro_x;
+          float gyro_y;
+          float gyro_z;
+        };
+        struct logStruct data;
+        UINT bytesWritten;
+        data.usec = usecTimestamp();
+        data.setpoint_roll = setpoint.attitude.roll;
+        data.setpoint_pitch = setpoint.attitude.pitch;
+        data.setpoint_yaw = setpoint.attitude.yaw;
+        data.setpoint_w_roll = setpoint.attitudeRate.roll;
+        data.setpoint_w_pitch = setpoint.attitudeRate.pitch;
+        data.setpoint_w_yaw = setpoint.attitudeRate.yaw;
+        data.setpoint_x = setpoint.position.x;
+        data.setpoint_y = setpoint.position.y;
+        data.setpoint_z = setpoint.position.z;
+        data.setpoint_v_x = setpoint.velocity.x;
+        data.setpoint_v_y = setpoint.velocity.y;
+        data.setpoint_v_z = setpoint.velocity.z;
+        data.state_roll = state.attitude.roll;
+        data.state_pitch = state.attitude.pitch;
+        data.state_yaw = state.attitude.yaw;
+        data.state_w_roll = state.attitudeRate.roll;
+        data.state_w_pitch = state.attitudeRate.pitch;
+        data.state_w_yaw = state.attitudeRate.yaw;
+        data.state_x = state.position.x;
+        data.state_y = state.position.y;
+        data.state_z = state.position.z;
+        data.state_v_x = state.velocity.x;
+        data.state_v_y = state.velocity.y;
+        data.state_v_z = state.velocity.z;
+        data.acc_x = sensorData.acc.x;
+        data.acc_y = sensorData.acc.y;
+        data.acc_z = sensorData.acc.z;
+        data.gyro_x = sensorData.gyro.x;
+        data.gyro_y = sensorData.gyro.y;
+        data.gyro_z = sensorData.gyro.z;
+
+        f_write(&logFile, &data, sizeof(data), &bytesWritten);
+        totalBytesWritten += bytesWritten;
+
+        // flush once per second
+        if (totalBytesWritten > RATE_250_HZ * sizeof(data)) {
+          f_sync(&logFile);
+          totalBytesWritten = 0;
+        }
+        // DEBUG_PRINT("%d w\n", bytesWritten);
+        // f_sync(&logFile);
+      }
+    }
     tick++;
+
   }
 }
 
