@@ -50,6 +50,7 @@
 // Global variables
 static bool isInit = false;
 static struct planner planner;
+static struct piecewise_traj ppUser;
 static uint8_t group;
 // makes sure that we don't evaluate the trajectory while it is being changed
 // It would be more efficient to put the semaphore in the planning layer, however that would introduce
@@ -183,7 +184,7 @@ void trajectoryTask(void * prm)
     switch(p.data[0])
     {
       case COMMAND_RESET_POLY:
-        planner.ppBack->n_pieces = 0;
+        ppUser.n_pieces = 0;
         ret = 0;
         break;
       case COMMAND_ADD_POLY:
@@ -234,22 +235,22 @@ void trajectoryTask(void * prm)
 int add_poly(const struct data_add_poly* data)
 {
   if (data->id < PP_MAX_PIECES
-      && data->offset + data->size < sizeof(planner.ppBack->pieces[data->id])) {
+      && data->offset + data->size < sizeof(ppUser.pieces[data->id])) {
     uint8_t size = data->size;
     uint8_t* ptr = (uint8_t*)&(data->values[0]);
     uint8_t offset = data->offset;
     if (data->offset == 0) {
       // DEBUG_PRINT("setDur: %d %f\n", data->id, data->values[0]);
-      planner.ppBack->pieces[data->id].duration = data->values[0];
+      ppUser.pieces[data->id].duration = data->values[0];
       size -= 1;
       ptr += 4;
     } else {
       offset -= 1;
     }
     for (int i = offset; i < offset + size; ++i) {
-      planner.ppBack->pieces[data->id].p[i/8][i%8] = data->values[offset == 0 ? i+1 : i-offset];
+      ppUser.pieces[data->id].p[i/8][i%8] = data->values[offset == 0 ? i+1 : i-offset];
     }
-    planner.ppBack->n_pieces = data->id + 1;
+    ppUser.n_pieces = data->id + 1;
     // DEBUG_PRINT("trajectoryAdd: %d, %d, %d\n", data->id, offset, size);
     return 0;
   }
@@ -260,6 +261,7 @@ int add_poly(const struct data_add_poly* data)
 int start_poly(const struct data_start_poly* data)
 {
   if (isGroup(data->group)) {
+    *(planner.ppBack) = ppUser;
     xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
     plan_start_poly(&planner, statePos(), t);
