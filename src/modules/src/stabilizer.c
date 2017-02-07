@@ -50,6 +50,11 @@
 
 #include "ff.h"
 
+extern bool positionExternalFresh2;
+extern struct vec posExtLastRPY;
+extern struct vec posExtLastPos;
+extern struct vec posExtLastVel;
+
 static bool isInit;
 
 // State variables for the stabilizer
@@ -253,7 +258,7 @@ static void stabilizerTask(void* param)
     if (RATE_DO_EXECUTE(RATE_250_HZ, tick)) {
       if (enableLogging) {
         struct logStruct{
-          uint32_t usec;
+          uint64_t usec;
 
           float setpoint_roll;
           float setpoint_pitch;
@@ -288,8 +293,20 @@ static void stabilizerTask(void* param)
           float gyro_x;
           float gyro_y;
           float gyro_z;
-        };
-        struct logStruct data;
+
+          float extPos_x;
+          float extPos_y;
+          float extPos_z;
+          float extPos_roll;
+          float extPos_pitch;
+          float extPos_yaw;
+          float extPos_v_x;
+          float extPos_v_y;
+          float extPos_v_z;
+
+          uint8_t receivedExternalPosition;
+        } __attribute__((packed)) data;
+        // struct logStruct data;
         UINT bytesWritten;
         data.usec = usecTimestamp();
         data.setpoint_roll = setpoint.attitude.roll;
@@ -322,6 +339,16 @@ static void stabilizerTask(void* param)
         data.gyro_x = sensorData.gyro.x;
         data.gyro_y = sensorData.gyro.y;
         data.gyro_z = sensorData.gyro.z;
+        data.extPos_x = posExtLastPos.x;
+        data.extPos_y = posExtLastPos.y;
+        data.extPos_z = posExtLastPos.z;
+        data.extPos_roll = posExtLastRPY.x;
+        data.extPos_pitch = posExtLastRPY.y;
+        data.extPos_yaw = posExtLastRPY.z;
+        data.extPos_v_x = posExtLastVel.x;
+        data.extPos_v_y = posExtLastVel.y;
+        data.extPos_v_z = posExtLastVel.z;
+        data.receivedExternalPosition = positionExternalFresh2;
 
         f_write(&logFile, &data, sizeof(data), &bytesWritten);
         totalBytesWritten += bytesWritten;
@@ -331,6 +358,8 @@ static void stabilizerTask(void* param)
           f_sync(&logFile);
           totalBytesWritten = 0;
         }
+
+        positionExternalFresh2 = false;
         // DEBUG_PRINT("%d w\n", bytesWritten);
         // f_sync(&logFile);
       }

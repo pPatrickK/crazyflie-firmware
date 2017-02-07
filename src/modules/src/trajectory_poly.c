@@ -120,7 +120,7 @@ void trajectoryInit(void)
   xTaskCreate(trajectoryTask, TRAJECTORY_TASK_NAME,
               TRAJECTORY_TASK_STACKSIZE, NULL, TRAJECTORY_TASK_PRI, NULL);
 
-  initUsecTimer();
+  //initUsecTimer();
 
   lockTraj = xSemaphoreCreateMutex();
 
