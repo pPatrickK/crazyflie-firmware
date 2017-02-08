@@ -33,11 +33,6 @@ enum trajectory_type {
   TRAJECTORY_FIGURE8 = 0,
 };
 
-enum trajectory_direction {
-	TRAJECTORY_FORWARD = 0,
-	TRAJECTORY_REVERSE = 1,
-};
-
 
 // hacks on hacks on hacks - should be fixed to do this in swig interface file
 #ifndef SWIG
@@ -140,7 +135,7 @@ struct data_add_poly {
 
 struct data_start_poly {
   uint8_t group;
-  enum trajectory_direction direction;
+  bool reversed;
 } __attribute__((packed));
 
 // "take this much time to go here, then hover"

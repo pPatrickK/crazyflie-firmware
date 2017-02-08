@@ -264,7 +264,7 @@ int start_poly(const struct data_start_poly* data)
     *(planner.ppBack) = ppUser;
     xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
-    plan_start_poly(&planner, statePos(), t, data->direction);
+    plan_start_poly(&planner, statePos(), t, data->reversed);
     xSemaphoreGive(lockTraj);
   }
   return 0;
