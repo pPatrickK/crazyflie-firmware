@@ -73,17 +73,21 @@ LINKER_DIR = tools/make/F405/linker
 ST_OBJ_DIR  = tools/make/F405
 endif
 
-LIB = src/lib
+STLIB = src/lib
 
 ################ Build configuration ##################
 # St Lib
-VPATH_CF1 += $(LIB)/CMSIS/Core/CM3
-VPATH_CF1 += $(LIB)/CMSIS/Core/CM3/startup/gcc
+VPATH_CF1 += $(STLIB)/CMSIS/Core/CM3
+VPATH_CF1 += $(STLIB)/CMSIS/Core/CM3/startup/gcc
+VPATH_CF1 += $(STLIB)/STM32_CPAL_Driver/src
+VPATH_CF1 += $(STLIB)/STM32_CPAL_Driver/devices/stm32f10x
 CRT0_CF1 = startup_stm32f10x_md.o system_stm32f10x.o
 
-VPATH_CF2 += $(LIB)/CMSIS/STM32F4xx/Source/
-VPATH_CF2 += $(LIB)/STM32_USB_Device_Library/Core/src
-VPATH_CF2 += $(LIB)/STM32_USB_OTG_Driver/src
+VPATH_CF2 += $(STLIB)/CMSIS/STM32F4xx/Source/
+VPATH_CF2 += $(STLIB)/STM32_CPAL_Driver/src
+VPATH_CF2 += $(STLIB)/STM32_USB_Device_Library/Core/src
+VPATH_CF2 += $(STLIB)/STM32_USB_OTG_Driver/src
+VPATH_CF2 += $(STLIB)/STM32_CPAL_Driver/devices/stm32f4xx
 VPATH_CF2 += src/deck/api src/deck/core src/deck/drivers/src src/deck/drivers/src/test
 CRT0_CF2 = startup_stm32f40xx.o system_stm32f4xx.o
 
@@ -111,7 +115,7 @@ VPATH += $(FREERTOS)
 FREERTOS_OBJ = list.o tasks.o queue.o timers.o $(MEMMANG_OBJ)
 
 #FatFS
-VPATH_CF2 += $(LIB)/FatFS
+VPATH_CF2 += $(STLIB)/FatFS
 FATFS_OBJ  = diskio.o ff.o syscall.o unicode.o fatfs_sd.o 
 ifeq ($(FATFS_DISKIO_TESTS), 1)
 FATFS_OBJ += diskio_function_tests.o
@@ -229,16 +233,20 @@ INCLUDES += -Isrc/config -Isrc/hal/interface -Isrc/modules/interface
 INCLUDES += -Isrc/utils/interface -Isrc/drivers/interface -Isrc/platform
 INCLUDES += -I$(STLIB)/CMSIS/Include
 
-INCLUDES_CF1 += -I$(LIB)/STM32F10x_StdPeriph_Driver/inc
-INCLUDES_CF1 += -I$(LIB)/CMSIS/Core/CM3
+INCLUDES_CF1 += -I$(STLIB)/STM32F10x_StdPeriph_Driver/inc
+INCLUDES_CF1 += -I$(STLIB)/CMSIS/Core/CM3
+INCLUDES_CF1 += -I$(STLIB)/STM32_CPAL_Driver/inc
+INCLUDES_CF1 += -I$(STLIB)/STM32_CPAL_Driver/devices/stm32f10x
 
-INCLUDES_CF2 += -I$(LIB)/STM32F4xx_StdPeriph_Driver/inc
-INCLUDES_CF2 += -I$(LIB)/CMSIS/STM32F4xx/Include
-INCLUDES_CF2 += -I$(LIB)/STM32_USB_Device_Library/Core/inc
-INCLUDES_CF2 += -I$(LIB)/STM32_USB_OTG_Driver/inc
+INCLUDES_CF2 += -I$(STLIB)/STM32F4xx_StdPeriph_Driver/inc
+INCLUDES_CF2 += -I$(STLIB)/CMSIS/STM32F4xx/Include
+INCLUDES_CF2 += -I$(STLIB)/STM32_CPAL_Driver/inc
+INCLUDES_CF2 += -I$(STLIB)/STM32_CPAL_Driver/devices/stm32f4xx
+INCLUDES_CF2 += -I$(STLIB)/STM32_USB_Device_Library/Core/inc
+INCLUDES_CF2 += -I$(STLIB)/STM32_USB_OTG_Driver/inc
 INCLUDES_CF2 += -Isrc/deck/interface -Isrc/deck/drivers/interface
 INCLUDES_CF2 += -Ivendor/libdw1000/inc
-INCLUDES_CF2 += -I$(LIB)/FatFS
+INCLUDES_CF2 += -I$(STLIB)/FatFS
 
 ifeq ($(USE_FPU), 1)
 	PROCESSOR = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16

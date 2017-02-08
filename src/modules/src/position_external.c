@@ -43,6 +43,7 @@
 
 // Global variables
 bool positionExternalFresh = false;
+bool positionExternalFresh2 = false;
 static bool isInit = false;
 static float lastX;
 static float lastY;
@@ -51,7 +52,9 @@ static float lastQ0;
 static float lastQ1;
 static float lastQ2;
 static float lastQ3;
-static struct vec lastRPY;
+struct vec posExtLastRPY;
+struct vec posExtLastPos;
+struct vec posExtLastVel;
 static uint64_t lastTime = 0;
 static uint8_t my_id;
 static float v_x;
@@ -170,10 +173,13 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       lastQ2 = q[2];
       lastQ3 = q[3];
 
-      lastRPY = vscl(180 / M_PI, quat2rpy(mkquat(lastQ0, lastQ1, lastQ2, lastQ3)));
+      posExtLastRPY = vscl(180 / M_PI, quat2rpy(mkquat(lastQ0, lastQ1, lastQ2, lastQ3)));
+      posExtLastPos = mkvec(x, y, z);
+      posExtLastVel = mkvec(v_x, v_y, v_z);
 
       lastTime = xTaskGetTickCount();
       positionExternalFresh = true;
+      positionExternalFresh2 = true;
     }
     else if (d->pose[i].id == INTERACTIVE_ID && interactiveCallback != NULL) {
       float x = position_fix24_to_float(d->pose[i].x);
@@ -196,9 +202,9 @@ LOG_ADD(LOG_FLOAT, v_x, &v_x)
 LOG_ADD(LOG_FLOAT, v_y, &v_y)
 LOG_ADD(LOG_FLOAT, v_z, &v_z)
 LOG_ADD(LOG_INT16, dt, &dt)
-LOG_ADD(LOG_FLOAT, roll, &lastRPY.x)
-LOG_ADD(LOG_FLOAT, pitch, &lastRPY.y)
-LOG_ADD(LOG_FLOAT, yaw, &lastRPY.z)
+LOG_ADD(LOG_FLOAT, roll, &posExtLastRPY.x)
+LOG_ADD(LOG_FLOAT, pitch, &posExtLastRPY.y)
+LOG_ADD(LOG_FLOAT, yaw, &posExtLastRPY.z)
 LOG_ADD(LOG_FLOAT, x, &lastX)
 LOG_ADD(LOG_FLOAT, y, &lastY)
 LOG_ADD(LOG_FLOAT, z, &lastZ)

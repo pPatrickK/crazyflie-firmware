@@ -80,7 +80,7 @@ void ekf_init(struct ekf *ekf, float const pos[3], float const vel[3], float con
 	ekf->quat = qloadf(quat);
 	//memcpy(ekf->P, ekf_cov_init, sizeof(ekf_cov_init));
 	eyeN(AS_1D(ekf->P), EKF_N);
-	initUsecTimer();
+	//initUsecTimer();
 }
 
 void dynamic_matrix(struct quat const q, struct vec const omega, struct vec const acc, float const dt, float F[EKF_N][EKF_N])
