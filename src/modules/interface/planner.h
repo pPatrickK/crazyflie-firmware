@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  *    ______
  *   / ____/________ _____  __  ________      ______ __________ ___
@@ -47,6 +49,7 @@ enum trajectory_state
 struct planner
 {
 	enum trajectory_state state;
+	bool reversed;
 
 	struct piecewise_traj* ppFront;
 	struct piecewise_traj* ppBack;
@@ -89,7 +92,7 @@ struct traj_eval plan_current_goal(struct planner *p, float t);
 // this function shifts the polynomial in ppBack
 // so it starts at the current position.
 //
-void plan_start_poly(struct planner *p, struct vec current_pos, float t);
+void plan_start_poly(struct planner *p, struct vec current_pos, float t, bool reversed);
 
 int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
 	float timescale, struct vec current_pos, float t);

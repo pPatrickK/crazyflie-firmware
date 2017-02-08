@@ -12,6 +12,7 @@
 
 //
 // 1d polynomial functions.
+// coefficients are stored in ascending order, i.e. p[0] is the constant term.
 //
 
 // evaluate a polynomial using horner's rule.
@@ -34,6 +35,9 @@ void polyder(float p[PP_SIZE]);
 
 // e.g. if s==2 the new polynomial will be stretched to take 2x longer
 void polystretchtime(float p[PP_SIZE], float s);
+
+// reflect a polynomial about the x-axis, e.g. p_after(-x) == p_before(x)
+void polyreflect(float p[PP_SIZE]);
 
 
 //
@@ -108,6 +112,15 @@ struct piecewise_traj
 	unsigned char n_pieces;
 };
 
+static inline float piecewise_duration(struct piecewise_traj const *pp)
+{
+	float total_dur = 0;
+	for (int i = 0; i < pp->n_pieces; ++i) {
+		total_dur += pp->pieces[i].duration;
+	}
+	return total_dur;
+}
+
 void piecewise_plan_5th_order(struct piecewise_traj *p, float duration,
 	struct vec p0, float y0, struct vec v0, float dy0, struct vec a0,
 	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1);
@@ -117,7 +130,10 @@ void piecewise_plan_7th_order_no_jerk(struct piecewise_traj *p, float duration,
 	struct vec p1, float y1, struct vec v1, float dy1, struct vec a1);
 
 struct traj_eval piecewise_eval(
-  struct piecewise_traj const *traj, float t, float mass);
+	struct piecewise_traj const *traj, float t, float mass);
+
+struct traj_eval piecewise_eval_reversed(
+	struct piecewise_traj const *traj, float t, float mass);
 
 void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw);
 
@@ -130,11 +146,7 @@ void piecewise_stretchtime(struct piecewise_traj *pp, float s);
 
 static inline bool piecewise_is_finished(struct piecewise_traj const *traj, float t)
 {
-  float total_dur = 0;
-  for (int i = 0; i < traj->n_pieces; ++i) {
-    total_dur += traj->pieces[i].duration;
-  }
-  return (t - traj->t_begin) >= total_dur;
+	return (t - traj->t_begin) >= piecewise_duration(traj);
 }
 
 // TODO own file?
