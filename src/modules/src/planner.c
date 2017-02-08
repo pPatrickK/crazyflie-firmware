@@ -115,7 +115,12 @@ struct traj_eval plan_current_goal(struct planner *p, float t)
 			return piecewise_eval(p->ppFront, t, p->mass);
 
 		case TRAJECTORY_STATE_FLYING:
-			return piecewise_eval(p->ppFront, t, p->mass);
+			if (p->direction == TRAJECTORY_REVERSE) {
+				return piecewise_eval_reversed(p->ppFront, t, p->mass);
+			}
+			else {
+				return piecewise_eval(p->ppFront, t, p->mass);
+			}
 
 		default:
 			return traj_eval_invalid();
@@ -129,14 +134,17 @@ struct traj_eval plan_current_goal(struct planner *p, float t)
 // this function shifts the polynomial in ppBack
 // so it starts at the current position.
 //
-void plan_start_poly(struct planner *p, struct vec current_pos, float t)
+void plan_start_poly(struct planner *p, struct vec current_pos, float t,
+	enum trajectory_direction direction)
 {
 	struct traj_eval traj_init = poly4d_eval(&p->ppBack->pieces[0], 0, p->mass);
 	struct vec shift_pos = vsub(current_pos, traj_init.pos);
 	piecewise_shift_vec(p->ppBack, shift_pos, 0);
+	p->direction = direction;
 	plan_pp_flip(p, t);
 }
 
+// negative timescale indicates reversed
 int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
 	float timescale, struct vec current_pos, float t)
 {
@@ -148,8 +156,12 @@ int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
 		return 1;
 	}
 
+	enum trajectory_direction direction =
+		(timescale < 0) ? TRAJECTORY_REVERSE : TRAJECTORY_FORWARD;
+	timescale = fabs(timescale);
+
 	piecewise_stretchtime(p->ppBack, timescale);
-	plan_start_poly(p, current_pos, t);
+	plan_start_poly(p, current_pos, t, direction);
 	return 0;
 }
 

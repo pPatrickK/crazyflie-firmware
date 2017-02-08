@@ -59,6 +59,13 @@ void polystretchtime(float p[PP_SIZE], float s)
 	}
 }
 
+void polyreflect(float p[PP_SIZE])
+{
+	for (int i = 1; i < PP_SIZE; i += 2) {
+		p[i] = -p[i];
+	}
+}
+
 // evaluate a polynomial using horner's rule.
 float polyval(float const p[PP_SIZE], float t)
 {
@@ -286,6 +293,34 @@ struct traj_eval piecewise_eval(
 	ev.omega = vzero();
 	return ev;
 }
+
+struct traj_eval piecewise_eval_reversed(
+  struct piecewise_traj const *traj, float t, float mass)
+{
+	int cursor = traj->n_pieces - 1;
+	t = t - traj->t_begin;
+	while (cursor >= 0) {
+		struct poly4d const *piece = &(traj->pieces[cursor]);
+		if (t <= piece->duration) {
+			struct poly4d piece_reversed = *piece;
+			for (int i = 0; i < 4; ++i) {
+				polyreflect(piece_reversed.p[i]);
+			}
+			t = t - piece->duration;
+			return poly4d_eval(&piece_reversed, t, mass);
+		}
+		t -= piece->duration;
+		--cursor;
+	}
+	// if we get here, the trajectory has ended
+	struct poly4d const *end_piece = &(traj->pieces[0]);
+	struct traj_eval ev = poly4d_eval(end_piece, 0.0f, mass);
+	ev.vel = vzero();
+	ev.acc = vzero();
+	ev.omega = vzero();
+	return ev;
+}
+
 
 // y, dy == yaw, derivative of yaw
 void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,

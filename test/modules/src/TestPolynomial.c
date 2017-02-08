@@ -1,6 +1,11 @@
 #include "unity.h"
 #include "num.h"
+
+#include "avoidtarget.h"
+#include "fig8traj.c"
 #include "pptraj.h"
+#include "planner.h"
+
 #include <stdlib.h>
 
 //
@@ -43,6 +48,11 @@ static bool traj_close(struct traj_eval a, struct traj_eval b)
 	    && fabs(a.yaw - b.yaw) < 0.001;
 }
 
+void vprint(struct vec v)
+{
+	printf("%f, %f, %f", v.x, v.y, v.z);
+}
+
 void print_traj_pt(char const *name, struct traj_eval ev)
 {
 	printf(
@@ -66,6 +76,9 @@ static float const TOL = 0.0000001;
 	TEST_ASSERT_FLOAT_WITHIN(tol, a.x, b.x); \
 	TEST_ASSERT_FLOAT_WITHIN(tol, a.y, b.y); \
 	TEST_ASSERT_FLOAT_WITHIN(tol, a.z, b.z);
+
+#define TEST_ASSERT_VEC_DIFFERENT(tol, a, b) \
+	TEST_ASSERT((fabs(a.x - b.x) > tol) || (fabs(a.y - b.y) > tol) || (fabs(a.z - b.z) > tol));
 
 void testTimestretchPiecewiseLinear() 
 {
@@ -106,6 +119,7 @@ void testTimestretchPiecewiseLinear()
 	}
 }
 
+/* NOTE - temporarily commented out so it compiles - will fix in later commit - JP
 void testTimestretchTakeoff()
 {
 	struct poly4d takeoff_stretched = poly4d_takeoff;
@@ -115,6 +129,47 @@ void testTimestretchTakeoff()
 		struct vec ev = poly4d_eval(&poly4d_takeoff, t, 1).pos;
 		struct vec ev_stretch = poly4d_eval(&takeoff_stretched, 2*t, 1).pos;
 		TEST_ASSERT_VEC_WITHIN(TOL, ev, ev_stretch);
+	}
+}
+*/
+
+void testPiecewiseReversed()
+{
+	float const t0 = 0.0;
+	float const mass = 0.033;
+
+	struct piecewise_traj forward = pp_figure8;
+	struct piecewise_traj reverse = pp_figure8;
+	forward.t_begin = t0;
+	reverse.t_begin = t0;
+
+	float const duration = piecewise_duration(&pp_figure8);
+	int const npts = 510; // divide into prime # of intervals
+	float const dt = duration / (npts - 1);
+	float const end = t0 + duration;
+
+	float t = t0;
+	for (int i = 0; i < npts; ++i) {
+		struct traj_eval ev_fwd = piecewise_eval(&forward, t, mass);
+		struct traj_eval ev_rev = piecewise_eval_reversed(&reverse, end - t, mass);
+
+		struct vec vdiff = vabs(vsub(ev_fwd.pos, ev_rev.pos));
+		if (!vleq(vdiff, vrepeat(0.00001))) {
+			printf("position mismatch at t = %f (t0 = %f, dt = %f, dur = %f)\n",
+				t, t0, dt, duration);
+			printf("\tfwd pos = "); vprint(ev_fwd.pos); printf("\n");
+			printf("\trev pos = "); vprint(ev_rev.pos); printf("\n");
+		}
+		TEST_ASSERT_VEC_WITHIN(0.00001, ev_fwd.pos, ev_rev.pos);
+		if (vneq(ev_fwd.vel, vzero())) {
+			TEST_ASSERT_VEC_DIFFERENT(0.0000001, ev_fwd.vel, ev_rev.vel);
+		}
+		// note: acceleration is the same at apexes!!
+		if (vneq(ev_fwd.omega, vzero())) {
+			TEST_ASSERT_VEC_DIFFERENT(0.0000001, ev_fwd.omega, ev_rev.omega);
+		}
+
+		t += dt;
 	}
 }
 
