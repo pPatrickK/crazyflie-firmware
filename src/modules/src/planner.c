@@ -127,7 +127,6 @@ struct traj_eval plan_current_goal(struct planner *p, float t)
 	}
 }
 
-
 // for piecewise trajectories, build the piecewise polynomial yourself
 // in planner->ppBack, then call this function.
 //
@@ -136,7 +135,13 @@ struct traj_eval plan_current_goal(struct planner *p, float t)
 //
 void plan_start_poly(struct planner *p, struct vec current_pos, float t, bool reversed)
 {
-	struct traj_eval traj_init = poly4d_eval(&p->ppBack->pieces[0], 0, p->mass);
+	struct traj_eval traj_init;
+	if (reversed) {
+		traj_init = piecewise_eval_reversed(p->ppBack, 0, p->mass);
+	}
+	else {
+		traj_init = piecewise_eval(p->ppBack, 0, p->mass);
+	}
 	struct vec shift_pos = vsub(current_pos, traj_init.pos);
 	piecewise_shift_vec(p->ppBack, shift_pos, 0);
 	p->reversed = reversed;
@@ -169,6 +174,7 @@ void plan_start_ellipse(struct planner *p, float t)
 		p->ellipse.t_begin = t;
 		struct traj_eval ev_current = plan_current_goal(p, t);
 		plan_into_ellipse(&ev_current, &p->ellipse, p->ppBack, p->mass);
+		p->reversed = false;
 		plan_pp_flip(p, t);
 		p->state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
 	}
@@ -182,6 +188,7 @@ int plan_takeoff(struct planner *p, struct vec pos, float yaw, float height, flo
 
 	p->home = vadd(pos, mkvec(0, 0, height));
 	plan_takeoff_or_landing(p, pos, yaw, height, duration);
+	p->reversed = false;
 	p->state = TRAJECTORY_STATE_TAKING_OFF;
 	plan_pp_flip(p, t);
 	return 0;
@@ -196,6 +203,7 @@ int plan_land(struct planner *p, struct vec pos, float yaw, float height, float 
 	}
 
 	plan_takeoff_or_landing(p, pos, yaw, height, duration);
+	p->reversed = false;
 	p->state = TRAJECTORY_STATE_LANDING;
 	plan_pp_flip(p, t);
 	return 0;
@@ -215,6 +223,7 @@ int plan_hover(struct planner *p, struct vec hover_pos, float hover_yaw, float d
 		setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
 		hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
+	p->reversed = false;
 	p->state = TRAJECTORY_STATE_FLYING;
 	plan_pp_flip(p, t);
 	return 0;

@@ -45,6 +45,7 @@
 #include "usec_time.h"
 #include "log.h"
 #include "stabilizer.h" // to get current state estimate
+#include "num.h"
 
 
 // Global variables
@@ -250,7 +251,7 @@ int add_poly(const struct data_add_poly* data)
     for (int i = offset; i < offset + size; ++i) {
       ppUser.pieces[data->id].p[i/8][i%8] = data->values[offset == 0 ? i+1 : i-offset];
     }
-    ppUser.n_pieces = data->id + 1;
+    ppUser.n_pieces = max(ppUser.n_pieces, data->id + 1);
     // DEBUG_PRINT("trajectoryAdd: %d, %d, %d\n", data->id, offset, size);
     return 0;
   }
@@ -261,8 +262,8 @@ int add_poly(const struct data_add_poly* data)
 int start_poly(const struct data_start_poly* data)
 {
   if (isGroup(data->group)) {
-    *(planner.ppBack) = ppUser;
     xSemaphoreTake(lockTraj, portMAX_DELAY);
+    *(planner.ppBack) = ppUser;
     float t = usecTimestamp() / 1e6;
     plan_start_poly(&planner, statePos(), t, data->reversed);
     xSemaphoreGive(lockTraj);
