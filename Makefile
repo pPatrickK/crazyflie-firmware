@@ -27,8 +27,8 @@ LPS_TDOA_ENABLE   ?= 0
 
 ######### Stabilizer configuration ##########
 ##### Sets the name of the stabilizer module to use.
-ESTIMATOR          ?= any
-CONTROLLER         ?= pid
+ESTIMATOR          ?= kalman
+CONTROLLER         ?= mellinger
 POWER_DISTRIBUTION ?= stock
 SENSORS 					 ?= cf2
 
@@ -268,7 +268,7 @@ CFLAGS += -MD -MP -MF $(BIN)/dep/$(@).d -MQ $(@)
 #Permits to remove un-used functions and global variables from output file
 CFLAGS += -ffunction-sections -fdata-sections
 # Prevent promoting floats to doubles
-CFLAGS += -Wdouble-promotion
+# CFLAGS += -Wdouble-promotion
 
 
 ASFLAGS = $(PROCESSOR) $(INCLUDES)
