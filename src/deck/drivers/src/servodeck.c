@@ -57,7 +57,13 @@
 
 static bool isInit;
 static xTimerHandle timer;
-static uint8_t ratio = 0;
+static uint8_t ratio = 237; // ~ 1.5ms pulse width (= neutral position)
+
+// measured:
+// 243: 1.0ms (lower bound for most servos)
+// 237: 1.5ms (neutral for most servos)
+// 230: 2.0ms (upper bound for most servos)
+
 static uint16_t freq = 50;
 
 static void servoSetRatio(uint8_t ratio)
