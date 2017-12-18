@@ -173,8 +173,8 @@ void stateController(control_t *control, setpoint_t *setpoint,
   //   target_thrust.y = g_vehicleMass * setpoint->acceleration.y          + kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
   //   target_thrust.z = g_vehicleMass * (setpoint->acceleration.z + GRAV) + kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z;
   // } else {
-    target_thrust.x = -sin(setpoint->attitude.pitch / 180 * M_PI);
-    target_thrust.y = -sin(setpoint->attitude.roll / 180 * M_PI);
+    target_thrust.x = -sinf(radians(setpoint->attitude.pitch));
+    target_thrust.y = -sinf(radians(setpoint->attitude.roll));
     target_thrust.z = 1;
   // }
 
@@ -197,8 +197,8 @@ void stateController(control_t *control, setpoint_t *setpoint,
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
   // x_c_des.x = cos(yaw);//cos(setpoint->attitude.yaw / 180 * M_PI);
   // x_c_des.y = sin(yaw);//sin(setpoint->attitude.yaw / 180 * M_PI);
-  x_c_des.x = cos(setpoint->attitude.yaw / 180 * M_PI);
-  x_c_des.y = sin(setpoint->attitude.yaw / 180 * M_PI);
+  x_c_des.x = cosf(radians(setpoint->attitude.yaw));
+  x_c_des.y = sinf(radians(setpoint->attitude.yaw));
   x_c_des.z = 0;
   // [yB_des]
   y_axis_desired = vnormalize(vcross(z_axis_desired, x_c_des));
@@ -235,9 +235,9 @@ void stateController(control_t *control, setpoint_t *setpoint,
   float y = q.y;
   float z = q.z;
   float w = q.w;
-  eR.x = (-1 + 2*pow(x,2) + 2*pow(y,2))*y_axis_desired.z + z_axis_desired.y - 2*(x*y_axis_desired.x*z + y*y_axis_desired.y*z - x*y*z_axis_desired.x + pow(x,2)*z_axis_desired.y + pow(z,2)*z_axis_desired.y - y*z*z_axis_desired.z) +    2*w*(-(y*y_axis_desired.x) - z*z_axis_desired.x + x*(y_axis_desired.y + z_axis_desired.z));
-  eR.y = x_axis_desired.z - z_axis_desired.x - 2*(pow(x,2)*x_axis_desired.z + y*(x_axis_desired.z*y - x_axis_desired.y*z) - (pow(y,2) + pow(z,2))*z_axis_desired.x + x*(-(x_axis_desired.x*z) + y*z_axis_desired.y + z*z_axis_desired.z) + w*(x*x_axis_desired.y + z*z_axis_desired.y - y*(x_axis_desired.x + z_axis_desired.z)));
-  eR.z = y_axis_desired.x - 2*(y*(x*x_axis_desired.x + y*y_axis_desired.x - x*y_axis_desired.y) + w*(x*x_axis_desired.z + y*y_axis_desired.z)) + 2*(-(x_axis_desired.z*y) + w*(x_axis_desired.x + y_axis_desired.y) + x*y_axis_desired.z)*z - 2*y_axis_desired.x*pow(z,2) + x_axis_desired.y*(-1 + 2*pow(x,2) + 2*pow(z,2));
+  eR.x = (-1 + 2*fsqr(x) + 2*fsqr(y))*y_axis_desired.z + z_axis_desired.y - 2*(x*y_axis_desired.x*z + y*y_axis_desired.y*z - x*y*z_axis_desired.x + fsqr(x)*z_axis_desired.y + fsqr(z)*z_axis_desired.y - y*z*z_axis_desired.z) +    2*w*(-(y*y_axis_desired.x) - z*z_axis_desired.x + x*(y_axis_desired.y + z_axis_desired.z));
+  eR.y = x_axis_desired.z - z_axis_desired.x - 2*(fsqr(x)*x_axis_desired.z + y*(x_axis_desired.z*y - x_axis_desired.y*z) - (fsqr(y) + fsqr(z))*z_axis_desired.x + x*(-(x_axis_desired.x*z) + y*z_axis_desired.y + z*z_axis_desired.z) + w*(x*x_axis_desired.y + z*z_axis_desired.y - y*(x_axis_desired.x + z_axis_desired.z)));
+  eR.z = y_axis_desired.x - 2*(y*(x*x_axis_desired.x + y*y_axis_desired.x - x*y_axis_desired.y) + w*(x*x_axis_desired.z + y*y_axis_desired.z)) + 2*(-(x_axis_desired.z*y) + w*(x_axis_desired.x + y_axis_desired.y) + x*y_axis_desired.z)*z - 2*y_axis_desired.x*fsqr(z) + x_axis_desired.y*(-1 + 2*fsqr(x) + 2*fsqr(z));
 
   // ?????
   eR.y = -eR.y;
@@ -246,9 +246,9 @@ void stateController(control_t *control, setpoint_t *setpoint,
   float err_d_roll = 0;
   float err_d_pitch = 0;
 
-  float stateAttitudeRateRoll = sensors->gyro.x / 180.0 * M_PI;
-  float stateAttitudeRatePitch = -sensors->gyro.y / 180.0 * M_PI;
-  float stateAttitudeRateYaw = sensors->gyro.z / 180.0 * M_PI;
+  float stateAttitudeRateRoll = radians(sensors->gyro.x);
+  float stateAttitudeRatePitch = -radians(sensors->gyro.y);
+  float stateAttitudeRateYaw = radians(sensors->gyro.z);
 
 
   ew.x = setpoint->attitudeRate.roll - stateAttitudeRateRoll;

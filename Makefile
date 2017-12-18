@@ -268,7 +268,7 @@ CFLAGS += -MD -MP -MF $(BIN)/dep/$(@).d -MQ $(@)
 #Permits to remove un-used functions and global variables from output file
 CFLAGS += -ffunction-sections -fdata-sections
 # Prevent promoting floats to doubles
-# CFLAGS += -Wdouble-promotion
+CFLAGS += -Wdouble-promotion
 
 
 ASFLAGS = $(PROCESSOR) $(INCLUDES)

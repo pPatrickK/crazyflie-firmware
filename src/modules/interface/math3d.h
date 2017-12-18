@@ -28,16 +28,16 @@ SOFTWARE.
 #include <math.h>
 #include <stdbool.h>
 
-#ifndef M_PI
-#define M_PI (3.14159265358979323846)
+#ifndef M_PI_F
+#define M_PI_F (3.14159265358979323846f)
 #endif
 
 
 // ----------------------------- scalars --------------------------------
 
 static inline float fsqr(float x) { return x * x; }
-static inline float radians(float degrees) { return (M_PI / 180.0) * degrees; }
-static inline float degrees(float radians) { return (180.0 / M_PI) * radians; }
+static inline float radians(float degrees) { return (M_PI_F / 180.0f) * degrees; }
+static inline float degrees(float radians) { return (180.0f / M_PI_F) * radians; }
 
 
 // ---------------------------- 3d vectors ------------------------------
@@ -435,7 +435,7 @@ static inline struct quat qeye(void) {
 }
 // construct a quaternion from an axis and angle of rotation.
 static inline struct quat qaxisangle(struct vec axis, float angle) {
-	float scale = sin(angle / 2) / vmag(axis);
+	float scale = sinf(angle / 2) / vmag(axis);
 	struct quat q;
 	q.x = scale * axis.x;
 	q.y = scale * axis.y;
@@ -449,7 +449,7 @@ static inline struct vec quataxis(struct quat q) {
 	return vscl(s, mkvec(q.x, q.y, q.z));
 }
 static inline float quatangle(struct quat q) {
-	return 2 * acos(q.w);
+	return 2 * acosf(q.w);
 }
 // APPROXIMATE conversion of small (roll, pitch, yaw) Euler angles
 // into a quaternion without computing any trig functions.
@@ -560,9 +560,9 @@ static inline struct quat qnormalize(struct quat q) {
 static inline struct quat quat_gyro_update(struct quat quat, struct vec gyro, float const dt) {
 	// from "Indirect Kalman Filter for 3D Attitude Estimation", N. Trawny, 2005
 	struct quat q1;
-	double const r = (dt / 2) * gyro.x;
-	double const p = (dt / 2) * gyro.y;
-	double const y = (dt / 2) * gyro.z;
+	float const r = (dt / 2) * gyro.x;
+	float const p = (dt / 2) * gyro.y;
+	float const y = (dt / 2) * gyro.z;
 
 	q1.x =    quat.x + y*quat.y - p*quat.z + r*quat.w;
 	q1.y = -y*quat.x +   quat.y + r*quat.z + p*quat.w;
