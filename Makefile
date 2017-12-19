@@ -27,8 +27,10 @@ LPS_TDOA_ENABLE   ?= 0
 
 ######### Stabilizer configuration ##########
 ##### Sets the name of the stabilizer module to use.
-ESTIMATOR          ?= kalman
+# ESTIMATOR          ?= kalman
+ESTIMATOR          ?= complementary
 CONTROLLER         ?= mellinger
+# CONTROLLER         ?= pid
 POWER_DISTRIBUTION ?= stock
 SENSORS 					 ?= cf2
 

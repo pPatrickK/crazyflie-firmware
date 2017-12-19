@@ -41,8 +41,8 @@
 // HACK HACK HACK global for others to use
 float g_vehicleMass = 0.033;
 
-static float kp_xy = 0.2;
-static float kd_xy = 0.1;
+static float kp_xy = 0.1;
+static float kd_xy = 0.05;
 static float ki_xy = 0;//0.05;
 
 static float kp_z = 0.2;
@@ -85,6 +85,8 @@ static float i_range_z  = 1.0;
 
 static struct vec z_axis_desired;
 
+static float desiredYaw = 0.0;
+
 void stateControllerInit(void)
 {
 }
@@ -102,6 +104,7 @@ void stateControllerReset(void)
   i_error_m_x = 0;
   i_error_m_y = 0;
   i_error_m_z = 0;
+  desiredYaw = 0;
 }
 
 float clamp(float value, float min, float max) {
@@ -178,10 +181,32 @@ void stateController(control_t *control, setpoint_t *setpoint,
     target_thrust.z = 1;
   // }
 
+  // Rate-controled YAW is moving YAW angle setpoint
+  if (setpoint->mode.yaw == modeVelocity) {
+     desiredYaw -= setpoint->attitudeRate.yaw * dt;
+    while (desiredYaw > 180.0f)
+      desiredYaw -= 360.0f;
+    while (desiredYaw < -180.0f)
+      desiredYaw += 360.0f;
+  } else {
+    desiredYaw = setpoint->attitude.yaw;
+  }
+
   // Z-Axis [zB]
   struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
   struct mat33 R = quat2rotmat(q);
   z_axis = mcolumn(R, 2);
+
+
+  // yaw correction
+  // TODO: only do this if position control is disabled
+  struct vec x_yaw = mcolumn(R, 0);
+  x_yaw.z = 0;
+  x_yaw = vnormalize(x_yaw);
+  struct vec y_yaw = vcross(mkvec(0, 0, 1), x_yaw);
+  struct mat33 R_yaw_only = mcolumns(x_yaw, y_yaw, mkvec(0, 0, 1));
+  target_thrust = mvmult(R_yaw_only, target_thrust);
+
 
   // z_axis.x = -sin(pitch) * cos(roll);
   // z_axis.y = -sin(roll);
@@ -197,8 +222,8 @@ void stateController(control_t *control, setpoint_t *setpoint,
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
   // x_c_des.x = cos(yaw);//cos(setpoint->attitude.yaw / 180 * M_PI);
   // x_c_des.y = sin(yaw);//sin(setpoint->attitude.yaw / 180 * M_PI);
-  x_c_des.x = cosf(radians(setpoint->attitude.yaw));
-  x_c_des.y = sinf(radians(setpoint->attitude.yaw));
+  x_c_des.x = cosf(radians(desiredYaw));
+  x_c_des.y = sinf(radians(desiredYaw));
   x_c_des.z = 0;
   // [yB_des]
   y_axis_desired = vnormalize(vcross(z_axis_desired, x_c_des));
@@ -253,7 +278,8 @@ void stateController(control_t *control, setpoint_t *setpoint,
 
   ew.x = setpoint->attitudeRate.roll - stateAttitudeRateRoll;
   ew.y = -setpoint->attitudeRate.pitch - stateAttitudeRatePitch;
-  ew.z = setpoint->attitudeRate.yaw - stateAttitudeRateYaw;
+  // TODO: what is the unit in position vs. non-position mode?
+  ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
   if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
     err_d_roll = ((setpoint->attitudeRate.roll - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
     err_d_pitch = (-(setpoint->attitudeRate.pitch - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
@@ -295,10 +321,25 @@ void stateController(control_t *control, setpoint_t *setpoint,
 
 
   // Output
-  control->thrust = massThrust * current_thrust;
-  control->roll = clamp(M.x, -32000, 32000);
-  control->pitch = clamp(M.y, -32000, 32000);
-  control->yaw = clamp(-M.z, -32000, 32000);
+  if (setpoint->mode.z == modeDisable) {
+    control->thrust = setpoint->thrust;
+  } else {
+    control->thrust = massThrust * current_thrust;
+  }
+
+  if (control->thrust > 0) {
+    control->roll = clamp(M.x, -32000, 32000);
+    control->pitch = clamp(M.y, -32000, 32000);
+    control->yaw = clamp(-M.z, -32000, 32000);
+  } else {
+    control->roll = 0;
+    control->pitch = 0;
+    control->yaw = 0;
+    stateControllerReset();
+
+    // Reset the calculated YAW angle for rate control
+    desiredYaw = state->attitude.yaw;
+  }
 
   // DEBUG_PRINT("%f,%f,%f,%f,%f,%f,%f\n", control->thrust, roll, pitch, yaw, M.x, M.y, M.z);
 
