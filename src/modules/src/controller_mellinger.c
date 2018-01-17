@@ -41,6 +41,8 @@
 // HACK HACK HACK global for others to use
 float g_vehicleMass = 0.033;
 
+#define GRAVITY_MAGNITUDE (9.81f)
+
 static float kp_xy = 0.1;
 static float kd_xy = 0.05;
 static float ki_xy = 0;//0.05;
@@ -124,7 +126,7 @@ void stateController(control_t *control, setpoint_t *setpoint,
                                          const uint32_t tick)
 {
   struct vec r_error;
-  // struct vec v_error;
+  struct vec v_error;
   struct vec target_thrust;
   struct vec z_axis;
   float current_thrust;
@@ -144,20 +146,16 @@ void stateController(control_t *control, setpoint_t *setpoint,
   }
 
   dt = (float)(1.0f/ATTITUDE_RATE);
-
-  //roll = state->attitude.roll / 180.0 * M_PI;
-  //pitch = state->attitude.pitch / 180.0 * M_PI;
-  //yaw = state->attitude.yaw / 180.0 * M_PI;
+  struct vec setpointPos = mkvec(setpoint->position.x, setpoint->position.y, setpoint->position.z);
+  struct vec setpointVel = mkvec(setpoint->velocity.x, setpoint->velocity.y, setpoint->velocity.z);
+  struct vec statePos = mkvec(state->position.x, state->position.y, state->position.z);
+  struct vec stateVel = mkvec(state->velocity.x, state->velocity.y, state->velocity.z);
 
   // Position Error (ep)
-  r_error.x = setpoint->position.x - state->position.x;
-  r_error.y = setpoint->position.y - state->position.y;
-  r_error.z = setpoint->position.z - state->position.z;
+  r_error = vsub(setpointPos, statePos);
 
   // Velocity Error (ev)
-  // v_error.x = setpoint->velocity.x - state->velocity.x;
-  // v_error.y = setpoint->velocity.y - state->velocity.y;
-  // v_error.z = setpoint->velocity.z - state->velocity.z;
+  v_error = vsub(setpointVel, stateVel);
 
   // Integral Error
   i_error_z += r_error.z * dt;
@@ -170,16 +168,17 @@ void stateController(control_t *control, setpoint_t *setpoint,
   i_error_y = clamp(i_error_y, -i_range_xy, i_range_xy);
 
   // Desired thrust [F_des]
-
-  // if (setpoint->enablePosCtrl) {
-  //   target_thrust.x = g_vehicleMass * setpoint->acceleration.x          + kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
-  //   target_thrust.y = g_vehicleMass * setpoint->acceleration.y          + kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
-  //   target_thrust.z = g_vehicleMass * (setpoint->acceleration.z + GRAV) + kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z;
-  // } else {
+  if (setpoint->mode.x == modeAbs) {
+    target_thrust.x = g_vehicleMass * setpoint->acceleration.x                       + kp_xy * r_error.x + kd_xy * v_error.x + ki_xy * i_error_x;
+    target_thrust.y = g_vehicleMass * setpoint->acceleration.y                       + kp_xy * r_error.y + kd_xy * v_error.y + ki_xy * i_error_y;
+    target_thrust.z = g_vehicleMass * (setpoint->acceleration.z + GRAVITY_MAGNITUDE) + kp_z  * r_error.z + kd_z  * v_error.z + ki_z  * i_error_z;
+  } else {
     target_thrust.x = -sinf(radians(setpoint->attitude.pitch));
     target_thrust.y = -sinf(radians(setpoint->attitude.roll));
     target_thrust.z = 1;
-  // }
+  }
+
+  struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
 
   // Rate-controled YAW is moving YAW angle setpoint
   if (setpoint->mode.yaw == modeVelocity) {
@@ -188,29 +187,27 @@ void stateController(control_t *control, setpoint_t *setpoint,
       desiredYaw -= 360.0f;
     while (desiredYaw < -180.0f)
       desiredYaw += 360.0f;
-  } else {
-    desiredYaw = setpoint->attitude.yaw;
+  } else if (setpoint->mode.quat == modeAbs) {
+    struct vec rpy = quat2rpy(q);
+    desiredYaw = degrees(rpy.z);
   }
+   // else {
+    // desiredYaw = setpoint->attitude.yaw;
+  // }
 
   // Z-Axis [zB]
-  struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
   struct mat33 R = quat2rotmat(q);
   z_axis = mcolumn(R, 2);
 
-
-  // yaw correction
-  // TODO: only do this if position control is disabled
-  struct vec x_yaw = mcolumn(R, 0);
-  x_yaw.z = 0;
-  x_yaw = vnormalize(x_yaw);
-  struct vec y_yaw = vcross(mkvec(0, 0, 1), x_yaw);
-  struct mat33 R_yaw_only = mcolumns(x_yaw, y_yaw, mkvec(0, 0, 1));
-  target_thrust = mvmult(R_yaw_only, target_thrust);
-
-
-  // z_axis.x = -sin(pitch) * cos(roll);
-  // z_axis.y = -sin(roll);
-  // z_axis.z = cos(pitch) * cos(roll);
+  // yaw correction (only if position control is not used)
+  if (setpoint->mode.x != modeAbs) {
+    struct vec x_yaw = mcolumn(R, 0);
+    x_yaw.z = 0;
+    x_yaw = vnormalize(x_yaw);
+    struct vec y_yaw = vcross(mkvec(0, 0, 1), x_yaw);
+    struct mat33 R_yaw_only = mcolumns(x_yaw, y_yaw, mkvec(0, 0, 1));
+    target_thrust = mvmult(R_yaw_only, target_thrust);
+  }
 
   // Current thrust [F]
   current_thrust = vdot(target_thrust, z_axis);
@@ -220,8 +217,6 @@ void stateController(control_t *control, setpoint_t *setpoint,
 
   // [xC_des]
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
-  // x_c_des.x = cos(yaw);//cos(setpoint->attitude.yaw / 180 * M_PI);
-  // x_c_des.y = sin(yaw);//sin(setpoint->attitude.yaw / 180 * M_PI);
   x_c_des.x = cosf(radians(desiredYaw));
   x_c_des.y = sinf(radians(desiredYaw));
   x_c_des.z = 0;
@@ -276,18 +271,17 @@ void stateController(control_t *control, setpoint_t *setpoint,
   float stateAttitudeRateYaw = radians(sensors->gyro.z);
 
 
-  ew.x = setpoint->attitudeRate.roll - stateAttitudeRateRoll;
-  ew.y = -setpoint->attitudeRate.pitch - stateAttitudeRatePitch;
-  // TODO: what is the unit in position vs. non-position mode?
+  ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
+  ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
   ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
   if (prev_omega_roll == prev_omega_roll) { /*d part initialized*/
-    err_d_roll = ((setpoint->attitudeRate.roll - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
-    err_d_pitch = (-(setpoint->attitudeRate.pitch - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
+    err_d_roll = ((radians(setpoint->attitudeRate.roll) - prev_setpoint_omega_roll) - (stateAttitudeRateRoll - prev_omega_roll)) / dt;
+    err_d_pitch = (-(radians(setpoint->attitudeRate.pitch) - prev_setpoint_omega_pitch) - (stateAttitudeRatePitch - prev_omega_pitch)) / dt;
   }
   prev_omega_roll = stateAttitudeRateRoll;
   prev_omega_pitch = stateAttitudeRatePitch;
-  prev_setpoint_omega_roll = setpoint->attitudeRate.roll;
-  prev_setpoint_omega_pitch = setpoint->attitudeRate.pitch;
+  prev_setpoint_omega_roll = radians(setpoint->attitudeRate.roll);
+  prev_setpoint_omega_pitch = radians(setpoint->attitudeRate.pitch);
 
   // Integral Error
   i_error_m_x += (-eR.x) * dt;
