@@ -35,7 +35,6 @@
 #include "debug.h"
 #include "log.h"
 #include "math3d.h"
-#include "mathconstants.h"
 
 
 // HACK HACK HACK global for others to use
