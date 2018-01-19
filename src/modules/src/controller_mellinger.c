@@ -23,13 +23,14 @@ SOFTWARE.
 */
 
 /*
-This controller is based Daniel Mellinger's work, specifically his PhD dissertation, section 2.3.3:
+This controller is based on the following publication:
 
-Mellinger, Daniel Warren, "Trajectory Generation and Control for Quadrotors" (2012). Publicly Accessible Penn Dissertations. 547.
-http://repository.upenn.edu/edissertations/547
+Daniel Mellinger, Vijay Kumar:
+Minimum snap trajectory generation and control for quadrotors.
+IEEE International Conference on Robotics and Automation (ICRA), 2011.
 
 We added the following:
- * Integral terms to deal with quadrotor imperfections and battery drain.
+ * Integral terms (compensates for: battery voltage drop over time, unbalanced center of mass due to asymmmetries, and uneven wear on propellers and motors)
  * D-term for angular velocity
  * Support to use this controller as an attitude-only controller for manual flight
 */
