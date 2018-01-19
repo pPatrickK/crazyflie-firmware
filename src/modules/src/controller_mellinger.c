@@ -1,40 +1,45 @@
-/**
- *    ||          ____  _ __
- * +------+      / __ )(_) /_______________ _____  ___
- * | 0xBC |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
- * +------+    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
- *  ||  ||    /_____/_/\__/\___/_/   \__,_/ /___/\___/
- *
- * Crazyflie Firmware
- *
- * Copyright (C) 2016 Bitcraze AB
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, in version 3.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * position_controller_mellinger.c: Position controller based on Mellingers work
- */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2018 Wolfgang Hoenig and James Alan Preiss
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
+This controller is based Daniel Mellinger's work, specifically his PhD dissertation, section 2.3.3:
+
+Mellinger, Daniel Warren, "Trajectory Generation and Control for Quadrotors" (2012). Publicly Accessible Penn Dissertations. 547.
+http://repository.upenn.edu/edissertations/547
+
+We added the following:
+ * Integral terms to deal with quadrotor imperfections and battery drain.
+ * D-term for angular velocity
+ * Support to use this controller as an attitude-only controller for manual flight
+*/
 
 #include <math.h>
 
-// #include "commander.h"
-// #include "log.h"
 #include "param.h"
-// #include "pid.h"
-// #include "num.h"
-#include "position_controller.h"
-#include "debug.h"
 #include "log.h"
 #include "math3d.h"
+#include "position_controller.h"
 
 #define GRAVITY_MAGNITUDE (9.81f)
 
@@ -114,11 +119,6 @@ float clamp(float value, float min, float max) {
   return value;
 }
 
-// void positionControllerMellinger(
-//   control_t *control,
-//   const state_t *state,
-//   const setpoint_t *setpoint,
-//   float dt)
 void stateController(control_t *control, setpoint_t *setpoint,
                                          const sensorData_t *sensors,
                                          const state_t *state,
@@ -129,15 +129,10 @@ void stateController(control_t *control, setpoint_t *setpoint,
   struct vec target_thrust;
   struct vec z_axis;
   float current_thrust;
-  // struct vec z_axis_desired;
   struct vec x_axis_desired;
   struct vec y_axis_desired;
   struct vec x_c_des;
-
-  //float roll, pitch, yaw;
-
   struct vec eR, ew, M;
-
   float dt;
 
   if (!RATE_DO_EXECUTE(ATTITUDE_RATE, tick)) {
@@ -177,8 +172,6 @@ void stateController(control_t *control, setpoint_t *setpoint,
     target_thrust.z = 1;
   }
 
-
-
   // Rate-controled YAW is moving YAW angle setpoint
   if (setpoint->mode.yaw == modeVelocity) {
      desiredYaw -= setpoint->attitudeRate.yaw * dt;
@@ -191,9 +184,6 @@ void stateController(control_t *control, setpoint_t *setpoint,
     struct vec rpy = quat2rpy(setpoint_quat);
     desiredYaw = degrees(rpy.z);
   }
-   // else {
-    // desiredYaw = setpoint->attitude.yaw;
-  // }
 
   // Z-Axis [zB]
   struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
@@ -226,17 +216,8 @@ void stateController(control_t *control, setpoint_t *setpoint,
   // [xB_des]
   x_axis_desired = vcross(y_axis_desired, z_axis_desired);
 
-  // [eR] (see mathematica notebook)
-  // TODO: it might be more efficient to actually create the rotation matrix and carray out the matrix multiplication?
-  // float phi = roll;
-  // float theta = pitch;
-  // float psi = yaw;
-  // eR.x = cos(phi) * (z_axis_desired.y * cos(psi) - y_axis_desired.z * cos(theta) - z_axis_desired.x * sin(psi)) + sin(phi) * (z_axis_desired.z + y_axis_desired.y * cos(psi) * cos(theta) - y_axis_desired.x * cos(theta) * sin(psi)) - (y_axis_desired.x * cos(psi) + y_axis_desired.y * sin(psi)) * sin(theta);
-  // eR.y = cos(theta) * (x_axis_desired.z * cos(phi) - cos(psi) * (z_axis_desired.x + x_axis_desired.y * sin(phi)) + (-z_axis_desired.y + x_axis_desired.x * sin(phi)) * sin(psi)) + (z_axis_desired.z * cos(phi) + cos(psi) * (x_axis_desired.x - z_axis_desired.y * sin(phi)) + (x_axis_desired.y + z_axis_desired.x * sin(phi)) * sin(psi)) * sin(theta);
-  // eR.z = y_axis_desired.y * cos(theta) * sin(psi) - cos(phi) * (x_axis_desired.y * cos(psi) - x_axis_desired.x * sin(psi) + y_axis_desired.z * sin(theta)) + cos(psi) * (y_axis_desired.x * cos(theta) + y_axis_desired.y * sin(phi) * sin(theta)) - sin(phi) * (x_axis_desired.z + y_axis_desired.x * sin(psi) * sin(theta));
-
-
-  // SLOW VERSION
+  // [eR]
+  // Slow version
   // struct mat33 Rdes = mcolumns(
   //   mkvec(x_axis_desired.x, x_axis_desired.y, x_axis_desired.z),
   //   mkvec(y_axis_desired.x, y_axis_desired.y, y_axis_desired.z),
@@ -251,7 +232,7 @@ void stateController(control_t *control, setpoint_t *setpoint,
   // eR.y = -eRM.m[0][2];
   // eR.z = eRM.m[1][0];
 
-  // FAST VERSION
+  // Fast version (generated using Mathematica)
   float x = q.x;
   float y = q.y;
   float z = q.z;
@@ -260,17 +241,16 @@ void stateController(control_t *control, setpoint_t *setpoint,
   eR.y = x_axis_desired.z - z_axis_desired.x - 2*(fsqr(x)*x_axis_desired.z + y*(x_axis_desired.z*y - x_axis_desired.y*z) - (fsqr(y) + fsqr(z))*z_axis_desired.x + x*(-(x_axis_desired.x*z) + y*z_axis_desired.y + z*z_axis_desired.z) + w*(x*x_axis_desired.y + z*z_axis_desired.y - y*(x_axis_desired.x + z_axis_desired.z)));
   eR.z = y_axis_desired.x - 2*(y*(x*x_axis_desired.x + y*y_axis_desired.x - x*y_axis_desired.y) + w*(x*x_axis_desired.z + y*y_axis_desired.z)) + 2*(-(x_axis_desired.z*y) + w*(x_axis_desired.x + y_axis_desired.y) + x*y_axis_desired.z)*z - 2*y_axis_desired.x*fsqr(z) + x_axis_desired.y*(-1 + 2*fsqr(x) + 2*fsqr(z));
 
-  // ?????
+  // Account for Crazyflie coordinate system
   eR.y = -eR.y;
 
-  // ew
+  // [ew]
   float err_d_roll = 0;
   float err_d_pitch = 0;
 
   float stateAttitudeRateRoll = radians(sensors->gyro.x);
   float stateAttitudeRatePitch = -radians(sensors->gyro.y);
   float stateAttitudeRateYaw = radians(sensors->gyro.z);
-
 
   ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
   ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
@@ -299,22 +279,6 @@ void stateController(control_t *control, setpoint_t *setpoint,
   M.y = -kR_xy * eR.y + kw_xy * ew.y + ki_m_xy * i_error_m_y + kd_omega_rp * err_d_pitch;
   M.z = -kR_z  * eR.z + kw_z  * ew.z + ki_m_z  * i_error_m_z;
 
-  // invert (4.1)
-  // float u1 = current_thrust;
-  // float u2 = M.x;
-  // float u3 = M.y;
-  // float u4 = M.z;
-
-  // TODO: this assumes a different frame...
-  // I think we can simple use the power_distribution here...
-  //  the various constants are then "integrated" into kR and kw
-  // float w1 = u1/(4 * kf) - u3/(2 * kf * L) + u4/(4 * kM);
-  // float w2 = u1/(4 * kf) + u2/(2 * kf * L) - u4/(4 * kM);
-  // float w3 = u1/(4 * kf) + u3/(2 * kf * L) + u4/(4 * kM);
-  // float w4 = u1/(4 * kf) - u2/(2 * kf * L) - u4/(4 * kM);
-
-
-
   // Output
   if (setpoint->mode.z == modeDisable) {
     control->thrust = setpoint->thrust;
@@ -335,13 +299,6 @@ void stateController(control_t *control, setpoint_t *setpoint,
     // Reset the calculated YAW angle for rate control
     desiredYaw = state->attitude.yaw;
   }
-
-  // DEBUG_PRINT("%f,%f,%f,%f,%f,%f,%f\n", control->thrust, roll, pitch, yaw, M.x, M.y, M.z);
-
-  // attitude->roll = atan2(y_axis_desired.z, z_axis_desired.z) * 180.0 / M_PI;
-  // attitude->pitch = asin(x_axis_desired.z) * 180.0 / M_PI;
-  // attitude->yaw = setpoint->attitude.yaw;
-  // *thrust = massThrust * current_thrust;
 }
 
 PARAM_GROUP_START(ctrlMel)
