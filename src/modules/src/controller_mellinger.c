@@ -36,57 +36,57 @@
 #include "log.h"
 #include "math3d.h"
 
-
-// HACK HACK HACK global for others to use
-float g_vehicleMass = 0.033;
-
 #define GRAVITY_MAGNITUDE (9.81f)
 
-static float kp_xy = 0.1;
-static float kd_xy = 0.05;
-static float ki_xy = 0;//0.05;
+static float g_vehicleMass = 0.032; // TODO: should be CF global for other modules
+static float massThrust = 132000;
 
-static float kp_z = 0.2;
-static float kd_z = 0.1;
-static float ki_z = 0;//0.05;
+// XY Position PID
+static float kp_xy = 0.4;       // P
+static float kd_xy = 0.2;       // D
+static float ki_xy = 0.05;      // I
+static float i_range_xy = 2.0;
 
-static float massThrust = 130500;
+// Z Position
+static float kp_z = 1.25;       // P
+static float kd_z = 0.4;        // D
+static float ki_z = 0.05;       // I
+static float i_range_z  = 0.4;
 
+// Attitude
+static float kR_xy = 70000; // P
+static float kw_xy = 20000; // D
+static float ki_m_xy = 0.0; // I
+static float i_range_m_xy = 1.0;
+
+// Yaw
+static float kR_z = 60000; // P
+static float kw_z = 12000; // D
+static float ki_m_z = 500; // I
+static float i_range_m_z  = 1500;
+
+// roll and pitch angular velocity
+static float kd_omega_rp = 200; // D
+
+
+// Helper variables
 static float i_error_x = 0;
 static float i_error_y = 0;
 static float i_error_z = 0;
 
-// "P" part for moment
-static float kR_xy = 9000;
-static float kR_z  = 7000;
-
-// "D" part for moment
-static float kw_xy = 4000;
-static float kw_z = 3000;
-
-// "D" part for angular velocity
-static float kd_omega_rp = 1000;
 static float prev_omega_roll;
 static float prev_omega_pitch;
 static float prev_setpoint_omega_roll;
 static float prev_setpoint_omega_pitch;
 
-// "I" part for moment
-static float ki_m_xy = 0.0;
-static float ki_m_z = 0.0;
-  //
 static float i_error_m_x = 0;
 static float i_error_m_y = 0;
 static float i_error_m_z = 0;
-static float i_range_m_xy = 1.0;
-static float i_range_m_z  = 2.0;
-
-static float i_range_xy = 2.0;
-static float i_range_z  = 1.0;
-
-static struct vec z_axis_desired;
 
 static float desiredYaw = 0.0;
+
+// Logging variables
+static struct vec z_axis_desired;
 
 void stateControllerInit(void)
 {
@@ -177,7 +177,7 @@ void stateController(control_t *control, setpoint_t *setpoint,
     target_thrust.z = 1;
   }
 
-  struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
+
 
   // Rate-controled YAW is moving YAW angle setpoint
   if (setpoint->mode.yaw == modeVelocity) {
@@ -187,7 +187,8 @@ void stateController(control_t *control, setpoint_t *setpoint,
     while (desiredYaw < -180.0f)
       desiredYaw += 360.0f;
   } else if (setpoint->mode.quat == modeAbs) {
-    struct vec rpy = quat2rpy(q);
+    struct quat setpoint_quat = mkquat(setpoint->attitudeQuaternion.x, setpoint->attitudeQuaternion.y, setpoint->attitudeQuaternion.z, setpoint->attitudeQuaternion.w);
+    struct vec rpy = quat2rpy(setpoint_quat);
     desiredYaw = degrees(rpy.z);
   }
    // else {
@@ -195,6 +196,7 @@ void stateController(control_t *control, setpoint_t *setpoint,
   // }
 
   // Z-Axis [zB]
+  struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
   struct mat33 R = quat2rotmat(q);
   z_axis = mcolumn(R, 2);
 
