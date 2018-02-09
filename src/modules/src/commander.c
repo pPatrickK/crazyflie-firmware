@@ -151,6 +151,6 @@ int commanderGetActivePriority(void)
   return priority;
 }
 
-PARAM_GROUP_START(commander)
-PARAM_ADD(PARAM_UINT8, traj, &enableTrajectory)
-PARAM_GROUP_STOP(commander)
+PARAM_GROUP_START(flightmode)
+PARAM_ADD(PARAM_UINT8, posCtrl, &enableTrajectory)
+PARAM_GROUP_STOP(flightmode)

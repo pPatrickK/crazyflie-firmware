@@ -40,6 +40,7 @@
 #include "locodeck.h"
 
 #include "estimator_kalman.h"
+#include "position_external.h"
 
 #define NBR_OF_RANGES_IN_PACKET   5
 #define DEFAULT_EMERGENCY_STOP_TIMEOUT (1 * RATE_MAIN_LOOP)
@@ -76,6 +77,7 @@ static ExtPositionCache crtpExtPosCache;
 static CRTPPacket pkRange;
 static uint8_t rangeIndex;
 static bool enableRangeStreamFloat = false;
+static float extPosStdDev = 0.01;
 static bool isInit = false;
 
 static void locSrvCrtpCB(CRTPPacket* pk);
@@ -141,11 +143,29 @@ bool getExtPosition(state_t *state)
     ext_pos.x = crtpExtPosCache.targetVal[crtpExtPosCache.activeSide].x;
     ext_pos.y = crtpExtPosCache.targetVal[crtpExtPosCache.activeSide].y;
     ext_pos.z = crtpExtPosCache.targetVal[crtpExtPosCache.activeSide].z;
-    ext_pos.stdDev = 0.01;
+    ext_pos.stdDev = extPosStdDev;
     estimatorKalmanEnqueuePosition(&ext_pos);
 
     return true;
   }
+
+  // allow the official kalman filter to work with Crazyswarm position service
+  float x, y, z, q0, q1, q2, q3, vx, vy, vz;
+  uint16_t last_time_in_ms;
+  positionExternalGetLastData(
+    &x, &y, &z,
+    &q0, &q1, &q2, &q3,
+    &vx, &vy, &vz,
+    &last_time_in_ms);
+  if (positionExternalFresh2) {
+    ext_pos.x = x;
+    ext_pos.y = y;
+    ext_pos.z = z;
+    ext_pos.stdDev = extPosStdDev;
+    estimatorKalmanEnqueuePosition(&ext_pos);
+    positionExternalFresh2 = false;
+  }
+
   return false;
 }
 
@@ -192,5 +212,6 @@ LOG_GROUP_START(ext_pos)
 LOG_GROUP_STOP(ext_pos)
 
 PARAM_GROUP_START(locSrv)
-PARAM_ADD(PARAM_UINT8, enRangeStreamFP32, &enableRangeStreamFloat)
+  PARAM_ADD(PARAM_UINT8, enRangeStreamFP32, &enableRangeStreamFloat)
+  PARAM_ADD(PARAM_FLOAT, extPosStdDev, &extPosStdDev)
 PARAM_GROUP_STOP(locSrv)

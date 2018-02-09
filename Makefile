@@ -150,7 +150,10 @@ PROJ_OBJ += estimator.o estimator_complementary.o
 PROJ_OBJ += controller_$(CONTROLLER).o
 PROJ_OBJ += power_distribution_$(POWER_DISTRIBUTION).o
 PROJ_OBJ_CF2 += estimator_kalman.o
+
+# Crazyswarm
 PROJ_OBJ += pptraj.o planner.o trajectory_poly.o fig8traj.o
+PROJ_OBJ += position_external.o
 
 # Deck Core
 PROJ_OBJ_CF2 += deck.o deck_info.o deck_drivers.o deck_test.o
