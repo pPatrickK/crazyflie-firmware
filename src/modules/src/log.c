@@ -541,44 +541,78 @@ void logRunBlock(void * arg)
 
   while (ops)
   {
-    float variable;
+    // float variable;
     int valuei = 0;
     float valuef = 0;
 
     // FPU instructions must run on aligned data. Make sure it is.
-    variable = *(float *)ops->variable;
+    // memcpy(&variable, ops->variable, sizeof(variable));
+    // variable = *(float *)ops->variable;
 
     switch(ops->storageType)
     {
       case LOG_UINT8:
-        valuei = *(uint8_t *)&variable;
+      {
+        uint8_t v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(uint8_t *)&variable;
         break;
+      }
       case LOG_INT8:
-        valuei = *(int8_t *)&variable;
+      {
+        int8_t v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(int8_t *)&variable;
         break;
+      }
       case LOG_UINT16:
-        valuei = *(uint16_t *)&variable;
+      {
+        uint16_t v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(uint16_t *)&variable;
         break;
+      }
       case LOG_INT16:
-        valuei = *(int16_t *)&variable;
+      {
+        int16_t v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(int16_t *)&variable;
         break;
+      }
       case LOG_UINT32:
-        valuei = *(uint32_t *)&variable;
+      {
+        uint32_t v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(uint32_t *)&variable;
         break;
+      }
       case LOG_INT32:
-        valuei = *(int32_t *)&variable;
+      {
+        int32_t v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(int32_t *)&variable;
         break;
+      }
       case LOG_FLOAT:
-        valuei = *(float *)&variable;
+      {
+        float v;
+        memcpy(&v, ops->variable, sizeof(v));
+        valuei = v;//*(float *)&variable;
         break;
+      }
     }
 
     if (ops->logType == LOG_FLOAT || ops->logType == LOG_FP16)
     {
       if (ops->storageType == LOG_FLOAT)
-        valuef = *(float *)&variable;
+      {
+        memcpy(&valuef, ops->variable, sizeof(valuef));
+        // valuef = *(float *)&variable;
+      }
       else
+      {
         valuef = valuei;
+      }
 
       // Try to append the next item to the packet.  If we run out of space,
       // drop this and subsequent items.
