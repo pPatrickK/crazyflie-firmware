@@ -137,6 +137,10 @@ static void genericLocHandle(CRTPPacket* pk)
 
 bool getExtPosition(state_t *state)
 {
+  if (!estimatorKalmanTest()) {
+    return false;
+  }
+
   // Only use position information if it's valid and recent
   if ((xTaskGetTickCount() - crtpExtPosCache.timestamp) < M2T(5)) {
     // Get the updated position from the mocap

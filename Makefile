@@ -27,7 +27,7 @@ LPS_TDOA_ENABLE   ?= 0
 
 ######### Stabilizer configuration ##########
 ##### Sets the name of the stabilizer module to use.
-ESTIMATOR          ?= kalman
+ESTIMATOR          ?= kalmanUSC # kalman or kalmanUSC
 CONTROLLER         ?= mellinger
 POWER_DISTRIBUTION ?= stock
 SENSORS 					 ?= cf2
@@ -154,6 +154,7 @@ PROJ_OBJ_CF2 += estimator_kalman.o
 # Crazyswarm
 PROJ_OBJ += pptraj.o planner.o trajectory_poly.o fig8traj.o
 PROJ_OBJ += position_external.o
+PROJ_OBJ += estimator_kalmanUSC.o ekf.o
 
 # Deck Core
 PROJ_OBJ_CF2 += deck.o deck_info.o deck_drivers.o deck_test.o
