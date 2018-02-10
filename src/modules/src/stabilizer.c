@@ -162,9 +162,25 @@ void stabilizerSetEmergencyStopTimeout(int timeout)
 }
 
 LOG_GROUP_START(ctrltarget)
+LOG_ADD(LOG_FLOAT, x, &setpoint.position.x)
+LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
+LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
+
+LOG_ADD(LOG_FLOAT, vx, &setpoint.velocity.x)
+LOG_ADD(LOG_FLOAT, vy, &setpoint.velocity.y)
+LOG_ADD(LOG_FLOAT, vz, &setpoint.velocity.z)
+
+LOG_ADD(LOG_FLOAT, ax, &setpoint.acceleration.x)
+LOG_ADD(LOG_FLOAT, ay, &setpoint.acceleration.y)
+LOG_ADD(LOG_FLOAT, az, &setpoint.acceleration.z)
+
 LOG_ADD(LOG_FLOAT, roll, &setpoint.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &setpoint.attitude.pitch)
-LOG_ADD(LOG_FLOAT, yaw, &setpoint.attitudeRate.yaw)
+LOG_ADD(LOG_FLOAT, yaw, &setpoint.attitude.yaw)
+
+LOG_ADD(LOG_FLOAT, rollRate, &setpoint.attitudeRate.roll)
+LOG_ADD(LOG_FLOAT, pitchRate, &setpoint.attitudeRate.pitch)
+LOG_ADD(LOG_FLOAT, yawRate, &setpoint.attitudeRate.yaw)
 LOG_GROUP_STOP(ctrltarget)
 
 LOG_GROUP_START(stabilizer)
@@ -188,11 +204,11 @@ LOG_ADD(LOG_FLOAT, z, &sensorData.accSec.z)
 LOG_GROUP_STOP(accSec)
 #endif
 
-LOG_GROUP_START(baro)
-LOG_ADD(LOG_FLOAT, asl, &sensorData.baro.asl)
-LOG_ADD(LOG_FLOAT, temp, &sensorData.baro.temperature)
-LOG_ADD(LOG_FLOAT, pressure, &sensorData.baro.pressure)
-LOG_GROUP_STOP(baro)
+// LOG_GROUP_START(baro)
+// LOG_ADD(LOG_FLOAT, asl, &sensorData.baro.asl)
+// LOG_ADD(LOG_FLOAT, temp, &sensorData.baro.temperature)
+// LOG_ADD(LOG_FLOAT, pressure, &sensorData.baro.pressure)
+// LOG_GROUP_STOP(baro)
 
 LOG_GROUP_START(gyro)
 LOG_ADD(LOG_FLOAT, x, &sensorData.gyro.x)
@@ -208,18 +224,30 @@ LOG_ADD(LOG_FLOAT, z, &sensorData.gyroSec.z)
 LOG_GROUP_STOP(gyroSec)
 #endif
 
-LOG_GROUP_START(mag)
-LOG_ADD(LOG_FLOAT, x, &sensorData.mag.x)
-LOG_ADD(LOG_FLOAT, y, &sensorData.mag.y)
-LOG_ADD(LOG_FLOAT, z, &sensorData.mag.z)
-LOG_GROUP_STOP(mag)
+// LOG_GROUP_START(mag)
+// LOG_ADD(LOG_FLOAT, x, &sensorData.mag.x)
+// LOG_ADD(LOG_FLOAT, y, &sensorData.mag.y)
+// LOG_ADD(LOG_FLOAT, z, &sensorData.mag.z)
+// LOG_GROUP_STOP(mag)
 
-LOG_GROUP_START(controller)
-LOG_ADD(LOG_INT16, ctr_yaw, &control.yaw)
-LOG_GROUP_STOP(controller)
+// LOG_GROUP_START(controller)
+// LOG_ADD(LOG_INT16, ctr_yaw, &control.yaw)
+// LOG_GROUP_STOP(controller)
 
 LOG_GROUP_START(stateEstimate)
 LOG_ADD(LOG_FLOAT, x, &state.position.x)
 LOG_ADD(LOG_FLOAT, y, &state.position.y)
 LOG_ADD(LOG_FLOAT, z, &state.position.z)
+
+LOG_ADD(LOG_FLOAT, vx, &state.velocity.x)
+LOG_ADD(LOG_FLOAT, vy, &state.velocity.y)
+LOG_ADD(LOG_FLOAT, vz, &state.velocity.z)
+
+LOG_ADD(LOG_FLOAT, ax, &state.acc.x)
+LOG_ADD(LOG_FLOAT, ay, &state.acc.y)
+LOG_ADD(LOG_FLOAT, az, &state.acc.z)
+
+LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
+LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
+LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
 LOG_GROUP_STOP(stateEstimate)
