@@ -563,6 +563,45 @@ static void siren(uint8_t buffer[][3], bool reset)
   if (++tic >= 20) tic = 0;
 }
 
+static void packetRate(uint8_t buffer[][3], bool reset)
+{
+  int i;
+  static int varid;
+  uint32_t packetsPerSecond;
+  static int pmstateid;
+  int8_t pmstate;
+  static int tic = 0;
+  static bool batteryEverLow = false;
+
+  // varid = logGetVarId("crtp", "pps");
+  varid = logGetVarId("vicon", "dt");
+  packetsPerSecond = logGetUint(varid);
+  if (packetsPerSecond > 30) packetsPerSecond = 30;
+
+  pmstateid = logGetVarId("pm", "state");
+  pmstate = logGetInt(pmstateid);
+  if (pmstate == lowPower) {
+    batteryEverLow = true;
+  }
+
+  for (i = 0; i < NBR_LEDS; i++) {
+    if (batteryEverLow && tic < 10) {
+      buffer[i][0] = 0;
+      buffer[i][1] = 0;
+      buffer[i][2] = 0;
+    } else {
+      // buffer[i][0] = LIMIT(LINSCALE(0, 100, 100, 0, packetsPerSecond)); // Red (low packets per second)
+      // buffer[i][1] = LIMIT(LINSCALE(0, 100, 0, 100, packetsPerSecond)); // Green (high packets per second)
+      buffer[i][0] = LIMIT(LINSCALE(0, 30, 0, 100, packetsPerSecond)); // Red (low packets per second)
+      buffer[i][1] = LIMIT(LINSCALE(0, 30, 100, 0, packetsPerSecond)); // Green (high packets per second)
+
+      buffer[i][2] = 0;
+    }
+  }
+
+  if (++tic >= 20) tic = 0;
+}
+
 /**************** Effect list ***************/
 
 
@@ -582,6 +621,7 @@ Ledring12Effect effectsFct[] =
   siren,
   gravityLight,
   virtualMemEffect,
+  packetRate,
 }; //TODO Add more
 
 /********** Ring init and switching **********/
