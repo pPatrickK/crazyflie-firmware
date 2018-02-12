@@ -10,6 +10,7 @@
 #include "position_external.h"
 #include "stabilizer_types.h"
 #include "sensors.h"
+#include "param.h"
 
 #define GRAV (9.81f)
 
@@ -26,7 +27,7 @@ static void ekf_flip()
 	ekf_back = ekf_temp;
 }
 static bool initialized = false;
-static bool first_vicon = false;
+static bool rstWithExtPos = true;
 
 
 // TODO change EKF funcs to take struct vec,
@@ -71,7 +72,7 @@ void estimatorKalmanUSC(state_t *state, sensorData_t *sensors, control_t *contro
 	// TODO: should we rate-limit IMU but not vicon, so we have less vicon latency?
 
 	// lazy initialization
-	if (!first_vicon && positionExternalFresh) {
+	if (rstWithExtPos && positionExternalFresh) {
 		float pos[3];
 		float vel[3];
 		float quat[4];
@@ -83,7 +84,7 @@ void estimatorKalmanUSC(state_t *state, sensorData_t *sensors, control_t *contro
 			&last_time_in_ms);
 
 		ekf_init(ekf_back, pos, vel, quat);
-		first_vicon = true;
+		rstWithExtPos = false;
 		positionExternalFresh = false;
 	}
 
@@ -108,6 +109,8 @@ void estimatorKalmanUSC(state_t *state, sensorData_t *sensors, control_t *contro
 		ekf_flip();
 
 		positionExternalFresh = false;
+	} else {
+		positionExternalUpdateDt();
 	}
 
 	state->position = ekf2vec(ekf_back->pos);
@@ -128,3 +131,7 @@ void estimatorKalmanUSC(state_t *state, sensorData_t *sensors, control_t *contro
 	// state->attitudeRate.pitch = -gyro[1];
 	// state->attitudeRate.yaw = gyro[2];
 }
+
+PARAM_GROUP_START(kalmanUSC)
+  PARAM_ADD(PARAM_UINT8, rstWithExtPos, &rstWithExtPos)
+PARAM_GROUP_STOP(kalmanUSC)

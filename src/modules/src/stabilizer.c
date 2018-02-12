@@ -43,6 +43,7 @@
 
 #include "estimator_kalman.h"
 #include "estimator.h"
+#include "trajectory.h"
 
 static bool isInit;
 static bool emergencyStop = false;
@@ -135,8 +136,13 @@ static void stabilizerTask(void* param)
 
     checkEmergencyStopTimeout();
 
-    if (emergencyStop) {
+    // TODO: this should go into the sitAw framework
+    bool upsideDown = sensorData.acc.z < -0.5f;
+
+    if (emergencyStop || upsideDown) {
       powerStop();
+      stateControllerReset();
+      trajectoryStop();
     } else {
       powerDistribution(&control);
     }
