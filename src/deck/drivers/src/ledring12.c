@@ -567,16 +567,15 @@ static void packetRate(uint8_t buffer[][3], bool reset)
 {
   int i;
   static int varid;
-  uint32_t packetsPerSecond;
+  uint32_t time_since_last_vicon_update; //ms
   static int pmstateid;
   int8_t pmstate;
   static int tic = 0;
   static bool batteryEverLow = false;
 
-  // varid = logGetVarId("crtp", "pps");
   varid = logGetVarId("vicon", "dt");
-  packetsPerSecond = logGetUint(varid);
-  if (packetsPerSecond > 30) packetsPerSecond = 30;
+  time_since_last_vicon_update = logGetUint(varid);
+  if (time_since_last_vicon_update > 30) time_since_last_vicon_update = 30;
 
   pmstateid = logGetVarId("pm", "state");
   pmstate = logGetInt(pmstateid);
@@ -590,10 +589,8 @@ static void packetRate(uint8_t buffer[][3], bool reset)
       buffer[i][1] = 0;
       buffer[i][2] = 0;
     } else {
-      // buffer[i][0] = LIMIT(LINSCALE(0, 100, 100, 0, packetsPerSecond)); // Red (low packets per second)
-      // buffer[i][1] = LIMIT(LINSCALE(0, 100, 0, 100, packetsPerSecond)); // Green (high packets per second)
-      buffer[i][0] = LIMIT(LINSCALE(0, 30, 0, 100, packetsPerSecond)); // Red (low packets per second)
-      buffer[i][1] = LIMIT(LINSCALE(0, 30, 100, 0, packetsPerSecond)); // Green (high packets per second)
+      buffer[i][0] = LIMIT(LINSCALE(0, 30, 0, 100, time_since_last_vicon_update)); // Red (long time_since_last_vicon_update)
+      buffer[i][1] = LIMIT(LINSCALE(0, 30, 100, 0, time_since_last_vicon_update)); // Green (short time_since_last_vicon_update)
 
       buffer[i][2] = 0;
     }

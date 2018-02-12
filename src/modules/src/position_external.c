@@ -117,12 +117,18 @@ void positionExternalGetLastData(
   *vx = v_x;
   *vy = v_y;
   *vz = v_z;
-  if (xTaskGetTickCount() - lastTime < 10 * 1000) {
-    *last_time_in_ms = xTaskGetTickCount() - lastTime;
+  positionExternalUpdateDt();
+  *last_time_in_ms = dt;
+}
+
+void positionExternalUpdateDt()
+{
+  uint64_t tickDiff = xTaskGetTickCount() - lastTime;
+  if (tickDiff < 10 * 1000) {
+    dt = (uint16_t)tickDiff;
   } else {
-    *last_time_in_ms = 10 * 1000;
+    dt = 10 * 1000;
   }
-  dt = *last_time_in_ms;
 }
 
 void setPositionInteractiveCallback(positionInteractiveCallback cb)
@@ -201,7 +207,7 @@ LOG_GROUP_START(vicon)
 LOG_ADD(LOG_FLOAT, v_x, &v_x)
 LOG_ADD(LOG_FLOAT, v_y, &v_y)
 LOG_ADD(LOG_FLOAT, v_z, &v_z)
-LOG_ADD(LOG_INT16, dt, &dt)
+LOG_ADD(LOG_UINT16, dt, &dt)
 LOG_ADD(LOG_FLOAT, roll, &posExtLastRPY.x)
 LOG_ADD(LOG_FLOAT, pitch, &posExtLastRPY.y)
 LOG_ADD(LOG_FLOAT, yaw, &posExtLastRPY.z)

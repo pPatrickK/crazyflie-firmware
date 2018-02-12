@@ -45,6 +45,8 @@ void positionExternalGetLastData(
   float* vz,
   uint16_t* last_time_in_ms);
 
+void positionExternalUpdateDt();
+
 extern bool positionExternalFresh;
 extern bool positionExternalFresh2;
 
