@@ -541,63 +541,60 @@ void logRunBlock(void * arg)
 
   while (ops)
   {
-    // float variable;
     int valuei = 0;
     float valuef = 0;
 
-    // FPU instructions must run on aligned data. Make sure it is.
-    // memcpy(&variable, ops->variable, sizeof(variable));
-    // variable = *(float *)ops->variable;
-
+    // FPU instructions must run on aligned data.
+    // We first copy the data to an (aligned) local variable, before assigning it
     switch(ops->storageType)
     {
       case LOG_UINT8:
       {
         uint8_t v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(uint8_t *)&variable;
+        valuei = v;
         break;
       }
       case LOG_INT8:
       {
         int8_t v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(int8_t *)&variable;
+        valuei = v;
         break;
       }
       case LOG_UINT16:
       {
         uint16_t v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(uint16_t *)&variable;
+        valuei = v;
         break;
       }
       case LOG_INT16:
       {
         int16_t v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(int16_t *)&variable;
+        valuei = v;
         break;
       }
       case LOG_UINT32:
       {
         uint32_t v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(uint32_t *)&variable;
+        valuei = v;
         break;
       }
       case LOG_INT32:
       {
         int32_t v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(int32_t *)&variable;
+        valuei = v;
         break;
       }
       case LOG_FLOAT:
       {
         float v;
         memcpy(&v, ops->variable, sizeof(v));
-        valuei = v;//*(float *)&variable;
+        valuei = v;
         break;
       }
     }
@@ -607,7 +604,6 @@ void logRunBlock(void * arg)
       if (ops->storageType == LOG_FLOAT)
       {
         memcpy(&valuef, ops->variable, sizeof(valuef));
-        // valuef = *(float *)&variable;
       }
       else
       {
