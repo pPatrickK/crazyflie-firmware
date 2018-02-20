@@ -45,6 +45,7 @@
 #include "planner.h"
 #include "usec_time.h"
 #include "log.h"
+#include "param.h"
 #include "stabilizer.h" // to get current state estimate
 #include "num.h"
 
@@ -54,6 +55,9 @@ static bool isInit = false;
 static struct planner planner;
 static struct piecewise_traj ppUser;
 static uint8_t group;
+
+static bool auto_yaw = false;
+
 // makes sure that we don't evaluate the trajectory while it is being changed
 // It would be more efficient to put the semaphore in the planning layer, however that would introduce
 // FreeRTOS dependencies there...
@@ -94,6 +98,7 @@ static int set_group(const struct data_set_group* data);
 
 static struct vec pos;
 static float yaw;
+static float last_yaw_setpoint;
 
 static struct vec state2vec(struct vec3_s v)
 {
@@ -137,6 +142,7 @@ void trajectoryInit(void)
   // setPositionInteractiveCallback(&posInteractiveCB);
   pos = vzero();
   yaw = 0;
+  last_yaw_setpoint = 0;
 
   isInit = true;
   DEBUG_PRINT("traj. initialized.\n");
@@ -184,9 +190,19 @@ void trajectoryGetCurrentGoal(trajectoryPoint_t* goal)
   goal->velocity_x = ev.vel.x;
   goal->velocity_y = ev.vel.y;
   goal->velocity_z = ev.vel.z;
-  goal->yaw = ev.yaw;
+  if (!auto_yaw) {
+    goal->yaw = ev.yaw;
+  } else {
+    if (fabs(ev.vel.y) < 1e-3 && fabs(ev.vel.x) < 1e-3) {
+      goal->yaw = last_yaw_setpoint;
+    } else {
+      goal->yaw = atan2f(ev.vel.y, ev.vel.x);
+    }
+  }
   goal->omega = ev.omega;
   goal->acceleration = ev.acc;
+
+  last_yaw_setpoint = goal->yaw;
 }
 
 void trajectoryTask(void * prm)
@@ -387,3 +403,8 @@ int set_group(const struct data_set_group* data)
 
   return 0;
 }
+
+
+PARAM_GROUP_START(traj)
+PARAM_ADD(PARAM_UINT8, auto_yaw, &auto_yaw)
+PARAM_GROUP_STOP(traj)

@@ -55,6 +55,15 @@ static sensorData_t sensorData;
 static state_t state;
 static control_t control;
 
+// statistics
+static float error_dist; // euclidean distance error
+static float error_dist_last; // euclidean distance error over the last 1000 ms
+
+struct vec point2vec(point_t p)
+{
+  return mkvec(p.x, p.y, p.z);
+}
+
 static void stabilizerTask(void* param);
 
 void stabilizerInit(StateEstimatorType estimator)
@@ -74,6 +83,8 @@ void stabilizerInit(StateEstimatorType estimator)
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
 
+  error_dist = 0;
+  error_dist_last = 0;
   isInit = true;
 }
 
@@ -145,6 +156,18 @@ static void stabilizerTask(void* param)
       trajectoryStop();
     } else {
       powerDistribution(&control);
+    }
+
+    // stats
+    if (trajectoryIsFlying()) {
+      float const dt = 1.0f / RATE_MAIN_LOOP;
+      struct vec dist = vsub(point2vec(setpoint.position), point2vec(state.position));
+      error_dist += dt * vmag(dist);
+
+      if (tick % 1000 == 0) {
+        error_dist_last = error_dist;
+        error_dist = 0;
+      }
     }
 
     tick++;
@@ -257,3 +280,7 @@ LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
 LOG_GROUP_STOP(stateEstimate)
+
+LOG_GROUP_START(ctrlStat)
+LOG_ADD(LOG_FLOAT, edist, &error_dist_last)
+LOG_GROUP_STOP(ctrlStat)
