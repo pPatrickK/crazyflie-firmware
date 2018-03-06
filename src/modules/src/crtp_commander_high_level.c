@@ -84,14 +84,14 @@ struct data_set_group_mask {
 struct data_takeoff {
   uint8_t groupMask;        // mask for which CFs this should apply to
   float height;             // m (absolute)
-  uint16_t time_from_start; // ms
+  float duration;           // s (time it should take until target height is reached)
 } __attribute__((packed));
 
 // vertical land from current x-y position to given height
 struct data_land {
   uint8_t groupMask;        // mask for which CFs this should apply to
   float height;             // m (absolute)
-  uint16_t time_from_start; // ms
+  float duration;           // s (time it should take until target height is reached)
 } __attribute__((packed));
 
 // stops the current trajectory (turns off the motors)
@@ -245,7 +245,6 @@ int takeoff(const struct data_takeoff* data)
 {
   int result = 0;
   if (isInGroup(data->groupMask)) {
-    float duration = data->time_from_start / 1000.0;
     xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
     result = plan_takeoff(&planner, pos, yaw, data->height, duration, t);
@@ -258,7 +257,6 @@ int land(const struct data_land* data)
 {
   int result = 0;
   if (isInGroup(data->groupMask)) {
-    float duration = data->time_from_start / 1000.0;
     xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
     result = plan_land(&planner, pos, yaw, data->height, duration, t);
