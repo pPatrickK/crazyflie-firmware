@@ -83,9 +83,10 @@ void commanderGetSetpoint(setpoint_t *setpoint, const state_t *state)
   uint32_t currentTime = xTaskGetTickCount();
 
   if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_SHUTDOWN) {
-    if (enableHighLevel && !crtpCommanderHighLevelIsStopped()) {
+    if (enableHighLevel) {
       crtpCommanderHighLevelGetSetpoint(setpoint, state);
-    } else {
+    }
+    if (!enableHighLevel || crtpCommanderHighLevelIsStopped()) {
       memcpy(setpoint, &nullSetpoint, sizeof(nullSetpoint));
     }
   } else if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_STABILIZE) {

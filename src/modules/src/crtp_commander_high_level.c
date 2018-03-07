@@ -174,26 +174,28 @@ void crtpCommanderHighLevelGetSetpoint(setpoint_t* setpoint, const state_t *stat
   }
   xSemaphoreGive(lockTraj);
 
-  setpoint->position.x = ev.pos.x;
-  setpoint->position.y = ev.pos.y;
-  setpoint->position.z = ev.pos.z;
-  setpoint->velocity.x = ev.vel.x;
-  setpoint->velocity.y = ev.vel.y;
-  setpoint->velocity.z = ev.vel.z;
-  setpoint->attitude.yaw = degrees(ev.yaw);
-  setpoint->attitudeRate.roll = degrees(ev.omega.x);
-  setpoint->attitudeRate.pitch = degrees(ev.omega.y);
-  setpoint->attitudeRate.yaw = degrees(ev.omega.z);
-  setpoint->mode.x = modeAbs;
-  setpoint->mode.y = modeAbs;
-  setpoint->mode.z = modeAbs;
-  setpoint->mode.roll = modeDisable;
-  setpoint->mode.pitch = modeDisable;
-  setpoint->mode.yaw = modeAbs;
-  setpoint->mode.quat = modeDisable;
-  setpoint->acceleration.x = ev.acc.x;
-  setpoint->acceleration.y = ev.acc.y;
-  setpoint->acceleration.z = ev.acc.z;
+  if (is_traj_eval_valid(&ev)) {
+    setpoint->position.x = ev.pos.x;
+    setpoint->position.y = ev.pos.y;
+    setpoint->position.z = ev.pos.z;
+    setpoint->velocity.x = ev.vel.x;
+    setpoint->velocity.y = ev.vel.y;
+    setpoint->velocity.z = ev.vel.z;
+    setpoint->attitude.yaw = degrees(ev.yaw);
+    setpoint->attitudeRate.roll = degrees(ev.omega.x);
+    setpoint->attitudeRate.pitch = degrees(ev.omega.y);
+    setpoint->attitudeRate.yaw = degrees(ev.omega.z);
+    setpoint->mode.x = modeAbs;
+    setpoint->mode.y = modeAbs;
+    setpoint->mode.z = modeAbs;
+    setpoint->mode.roll = modeDisable;
+    setpoint->mode.pitch = modeDisable;
+    setpoint->mode.yaw = modeAbs;
+    setpoint->mode.quat = modeDisable;
+    setpoint->acceleration.x = ev.acc.x;
+    setpoint->acceleration.y = ev.acc.y;
+    setpoint->acceleration.z = ev.acc.z;
+  }
 }
 
 void crtpCommanderHighLevelTask(void * prm)
@@ -247,7 +249,7 @@ int takeoff(const struct data_takeoff* data)
   if (isInGroup(data->groupMask)) {
     xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
-    result = plan_takeoff(&planner, pos, yaw, data->height, duration, t);
+    result = plan_takeoff(&planner, pos, yaw, data->height, data->duration, t);
     xSemaphoreGive(lockTraj);
   }
   return result;
@@ -259,7 +261,7 @@ int land(const struct data_land* data)
   if (isInGroup(data->groupMask)) {
     xSemaphoreTake(lockTraj, portMAX_DELAY);
     float t = usecTimestamp() / 1e6;
-    result = plan_land(&planner, pos, yaw, data->height, duration, t);
+    result = plan_land(&planner, pos, yaw, data->height, data->duration, t);
     xSemaphoreGive(lockTraj);
   }
   return result;
