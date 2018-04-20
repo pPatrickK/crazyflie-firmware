@@ -91,7 +91,7 @@
 #define USDLOG_TASK_PRI         1
 #define USDWRITE_TASK_PRI       0
 #define PCA9685_TASK_PRI        3
-#define TRAJECTORY_TASK_PRI     1
+#define CMD_HIGH_LEVEL_TASK_PRI 2
 
 #define SYSLINK_TASK_PRI        5
 #define USBLINK_TASK_PRI        3
@@ -126,7 +126,7 @@
 #define USDLOG_TASK_NAME        "USDLOG"
 #define USDWRITE_TASK_NAME      "USDWRITE"
 #define PCA9685_TASK_NAME       "PCA9685"
-#define TRAJECTORY_TASK_NAME    "TRAJECTORY"
+#define CMD_HIGH_LEVEL_TASK_NAME "CMDHL"
 
 //Task stack sizes
 #define SYSTEM_TASK_STACKSIZE         (2* configMINIMAL_STACK_SIZE)
@@ -151,7 +151,7 @@
 #define USDLOG_TASK_STACKSIZE         (2 * configMINIMAL_STACK_SIZE)
 #define USDWRITE_TASK_STACKSIZE       (2 * configMINIMAL_STACK_SIZE)
 #define PCA9685_TASK_STACKSIZE        (2 * configMINIMAL_STACK_SIZE)
-#define TRAJECTORY_TASK_STACKSIZE     (2 * configMINIMAL_STACK_SIZE)
+#define CMD_HIGH_LEVEL_TASK_STACKSIZE configMINIMAL_STACK_SIZE
 
 //The radio channel. From 0 to 125
 #define RADIO_CHANNEL 80

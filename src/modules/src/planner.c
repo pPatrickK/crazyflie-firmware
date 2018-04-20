@@ -1,4 +1,4 @@
-/**
+/*
  *    ______
  *   / ____/________ _____  __  ________      ______ __________ ___
  *  / /   / ___/ __ `/_  / / / / / ___/ | /| / / __ `/ ___/ __ `__ \
@@ -8,53 +8,48 @@
  *
  * Crazyswarm advanced control firmware for Crazyflie
  *
- * Copyright (C) 2016 Wolfgang Hoenig and James Preiss,
- * University of Southern California
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, in version 3.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * planner.c: trajectory planner state machine
- *
- */
+
+The MIT License (MIT)
+
+Copyright (c) 2018 Wolfgang Hoenig and James Alan Preiss
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
+implementation of planning state machine
+*/
 
 #include "planner.h"
 
-
-// ------------------------ //
-// static helper functions. //
-// ------------------------ //
-
-static void plan_pp_flip(struct planner *p, float t)
-{
-	p->ppBack->t_begin = t;
-	struct piecewise_traj* tmp = p->ppFront;
-	p->ppFront = p->ppBack;
-	p->ppBack = tmp;
-	// this is necessary because we might recieve the startTrajectory command
-	// repeatedly in a short time... TODO avoid doing this
-	*p->ppBack = *p->ppFront;
-}
+static struct piecewise_traj planned_trajectory;
+static struct poly4d pieces[1]; // the on-board planner requires a single piece, only
 
 static void plan_takeoff_or_landing(struct planner *p, struct vec pos, float yaw, float height, float duration)
 {
 	struct vec takeoff_pos = pos;
 	takeoff_pos.z = height;
 
-	piecewise_plan_7th_order_no_jerk(p->ppBack, duration,
+	piecewise_plan_7th_order_no_jerk(&planned_trajectory, duration,
 		pos,         yaw, vzero(), 0, vzero(),
 		takeoff_pos,   0, vzero(), 0, vzero());
 }
-
 
 // ----------------- //
 // public functions. //
@@ -62,13 +57,13 @@ static void plan_takeoff_or_landing(struct planner *p, struct vec pos, float yaw
 
 void plan_init(struct planner *p)
 {
-	// p->mass = mass;
-	p->ppFront = &p->pp1;
-	p->ppBack = &p->pp2;
 	p->state = TRAJECTORY_STATE_IDLE;
+	p->reversed = false;
+	p->trajectory = NULL;
+	planned_trajectory.pieces = pieces;
 }
 
-void plan_emergency_stop(struct planner *p)
+void plan_stop(struct planner *p)
 {
 	p->state = TRAJECTORY_STATE_IDLE;
 }
@@ -78,48 +73,20 @@ bool plan_is_stopped(struct planner *p)
 	return p->state == TRAJECTORY_STATE_IDLE;
 }
 
-bool plan_is_flying(struct planner *p)
-{
-	return 		p->state != TRAJECTORY_STATE_IDLE
-			&& 	p->state != TRAJECTORY_STATE_TAKING_OFF
-			&&  p->state != TRAJECTORY_STATE_LANDING;
-}
-
 struct traj_eval plan_current_goal(struct planner *p, float t)
 {
 	switch (p->state) {
-		case TRAJECTORY_STATE_ELLIPSE_CATCHUP:
-			if (piecewise_is_finished(p->ppFront, t)) {
-				p->state = TRAJECTORY_STATE_ELLIPSE;
-			}
-			// it's OK, we'll eval the ellipse next time
-			return piecewise_eval(p->ppFront, t);
-
-		// case TRAJECTORY_STATE_ELLIPSE:
-		// 	t = t - p->ellipse.t_begin;
-		// 	return ellipse_traj_eval(&p->ellipse, t);
-
-		// case TRAJECTORY_STATE_AVOID_TARGET:
-		// 	return eval_avoid_target(&p->avoid, t);
-
-		case TRAJECTORY_STATE_TAKING_OFF:
-			if (piecewise_is_finished(p->ppFront, t)) {
-				p->state = TRAJECTORY_STATE_FLYING;
-			}
-			return piecewise_eval(p->ppFront, t);
-
 		case TRAJECTORY_STATE_LANDING:
-			if (piecewise_is_finished(p->ppFront, t)) {
+			if (piecewise_is_finished(p->trajectory, t)) {
 				p->state = TRAJECTORY_STATE_IDLE;
 			}
-			return piecewise_eval(p->ppFront, t);
-
+			// intentional fall-thru
 		case TRAJECTORY_STATE_FLYING:
 			if (p->reversed) {
-				return piecewise_eval_reversed(p->ppFront, t);
+				return piecewise_eval_reversed(p->trajectory, t);
 			}
 			else {
-				return piecewise_eval(p->ppFront, t);
+				return piecewise_eval(p->trajectory, t);
 			}
 
 		default:
@@ -127,58 +94,6 @@ struct traj_eval plan_current_goal(struct planner *p, float t)
 	}
 }
 
-// for piecewise trajectories, build the piecewise polynomial yourself
-// in planner->ppBack, then call this function.
-//
-// this function shifts the polynomial in ppBack
-// so it starts at the current position.
-//
-void plan_start_poly(struct planner *p, struct vec current_pos, float t, bool reversed)
-{
-	struct traj_eval traj_init;
-	if (reversed) {
-		traj_init = piecewise_eval_reversed(p->ppBack, 0);
-	}
-	else {
-		traj_init = piecewise_eval(p->ppBack, 0);
-	}
-	struct vec shift_pos = vsub(current_pos, traj_init.pos);
-	piecewise_shift_vec(p->ppBack, shift_pos, 0);
-	p->reversed = reversed;
-	plan_pp_flip(p, t);
-}
-
-// negative timescale indicates reversed
-int plan_start_canned_trajectory(struct planner *p, enum trajectory_type type,
-	float timescale, struct vec current_pos, float t)
-{
-	switch (type) {
-	case TRAJECTORY_FIGURE8:
-		*p->ppBack = pp_figure8;
-		break;
-	default:
-		return 1;
-	}
-
-	bool reversed = timescale < 0;
-	piecewise_stretchtime(p->ppBack, fabs(timescale));
-	plan_start_poly(p, current_pos, t, reversed);
-	return 0;
-}
-
-// // build the ellipse yourself in planner->ellipse, then call this function.
-// //
-// void plan_start_ellipse(struct planner *p, float t)
-// {
-// 	if (p->state != TRAJECTORY_STATE_ELLIPSE_CATCHUP) {
-// 		p->ellipse.t_begin = t;
-// 		struct traj_eval ev_current = plan_current_goal(p, t);
-// 		plan_into_ellipse(&ev_current, &p->ellipse, p->ppBack, p->mass);
-// 		p->reversed = false;
-// 		plan_pp_flip(p, t);
-// 		p->state = TRAJECTORY_STATE_ELLIPSE_CATCHUP;
-// 	}
-// }
 
 int plan_takeoff(struct planner *p, struct vec pos, float yaw, float height, float duration, float t)
 {
@@ -186,69 +101,56 @@ int plan_takeoff(struct planner *p, struct vec pos, float yaw, float height, flo
 		return 1;
 	}
 
-	p->home = vadd(pos, mkvec(0, 0, height));
 	plan_takeoff_or_landing(p, pos, yaw, height, duration);
 	p->reversed = false;
-	p->state = TRAJECTORY_STATE_TAKING_OFF;
-	plan_pp_flip(p, t);
+	p->state = TRAJECTORY_STATE_FLYING;
+	planned_trajectory.t_begin = t;
+	p->trajectory = &planned_trajectory;
 	return 0;
 }
 
 int plan_land(struct planner *p, struct vec pos, float yaw, float height, float duration, float t)
 {
-	// TODO this means we can't land from ELLIPSE or AVOID_TARGET
-	// states... you must GO_HOME first. Is this good?
-	if (p->state != TRAJECTORY_STATE_FLYING) {
+	if (   p->state == TRAJECTORY_STATE_IDLE
+		|| p->state == TRAJECTORY_STATE_LANDING) {
 		return 1;
 	}
 
 	plan_takeoff_or_landing(p, pos, yaw, height, duration);
 	p->reversed = false;
 	p->state = TRAJECTORY_STATE_LANDING;
-	plan_pp_flip(p, t);
+	planned_trajectory.t_begin = t;
+	p->trajectory = &planned_trajectory;
 	return 0;
 }
 
-int plan_hover(struct planner *p, struct vec hover_pos, float hover_yaw, float duration, float t)
+int plan_go_to(struct planner *p, bool relative, struct vec hover_pos, float hover_yaw, float duration, float t)
 {
-	if (p->state != TRAJECTORY_STATE_FLYING &&
-	    p->state != TRAJECTORY_STATE_ELLIPSE &&
-	    p->state != TRAJECTORY_STATE_AVOID_TARGET) {
-		return 1;
-	}
+	// allow in any state, i.e., can also be used to take-off or land
 
 	struct traj_eval setpoint = plan_current_goal(p, t);
 
-	piecewise_plan_7th_order_no_jerk(p->ppBack, duration,
+	if (relative) {
+		hover_pos = vadd(hover_pos, setpoint.pos);
+		hover_yaw += setpoint.yaw;
+	}
+
+	piecewise_plan_7th_order_no_jerk(&planned_trajectory, duration,
 		setpoint.pos, setpoint.yaw, setpoint.vel, setpoint.omega.z, setpoint.acc,
 		hover_pos,    hover_yaw,    vzero(),      0,                vzero());
 
 	p->reversed = false;
 	p->state = TRAJECTORY_STATE_FLYING;
-	plan_pp_flip(p, t);
+	planned_trajectory.t_begin = t;
+	p->trajectory = &planned_trajectory;
 	return 0;
 }
 
-int plan_go_home(struct planner *p, float t)
+int plan_start_trajectory( struct planner *p, const struct piecewise_traj* trajectory, bool reversed)
 {
-	struct traj_eval setpoint = plan_current_goal(p, t);
-	float distance = vdist(p->home, setpoint.pos);
-	float duration = 1.0f + distance;
-	float yaw = 0;
-	return plan_hover(p, p->home, yaw, duration, t);
+	p->reversed = reversed;
+	p->trajectory = trajectory;
+	p->state = TRAJECTORY_STATE_FLYING;
+
+	return 0;
 }
-
-// // TODO make user build p->avoid manually, like for pp and ellipse?
-// void plan_start_avoid_target(
-// 	struct planner *p, struct vec home, float max_displacement, float max_speed, float t)
-// {
-// 	if (p->state != TRAJECTORY_STATE_AVOID_TARGET) {
-// 		init_avoid_target(&p->avoid, home, max_speed, max_displacement, t);
-// 		p->state = TRAJECTORY_STATE_AVOID_TARGET;
-// 	}
-// }
-
-// void plan_update_avoid_target(struct planner *p, struct vec target_pos, float t)
-// {
-// 	update_avoid_target(&p->avoid, target_pos, t);
-// }

@@ -31,7 +31,8 @@
 
 #include "commander.h"
 #include "crtp_commander.h"
-#include "trajectory.h"
+#include "crtp_commander_high_level.h"
+
 #include "param.h"
 
 static bool isInit;
@@ -39,8 +40,7 @@ const static setpoint_t nullSetpoint;
 const static int priorityDisable = COMMANDER_PRIORITY_DISABLE;
 
 static uint32_t lastUpdate;
-
-static bool enableTrajectory = false;
+static bool enableHighLevel = false;
 
 QueueHandle_t setpointQueue;
 QueueHandle_t priorityQueue;
@@ -57,8 +57,7 @@ void commanderInit(void)
   xQueueSend(priorityQueue, &priorityDisable, 0);
 
   crtpCommanderInit();
-  trajectoryInit();
-
+  crtpCommanderHighLevelInit();
   lastUpdate = xTaskGetTickCount();
 
   isInit = true;
@@ -79,46 +78,17 @@ void commanderSetSetpoint(setpoint_t *setpoint, int priority)
 
 void commanderGetSetpoint(setpoint_t *setpoint, const state_t *state)
 {
-  if (enableTrajectory) {
-    trajectorySetState(state);
-    if (trajectoryIsStopped()) {
-      memcpy(setpoint, &nullSetpoint, sizeof(nullSetpoint));
-    } else {
-      // update setpoint
-      trajectoryPoint_t goal;
-      trajectoryGetCurrentGoal(&goal);
-
-      setpoint->position.x = goal.x;
-      setpoint->position.y = goal.y;
-      setpoint->position.z = goal.z;
-      setpoint->velocity.x = goal.velocity_x;
-      setpoint->velocity.y = goal.velocity_y;
-      setpoint->velocity.z = goal.velocity_z;
-      setpoint->attitude.yaw = degrees(goal.yaw);
-      setpoint->attitudeRate.roll = degrees(goal.omega.x);
-      setpoint->attitudeRate.pitch = degrees(goal.omega.y);
-      setpoint->attitudeRate.yaw = degrees(goal.omega.z);
-      setpoint->mode.x = modeAbs;
-      setpoint->mode.y = modeAbs;
-      setpoint->mode.z = modeAbs;
-      setpoint->mode.roll = modeDisable;
-      setpoint->mode.pitch = modeDisable;
-      setpoint->mode.yaw = modeAbs;
-      setpoint->mode.quat = modeDisable;
-      setpoint->acceleration.x = goal.acceleration.x;
-      setpoint->acceleration.y = goal.acceleration.y;
-      setpoint->acceleration.z = goal.acceleration.z;
-    }
-
-    return;
-  }
-
   xQueuePeek(setpointQueue, setpoint, 0);
   lastUpdate = setpoint->timestamp;
   uint32_t currentTime = xTaskGetTickCount();
 
   if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_SHUTDOWN) {
-    memcpy(setpoint, &nullSetpoint, sizeof(nullSetpoint));
+    if (enableHighLevel) {
+      crtpCommanderHighLevelGetSetpoint(setpoint, state);
+    }
+    if (!enableHighLevel || crtpCommanderHighLevelIsStopped()) {
+      memcpy(setpoint, &nullSetpoint, sizeof(nullSetpoint));
+    }
   } else if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_STABILIZE) {
     xQueueOverwrite(priorityQueue, &priorityDisable);
     // Leveling ...
@@ -151,6 +121,6 @@ int commanderGetActivePriority(void)
   return priority;
 }
 
-PARAM_GROUP_START(flightmode)
-PARAM_ADD(PARAM_UINT8, posCtrl, &enableTrajectory)
-PARAM_GROUP_STOP(flightmode)
+PARAM_GROUP_START(commander)
+PARAM_ADD(PARAM_UINT8, enHighLevel, &enableHighLevel)
+PARAM_GROUP_STOP(commander)

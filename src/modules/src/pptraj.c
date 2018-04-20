@@ -1,4 +1,4 @@
-/**
+/*
  *    ______
  *   / ____/________ _____  __  ________      ______ __________ ___
  *  / /   / ___/ __ `/_  / / / / / ___/ | /| / / __ `/ ___/ __ `__ \
@@ -8,29 +8,40 @@
  *
  * Crazyswarm advanced control firmware for Crazyflie
  *
- * Copyright (C) 2016 Wolfgang Hoenig and James Preiss,
- * University of Southern California
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, in version 3.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * pptraj.c: implementation of xyz-yaw piecewise polynomial trajectories
- *           see Mellinger and Kumar, "Minimum Snap...", ICRA 2011
- */
+
+The MIT License (MIT)
+
+Copyright (c) 2018 Wolfgang Hoenig and James Alan Preiss
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
+implementation of piecewise polynomial trajectories
+See Daniel Mellinger, Vijay Kumar: "Minimum snap trajectory generation and control for quadrotors". ICRA 2011: 2520-2525
+*/
 
 #include "pptraj.h"
-// #include "mathconstants.h"
 
 #define GRAV (9.81f)
+
+static struct poly4d poly4d_tmp;
 
 // polynomials are stored with ascending degree
 
@@ -71,11 +82,11 @@ void polyreflect(float p[PP_SIZE])
 // evaluate a polynomial using horner's rule.
 float polyval(float const p[PP_SIZE], float t)
 {
-    float x = 0.0;
-    for (int i = PP_DEGREE; i >= 0; --i) {
-        x = x * t + p[i];
-    }
-    return x;
+	float x = 0.0;
+	for (int i = PP_DEGREE; i >= 0; --i) {
+		x = x * t + p[i];
+	}
+	return x;
 }
 
 // compute derivative of a polynomial in place
@@ -196,20 +207,20 @@ static float polyval_yaw(struct poly4d const *p, float t)
 	return polyval(p->p[3], t);
 }
 
-// compute loose maximum of acceleration - 
+// compute loose maximum of acceleration -
 // uses L1 norm instead of Euclidean, evaluates polynomial instead of root-finding
 float poly4d_max_accel_approx(struct poly4d const *p)
 {
-	static struct poly4d acc;
-	acc = *p;
-	polyder4d(&acc);
-	polyder4d(&acc);
+	struct poly4d* acc = &poly4d_tmp;
+	*acc = *p;
+	polyder4d(acc);
+	polyder4d(acc);
 	int steps = 10 * p->duration;
 	float step = p->duration / (steps - 1);
 	float t = 0;
 	float amax = 0;
 	for (int i = 0; i < steps; ++i) {
-		struct vec ddx = polyval_xyz(&acc, t);
+		struct vec ddx = polyval_xyz(acc, t);
 		float ddx_minkowski = vminkowski(ddx);
 		if (ddx_minkowski > amax) amax = ddx_minkowski;
 		t += step;
@@ -237,19 +248,19 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t)
 	out.yaw = polyval_yaw(p, t);
 
 	// 1st derivative
-	static struct poly4d deriv;
-	deriv = *p;
-	polyder4d(&deriv);
-	out.vel = polyval_xyz(&deriv, t);
-	float dyaw = polyval_yaw(&deriv, t);
+	struct poly4d* deriv = &poly4d_tmp;
+	*deriv = *p;
+	polyder4d(deriv);
+	out.vel = polyval_xyz(deriv, t);
+	float dyaw = polyval_yaw(deriv, t);
 
 	// 2nd derivative
-	polyder4d(&deriv);
-	out.acc = polyval_xyz(&deriv, t);
+	polyder4d(deriv);
+	out.acc = polyval_xyz(deriv, t);
 
 	// 3rd derivative
-	polyder4d(&deriv);
-	struct vec jerk = polyval_xyz(&deriv, t);
+	polyder4d(deriv);
+	struct vec jerk = polyval_xyz(deriv, t);
 
 	struct vec thrust = vadd(out.acc, mkvec(0, 0, GRAV));
 	// float thrust_mag = mass * vmag(thrust);
@@ -281,15 +292,19 @@ struct traj_eval piecewise_eval(
 	t = t - traj->t_begin;
 	while (cursor < traj->n_pieces) {
 		struct poly4d const *piece = &(traj->pieces[cursor]);
-		if (t <= piece->duration) {
-			return poly4d_eval(piece, t);
+		if (t <= piece->duration * traj->timescale) {
+			poly4d_tmp = *piece;
+			poly4d_shift(&poly4d_tmp, traj->shift.x, traj->shift.y, traj->shift.z, 0);
+			poly4d_stretchtime(&poly4d_tmp, traj->timescale);
+			return poly4d_eval(&poly4d_tmp, t);
 		}
-		t -= piece->duration;
+		t -= piece->duration * traj->timescale;
 		++cursor;
 	}
 	// if we get here, the trajectory has ended
 	struct poly4d const *end_piece = &(traj->pieces[traj->n_pieces - 1]);
 	struct traj_eval ev = poly4d_eval(end_piece, end_piece->duration);
+	ev.pos = vadd(ev.pos, traj->shift);
 	ev.vel = vzero();
 	ev.acc = vzero();
 	ev.omega = vzero();
@@ -303,20 +318,23 @@ struct traj_eval piecewise_eval_reversed(
 	t = t - traj->t_begin;
 	while (cursor >= 0) {
 		struct poly4d const *piece = &(traj->pieces[cursor]);
-		if (t <= piece->duration) {
-			struct poly4d piece_reversed = *piece;
+		if (t <= piece->duration * traj->timescale) {
+			poly4d_tmp = *piece;
+			poly4d_shift(&poly4d_tmp, traj->shift.x, traj->shift.y, traj->shift.z, 0);
+			poly4d_stretchtime(&poly4d_tmp, traj->timescale);
 			for (int i = 0; i < 4; ++i) {
-				polyreflect(piece_reversed.p[i]);
+				polyreflect(poly4d_tmp.p[i]);
 			}
-			t = t - piece->duration;
-			return poly4d_eval(&piece_reversed, t);
+			t = t - piece->duration * traj->timescale;
+			return poly4d_eval(&poly4d_tmp, t);
 		}
-		t -= piece->duration;
+		t -= piece->duration * traj->timescale;
 		--cursor;
 	}
 	// if we get here, the trajectory has ended
 	struct poly4d const *end_piece = &(traj->pieces[0]);
 	struct traj_eval ev = poly4d_eval(end_piece, 0.0f);
+	ev.pos = vadd(ev.pos, traj->shift);
 	ev.vel = vzero();
 	ev.acc = vzero();
 	ev.omega = vzero();
@@ -331,6 +349,8 @@ void piecewise_plan_5th_order(struct piecewise_traj *pp, float duration,
 {
 	struct poly4d *p = &pp->pieces[0];
 	p->duration = duration;
+	pp->timescale = 1.0;
+	pp->shift = vzero();
 	pp->n_pieces = 1;
 	poly5(p->p[0], duration, p0.x, v0.x, a0.x, p1.x, v1.x, a1.x);
 	poly5(p->p[1], duration, p0.y, v0.y, a0.y, p1.y, v1.y, a1.y);
@@ -345,99 +365,12 @@ void piecewise_plan_7th_order_no_jerk(struct piecewise_traj *pp, float duration,
 {
 	struct poly4d *p = &pp->pieces[0];
 	p->duration = duration;
+	pp->timescale = 1.0;
+	pp->shift = vzero();
 	pp->n_pieces = 1;
 	poly7_nojerk(p->p[0], duration, p0.x, v0.x, a0.x, p1.x, v1.x, a1.x);
 	poly7_nojerk(p->p[1], duration, p0.y, v0.y, a0.y, p1.y, v1.y, a1.y);
 	poly7_nojerk(p->p[2], duration, p0.z, v0.z, a0.z, p1.z, v1.z, a1.z);
 	poly7_nojerk(p->p[3], duration, y0, dy0, 0, y1, dy1, 0);
 }
-
-void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw)
-{
-	for (int i = 0; i < PP_MAX_PIECES; ++i) {
-		poly4d_scale(&pp->pieces[i], x, y, z, yaw);
-	}
-}
-
-void piecewise_shift(struct piecewise_traj *pp, float x, float y, float z, float yaw)
-{
-	for (int i = 0; i < PP_MAX_PIECES; ++i) {
-		poly4d_shift(&pp->pieces[i], x, y, z, yaw);
-	}
-}
-
-void piecewise_stretchtime(struct piecewise_traj *pp, float s)
-{
-	for (int i = 0; i < PP_MAX_PIECES; ++i) {
-		poly4d_stretchtime(&pp->pieces[i], s);
-	}
-}
-
-// static struct vec aubv(float a, struct vec u, float b, struct vec v)
-// {
-// 	return mkvec(a*u.x + b*v.x, a*u.y + b*v.y, a*u.z + b*v.z);
-// }
-
-// struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float mass)
-// {
-// 	struct traj_eval out;
-
-// 	float s = 2 * M_PI_F / e->period;
-// 	float s2 = s * s;
-// 	float s3 = s2 * s;
-
-// 	float cos_t = cos(s * t);
-// 	float sin_t = sin(s * t);
-
-// 	out.pos    = vadd(aubv( cos_t,    e->major,     sin_t, e->minor), e->center);
-// 	out.vel         = aubv(-s*sin_t,  e->major,   s*cos_t, e->minor);
-// 	out.acc         = aubv(-s2*cos_t, e->major, -s2*sin_t, e->minor);
-// 	struct vec jerk = aubv( s3*sin_t, e->major, -s3*cos_t, e->minor);
-
-// 	out.yaw = 0; // TODO: care about yaw?
-// 	float dyaw = 0;
-
-// 	// TODO: factor out common code with poly trajs.
-// 	struct vec thrust = vadd(out.acc, mkvec(0, 0, GRAV));
-// 	// float thrust_mag = mass * vmag(thrust);
-
-// 	struct vec z_body = vnormalize(thrust);
-// 	struct vec x_world = mkvec(cos(out.yaw), sin(out.yaw), 0);
-// 	struct vec y_body = vnormalize(vcross(z_body, x_world));
-// 	struct vec x_body = vcross(y_body, z_body);
-
-// 	struct vec jerk_orth_zbody = vorthunit(jerk, z_body);
-// 	struct vec h_w = vscl(1.0 / vmag(thrust), jerk_orth_zbody);
-
-// 	out.omega.x = -vdot(h_w, y_body);
-// 	out.omega.y = vdot(h_w, x_body);
-// 	out.omega.z = z_body.z * dyaw;
-
-// 	return out;
-// }
-
-// void plan_into_ellipse(struct traj_eval const *now,
-//                        struct ellipse_traj const *ellipse,
-//                        struct piecewise_traj *catchup,
-//                        float mass)
-// {
-//   // crazyflie peak thrust is approx 60 grams, mass is approx 30 grams -
-//   // should have enough to accelerate at approx gravity rate.
-//   // halve it to be conservative
-//   float MAX_ACCEL = GRAV / 2;
-
-//   float t_catchup = ellipse->period / 8;
-//   float amax;
-//   int iter = 1;
-//   do {
-//     struct traj_eval ev_ell = 
-//       ellipse_traj_eval(ellipse, t_catchup, mass);
-//     piecewise_plan_7th_order_no_jerk(catchup, t_catchup,
-//       now->pos,   now->yaw,   now->vel,   now->omega.z,   now->acc,
-//       ev_ell.pos, ev_ell.yaw, ev_ell.vel, ev_ell.omega.z, ev_ell.acc);
-//     amax = poly4d_max_accel_approx(&catchup->pieces[0]);
-//     t_catchup *= 2;
-//     ++iter;
-//   } while (iter <= 4 && amax > MAX_ACCEL);
-// }
 

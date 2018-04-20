@@ -33,52 +33,38 @@ SOFTWARE.
 */
 
 /*
-Header file for planning state machine
+Header file for high-level commander that computes smooth setpoints based on high-level inputs.
 */
 
-#pragma once
+#ifndef CRTP_COMMANDER_HIGH_LEVEL_H_
+#define CRTP_COMMANDER_HIGH_LEVEL_H_
+
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "math3d.h"
-#include "pptraj.h"
 
-enum trajectory_state
-{
-	TRAJECTORY_STATE_IDLE            = 0,
-	TRAJECTORY_STATE_FLYING          = 1,
-	TRAJECTORY_STATE_LANDING         = 3,
-};
+#include "stabilizer_types.h"
 
-struct planner
-{
-	enum trajectory_state state;	// current state
-	bool reversed;					// true, if trajectory should be evaluated in reverse
-	const struct piecewise_traj* trajectory; // pointer to trajectory
-};
+// allocate memory to store trajectories
+// 4k allows us to store 31 poly4d pieces
+// other (compressed) formats might be added in the future
+#define TRAJECTORY_MEMORY_SIZE 4096
+extern uint8_t trajectories_memory[TRAJECTORY_MEMORY_SIZE];
 
-// initialize the planner
-void plan_init(struct planner *p);
+#define NUM_TRAJECTORY_DEFINITIONS 10
 
-// tell the planner to stop.
-// subsequently, plan_is_stopped(p) will return true,
-// and it is no longer valid to call plan_current_goal(p).
-void plan_stop(struct planner *p);
+/* Public functions */
+void crtpCommanderHighLevelInit(void);
 
-// query if the planner is stopped.
-// currently this is true at startup before we take off,
-// and also after an emergency stop.
-bool plan_is_stopped(struct planner *p);
+// Retrieves the current setpoint
+void crtpCommanderHighLevelGetSetpoint(setpoint_t* setpoint, const state_t *state);
 
-// get the planner's current goal.
-struct traj_eval plan_current_goal(struct planner *p, float t);
+// Tell the trajectory planner that it should cut power.
+// Should be used if an emergency is detected.
+void crtpCommanderHighLevelStop();
 
-// start a takeoff trajectory.
-int plan_takeoff(struct planner *p, struct vec pos, float yaw, float height, float duration, float t);
+// True if we have landed or emergency-stopped.
+bool crtpCommanderHighLevelIsStopped();
 
-// start a landing trajectory.
-int plan_land(struct planner *p, struct vec pos, float yaw, float height, float duration, float t);
-
-// move to a given position, then hover there.
-int plan_go_to(struct planner *p, bool relative, struct vec hover_pos, float hover_yaw, float duration, float t);
-
-// start trajectory
-int plan_start_trajectory(struct planner *p, const struct piecewise_traj* trajectory, bool reversed);
+#endif /* CRTP_COMMANDER_HIGH_LEVEL_H_ */

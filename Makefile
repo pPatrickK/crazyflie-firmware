@@ -86,6 +86,9 @@ ST_OBJ_CF2 += usbd_ioreq.o usbd_req.o usbd_core.o
 # libdw dw1000 driver
 VPATH_CF2 += vendor/libdw1000/src
 
+# vl53l1 driver
+VPATH_CF2 += $(LIB)/vl53l1/core/src
+
 # FreeRTOS
 VPATH += $(PORT)
 PORT_OBJ = port.o
@@ -125,7 +128,7 @@ PROJ_OBJ_CF2 += ak8963.o eeprom.o maxsonar.o piezo.o
 PROJ_OBJ_CF2 += uart_syslink.o swd.o uart1.o uart2.o watchdog.o
 PROJ_OBJ_CF2 += cppm.o
 PROJ_OBJ_CF2 += bmi055_accel.o bmi055_gyro.o bmi160.o bmp280.o bstdr_comm_support.o bmm150.o
-PROJ_OBJ_CF2 += pca9685.o vl53l0x.o pca95x4.o
+PROJ_OBJ_CF2 += pca9685.o vl53l0x.o pca95x4.o vl53l1x.o
 # USB Files
 PROJ_OBJ_CF2 += usb_bsp.o usblink.o usbd_desc.o usb.o
 
@@ -136,6 +139,11 @@ PROJ_OBJ_CF2 +=  pm_f405.o syslink.o radiolink.o ow_syslink.o proximity.o usec_t
 PROJ_OBJ_CF2 +=  sensors_$(SENSORS).o
 # libdw
 PROJ_OBJ_CF2 += libdw1000.o libdw1000Spi.o
+
+# vl53l1 lib
+PROJ_OBJ_CF2 += vl53l1_api_core.o vl53l1_api.o vl53l1_core.o vl53l1_silicon_core.o vl53l1_api_strings.o
+PROJ_OBJ_CF2 += vl53l1_api_calibration.o vl53l1_api_debug.o vl53l1_api_preset_modes.o vl53l1_error_strings.o
+PROJ_OBJ_CF2 += vl53l1_register_funcs.o vl53l1_wait.o vl53l1_core_support.o
 
 # Modules
 PROJ_OBJ += system.o comm.o console.o pid.o crtpservice.o param.o
@@ -152,8 +160,10 @@ PROJ_OBJ += controller_$(CONTROLLER).o
 PROJ_OBJ += power_distribution_$(POWER_DISTRIBUTION).o
 PROJ_OBJ_CF2 += estimator_kalman.o
 
+# High-Level Commander
+PROJ_OBJ += crtp_commander_high_level.o planner.o pptraj.o
+
 # Crazyswarm
-PROJ_OBJ += pptraj.o planner.o trajectory_poly.o fig8traj.o
 PROJ_OBJ += position_external.o
 PROJ_OBJ += estimator_kalmanUSC.o ekf.o
 
@@ -181,6 +191,7 @@ PROJ_OBJ_CF2 += lpsTdoaTag.o
 PROJ_OBJ_CF2 += outlierFilter.o
 PROJ_OBJ_CF2 += flowdeck.o
 PROJ_OBJ_CF2 += oa.o
+PROJ_OBJ_CF2 += multiranger.o
 
 ifeq ($(LPS_TDOA_ENABLE), 1)
 CFLAGS += -DLPS_TDOA_ENABLE
@@ -233,6 +244,8 @@ INCLUDES_CF2 += -I$(LIB)/STM32_USB_OTG_Driver/inc
 INCLUDES_CF2 += -Isrc/deck/interface -Isrc/deck/drivers/interface
 INCLUDES_CF2 += -Ivendor/libdw1000/inc
 INCLUDES_CF2 += -I$(LIB)/FatFS
+INCLUDES_CF2 += -I$(LIB)/vl53l1
+INCLUDES_CF2 += -I$(LIB)/vl53l1/core/inc
 
 ifeq ($(USE_FPU), 1)
 	PROCESSOR = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16

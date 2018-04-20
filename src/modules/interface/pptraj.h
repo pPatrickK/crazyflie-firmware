@@ -1,13 +1,47 @@
-#pragma once
+/*
+ *    ______
+ *   / ____/________ _____  __  ________      ______ __________ ___
+ *  / /   / ___/ __ `/_  / / / / / ___/ | /| / / __ `/ ___/ __ `__ \
+ * / /___/ /  / /_/ / / /_/ /_/ (__  )| |/ |/ / /_/ / /  / / / / / /
+ * \____/_/   \__,_/ /___/\__, /____/ |__/|__/\__,_/_/  /_/ /_/ /_/
+ *                       /____/
+ *
+ * Crazyswarm advanced control firmware for Crazyflie
+ *
 
-// Piecewise polynomial trajectories
-// by James A. Preiss
+The MIT License (MIT)
+
+Copyright (c) 2018 Wolfgang Hoenig and James Alan Preiss
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
+Header file for piecewise polynomial trajectories
+*/
+
+#pragma once
 
 #include "math3d.h"
 
 #define PP_DEGREE (7)
 #define PP_SIZE (PP_DEGREE + 1)
-#define PP_MAX_PIECES (30)
 
 
 //
@@ -48,13 +82,13 @@ struct poly4d
 {
 	float p[4][PP_SIZE];
 	float duration; // TODO use int millis instead?
-};
+} __attribute__((packed));
 
 // construct a 4d zero polynomial.
 struct poly4d poly4d_zero(float duration);
 
 // construct a 4d linear polynomial.
-struct poly4d poly4d_linear(float duration, 
+struct poly4d poly4d_linear(float duration,
 	struct vec p0, struct vec p1, float yaw0, float yaw1);
 
 // scale a 4d polynomial in-place.
@@ -72,13 +106,10 @@ void poly4d_stretchtime(struct poly4d *p, float s);
 // compute the derivative of a 4d polynomial in-place.
 void polyder4d(struct poly4d *p);
 
-// compute loose maximum of acceleration - 
+// compute loose maximum of acceleration -
 // uses L1 norm instead of Euclidean, evaluates polynomial instead of root-finding
 float poly4d_max_accel_approx(struct poly4d const *p);
 
-
-// stored simple trajectories. could store only z to save memory.
-extern struct piecewise_traj pp_figure8;
 
 // output of differentially flat 4d polynomials.
 struct traj_eval
@@ -107,9 +138,11 @@ struct traj_eval poly4d_eval(struct poly4d const *p, float t);
 
 struct piecewise_traj
 {
-	struct poly4d pieces[PP_MAX_PIECES];
 	float t_begin;
+	float timescale;
+	struct vec shift;
 	unsigned char n_pieces;
+	struct poly4d* pieces;
 };
 
 static inline float piecewise_duration(struct piecewise_traj const *pp)
@@ -118,7 +151,7 @@ static inline float piecewise_duration(struct piecewise_traj const *pp)
 	for (int i = 0; i < pp->n_pieces; ++i) {
 		total_dur += pp->pieces[i].duration;
 	}
-	return total_dur;
+	return total_dur * pp->timescale;
 }
 
 void piecewise_plan_5th_order(struct piecewise_traj *p, float duration,
@@ -135,34 +168,8 @@ struct traj_eval piecewise_eval(
 struct traj_eval piecewise_eval_reversed(
 	struct piecewise_traj const *traj, float t);
 
-void piecewise_scale(struct piecewise_traj *pp, float x, float y, float z, float yaw);
-
-void piecewise_shift(struct piecewise_traj *pp, float x, float y, float z, float yaw);
-static inline void piecewise_shift_vec(struct piecewise_traj *pp, struct vec pos, float yaw) { 
-	piecewise_shift(pp, pos.x, pos.y, pos.z, yaw);
-}
-
-void piecewise_stretchtime(struct piecewise_traj *pp, float s);
 
 static inline bool piecewise_is_finished(struct piecewise_traj const *traj, float t)
 {
 	return (t - traj->t_begin) >= piecewise_duration(traj);
 }
-
-// // TODO own file?
-// struct ellipse_traj
-// {
-// 	struct vec center;
-// 	struct vec major;
-// 	struct vec minor;
-// 	float period;
-// 	float t_begin;
-// 	//float phase;
-// };
-
-// struct traj_eval ellipse_traj_eval(struct ellipse_traj const *e, float t, float mass);
-
-// void plan_into_ellipse(struct traj_eval const *now,
-//                        struct ellipse_traj const *ellipse,
-//                        struct piecewise_traj *catchup,
-//                        float mass);

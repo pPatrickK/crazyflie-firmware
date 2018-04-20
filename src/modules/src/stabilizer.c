@@ -43,7 +43,7 @@
 
 #include "estimator_kalman.h"
 #include "estimator.h"
-#include "trajectory.h"
+#include "crtp_commander_high_level.h"
 
 static bool isInit;
 static bool emergencyStop = false;
@@ -153,13 +153,13 @@ static void stabilizerTask(void* param)
     if (emergencyStop || upsideDown) {
       powerStop();
       stateControllerReset();
-      trajectoryStop();
+      crtpCommanderHighLevelStop();
     } else {
       powerDistribution(&control);
     }
 
     // stats
-    if (trajectoryIsFlying()) {
+    if (!crtpCommanderHighLevelIsStopped()) {
       float const dt = 1.0f / RATE_MAIN_LOOP;
       struct vec dist = vsub(point2vec(setpoint.position), point2vec(state.position));
       error_dist += dt * vmag(dist);
@@ -212,18 +212,18 @@ LOG_ADD(LOG_FLOAT, pitchRate, &setpoint.attitudeRate.pitch)
 LOG_ADD(LOG_FLOAT, yawRate, &setpoint.attitudeRate.yaw)
 LOG_GROUP_STOP(ctrltarget)
 
-LOG_GROUP_START(stabilizer)
-LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
-LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
-LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
-LOG_ADD(LOG_UINT16, thrust, &control.thrust)
-LOG_GROUP_STOP(stabilizer)
+// LOG_GROUP_START(stabilizer)
+// LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
+// LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
+// LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
+// LOG_ADD(LOG_UINT16, thrust, &control.thrust)
+// LOG_GROUP_STOP(stabilizer)
 
-LOG_GROUP_START(acc)
-LOG_ADD(LOG_FLOAT, x, &sensorData.acc.x)
-LOG_ADD(LOG_FLOAT, y, &sensorData.acc.y)
-LOG_ADD(LOG_FLOAT, z, &sensorData.acc.z)
-LOG_GROUP_STOP(acc)
+// LOG_GROUP_START(acc)
+// LOG_ADD(LOG_FLOAT, x, &sensorData.acc.x)
+// LOG_ADD(LOG_FLOAT, y, &sensorData.acc.y)
+// LOG_ADD(LOG_FLOAT, z, &sensorData.acc.z)
+// LOG_GROUP_STOP(acc)
 
 #ifdef LOG_SEC_IMU
 LOG_GROUP_START(accSec)
