@@ -77,7 +77,7 @@ bool uart1GetDataWithTimout(uint8_t *c);
  * @param[in] size  Number of bytes to send
  * @param[in] data  Pointer to data
  */
-void uart1SendData(uint32_t size, uint8_t* data);
+void uart1SendData(uint32_t size, const uint8_t* data);
 
 /**
  * Send a single character to the serial port using the uartSendData function.

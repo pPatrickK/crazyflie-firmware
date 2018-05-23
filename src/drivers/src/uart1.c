@@ -113,7 +113,7 @@ bool uart1GetDataWithTimout(uint8_t *c)
   return false;
 }
 
-void uart1SendData(uint32_t size, uint8_t* data)
+void uart1SendData(uint32_t size, const uint8_t* data)
 {
   uint32_t i;
 
