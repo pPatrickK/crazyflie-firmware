@@ -41,6 +41,7 @@ We added the following:
 #include "log.h"
 #include "math3d.h"
 #include "position_controller.h"
+#include "controller_mellinger.h"
 
 #define GRAVITY_MAGNITUDE (9.81f)
 
@@ -94,16 +95,7 @@ static struct vec z_axis_desired;
 static float roll_desired; // deg
 static float pitch_desired; // deg
 
-void stateControllerInit(void)
-{
-}
-
-bool stateControllerTest(void)
-{
-  return true;
-}
-
-void stateControllerReset(void)
+void controllerMellingerReset(void)
 {
   i_error_x = 0;
   i_error_y = 0;
@@ -113,13 +105,23 @@ void stateControllerReset(void)
   i_error_m_z = 0;
 }
 
+void controllerMellingerInit(void)
+{
+  controllerMellingerReset();
+}
+
+bool controllerMellingerTest(void)
+{
+  return true;
+}
+
 float clamp(float value, float min, float max) {
   if (value < min) return min;
   if (value > max) return max;
   return value;
 }
 
-void stateController(control_t *control, setpoint_t *setpoint,
+void controllerMellinger(control_t *control, setpoint_t *setpoint,
                                          const sensorData_t *sensors,
                                          const state_t *state,
                                          const uint32_t tick)
@@ -302,7 +304,7 @@ void stateController(control_t *control, setpoint_t *setpoint,
     control->roll = 0;
     control->pitch = 0;
     control->yaw = 0;
-    stateControllerReset();
+    controllerMellingerReset();
   }
 }
 

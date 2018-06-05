@@ -27,9 +27,8 @@ LPS_TDOA_ENABLE   ?= 0
 
 ######### Stabilizer configuration ##########
 ##### Sets the name of the stabilizer module to use.
-# Crazyswarm use kalman or kalmanUSC
 ESTIMATOR          ?= kalmanUSC
-CONTROLLER         ?= mellinger
+CONTROLLER         ?= Mellinger # one of Any, PID, Mellinger
 POWER_DISTRIBUTION ?= stock
 SENSORS 					 ?= cf2
 
@@ -128,7 +127,7 @@ PROJ_OBJ_CF2 += ak8963.o eeprom.o maxsonar.o piezo.o
 PROJ_OBJ_CF2 += uart_syslink.o swd.o uart1.o uart2.o watchdog.o
 PROJ_OBJ_CF2 += cppm.o
 PROJ_OBJ_CF2 += bmi055_accel.o bmi055_gyro.o bmi160.o bmp280.o bstdr_comm_support.o bmm150.o
-PROJ_OBJ_CF2 += pca9685.o vl53l0x.o pca95x4.o vl53l1x.o
+PROJ_OBJ_CF2 += pca9685.o vl53l0x.o pca95x4.o vl53l1x.o pmw3901.o
 # USB Files
 PROJ_OBJ_CF2 += usb_bsp.o usblink.o usbd_desc.o usb.o
 
@@ -156,7 +155,7 @@ PROJ_OBJ += crtp_commander_generic.o crtp_localization_service.o
 PROJ_OBJ += attitude_pid_controller.o sensfusion6.o stabilizer.o
 PROJ_OBJ += position_estimator_altitude.o position_controller_pid.o
 PROJ_OBJ += estimator.o estimator_complementary.o
-PROJ_OBJ += controller_$(CONTROLLER).o
+PROJ_OBJ += controller.o controller_pid.o controller_mellinger.o
 PROJ_OBJ += power_distribution_$(POWER_DISTRIBUTION).o
 PROJ_OBJ_CF2 += estimator_kalman.o
 
@@ -184,12 +183,13 @@ PROJ_OBJ_CF2 += buzzdeck.o
 PROJ_OBJ_CF2 += gtgps.o
 PROJ_OBJ_CF2 += cppmdeck.o
 PROJ_OBJ_CF2 += usddeck.o
-PROJ_OBJ_CF2 += zranger.o
+PROJ_OBJ_CF2 += zranger.o zranger2.o
 PROJ_OBJ_CF2 += locodeck.o
 PROJ_OBJ_CF2 += lpsTwrTag.o
-PROJ_OBJ_CF2 += lpsTdoaTag.o
+PROJ_OBJ_CF2 += lpsTdoa2Tag.o
+PROJ_OBJ_CF2 += lpsTdoa3Tag.o lpsTdoaTagEngine.o lpsTdoaTagStats.o
 PROJ_OBJ_CF2 += outlierFilter.o
-PROJ_OBJ_CF2 += flowdeck.o
+PROJ_OBJ_CF2 += flowdeck_v1v2.o
 PROJ_OBJ_CF2 += oa.o
 PROJ_OBJ_CF2 += multiranger.o
 
@@ -274,7 +274,7 @@ ifeq ($(USE_ESKYLINK), 1)
   CFLAGS += -DUSE_ESKYLINK
 endif
 
-CFLAGS += -DBOARD_REV_$(REV) -DESTIMATOR_NAME=$(ESTIMATOR)Estimator -DCONTROLLER_TYPE_$(CONTROLLER) -DPOWER_DISTRIBUTION_TYPE_$(POWER_DISTRIBUTION)
+CFLAGS += -DBOARD_REV_$(REV) -DESTIMATOR_NAME=$(ESTIMATOR)Estimator -DCONTROLLER_NAME=ControllerType$(CONTROLLER) -DPOWER_DISTRIBUTION_TYPE_$(POWER_DISTRIBUTION)
 
 CFLAGS += $(PROCESSOR) $(INCLUDES) $(STFLAGS)
 ifeq ($(PLATFORM), CF2)
@@ -326,8 +326,13 @@ endif
 
 
 all: check_submodules build
-build: clean_version compile print_version size
-compile: clean_version $(PROG).hex $(PROG).bin $(PROG).dfu
+build:
+# Each target is in a different line, so they are executed one after the other even when the processor has multiple cores (when the -j option for the make command is > 1). See: https://www.gnu.org/software/make/manual/html_node/Parallel.html
+	@$(MAKE) --no-print-directory clean_version
+	@$(MAKE) --no-print-directory compile
+	@$(MAKE) --no-print-directory print_version
+	@$(MAKE) --no-print-directory size
+compile: $(PROG).hex $(PROG).bin $(PROG).dfu
 
 libarm_math.a:
 	+$(MAKE) -C tools/make/cmsis_dsp/ V=$(V)
@@ -338,7 +343,7 @@ ifeq ($(SHELL),/bin/sh)
 	@rm -f version.c
 endif
 
-print_version: compile
+print_version:
 ifeq ($(PLATFORM), CF2)
 	@echo "Crazyflie 2.0 build!"
 endif
@@ -350,7 +355,7 @@ ifeq ($(FATFS_DISKIO_TESTS), 1)
 	@echo "WARNING: FatFS diskio tests enabled. Erases SD-card!"
 endif
 
-size: compile
+size:
 	@$(SIZE) -B $(PROG).elf
 
 #Radio bootloader
