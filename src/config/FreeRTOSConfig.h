@@ -84,7 +84,7 @@
 #ifdef DEBUG
   #define configCHECK_FOR_STACK_OVERFLOW      1
 #else
-  #define configCHECK_FOR_STACK_OVERFLOW      1
+  #define configCHECK_FOR_STACK_OVERFLOW      0
 #endif
 #define configUSE_TIMERS          1
 #define configTIMER_TASK_PRIORITY 1
