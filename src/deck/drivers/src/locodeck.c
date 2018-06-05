@@ -489,7 +489,7 @@ static const DeckDriver dwm1000_deck = {
 };
 
 DECK_DRIVER(dwm1000_deck);
-
+#if 0
 LOG_GROUP_START(ranging)
 #if (LOCODECK_NR_OF_ANCHORS > 0)
 LOG_ADD(LOG_FLOAT, distance0, &algoOptions.distance[0])
@@ -541,7 +541,7 @@ LOG_ADD(LOG_FLOAT, pressure7, &algoOptions.pressures[7])
 #endif
 LOG_ADD(LOG_UINT16, state, &algoOptions.rangingState)
 LOG_GROUP_STOP(ranging)
-
+#endif
 LOG_GROUP_START(loco)
 LOG_ADD(LOG_UINT8, mode, &algoOptions.currentRangingMode)
 LOG_GROUP_STOP(loco)
