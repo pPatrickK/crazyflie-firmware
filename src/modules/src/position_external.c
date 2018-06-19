@@ -207,7 +207,7 @@ LOG_GROUP_START(vicon)
 LOG_ADD(LOG_FLOAT, v_x, &v_x)
 LOG_ADD(LOG_FLOAT, v_y, &v_y)
 LOG_ADD(LOG_FLOAT, v_z, &v_z)
-LOG_ADD(LOG_UINT16, dt, &dt)
+LOG_ADD(LOG_UINT16, dt, &dt) // zueit seit letztem packet
 LOG_ADD(LOG_FLOAT, roll, &posExtLastRPY.x)
 LOG_ADD(LOG_FLOAT, pitch, &posExtLastRPY.y)
 LOG_ADD(LOG_FLOAT, yaw, &posExtLastRPY.z)

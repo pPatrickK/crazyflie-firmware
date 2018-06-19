@@ -46,7 +46,7 @@ enum trajectory_type {
 //                       arrive on CRTP_PORT_POSEXT                        //
 // ----------------------------------------------------------------------- //
 
-static float const POSITION_LIMIT = 8.0f; // meters
+static float const POSITION_LIMIT = 15.0f; // meters
 typedef int16_t posFixed16_t;
 typedef struct posFixed24_t
 {
