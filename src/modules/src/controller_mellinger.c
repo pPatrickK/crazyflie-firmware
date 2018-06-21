@@ -91,6 +91,7 @@ static float i_error_m_y = 0;
 static float i_error_m_z = 0;
 
 // Logging variables
+static float spR, spP, spY;
 static struct vec z_axis_desired;
 static float roll_desired; // deg
 static float pitch_desired; // deg
@@ -150,9 +151,19 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
 
   // Position Error (ep)
   r_error = vsub(setpointPos, statePos);
+  // clamp r_error as suggested by jpreiss https://github.com/USC-ACTLab/crazyswarm/issues/71
+  if(vmag(r_error)> 0.1f){
+    r_error = vnormalize(r_error);
+    r_error = vscl( 0.1f, r_error);
+  }
 
   // Velocity Error (ev)
   v_error = vsub(setpointVel, stateVel);
+  // clamp v_error as our own brilliancy suggested
+  /*if(vmag(r_error)>0.2){
+    r_error = vnormalize(r_error);
+    r_error = vscl(0.2, r_error);
+  }*/
 
   // Integral Error
   i_error_z += r_error.z * dt;
@@ -193,8 +204,11 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
   }
 
   // Z-Axis [zB]
+  // actual pose
   struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
+  // pose -> R
   struct mat33 R = quat2rotmat(q);
+  // Z = R(:,3) ;0,1,2 Z
   z_axis = mcolumn(R, 2);
 
   // yaw correction (only if position control is not used)
@@ -207,11 +221,32 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
     target_thrust = mvmult(R_yaw_only, target_thrust);
   }
 
-  // Current thrust [F]
+  // Current thrust [F] scalar product
   current_thrust = vdot(target_thrust, z_axis);
 
-  // Calculate axis [zB_des]
+  // Calculate axis [zB_des] length one, neigung der drone
   z_axis_desired = vnormalize(target_thrust);
+
+  // TODO: Write documentation
+  // Now, z_axis_desired
+  /* // angle attitude clamping
+  #define MAX_ANGLE 20.0f // MAKE SURE TO USE A FLOAT ANGLE IN DEGREES BECAUSE IT WILL BE DIVIDED BY 360 TO YIELD RADIANS
+  float radius_squared = fsqr(z_axis_desired.x) + fsqr(z_axis_desired.y);
+  float max_radius = sinf(MAX_ANGLE/360*2*M_PI_F);
+  float max_radius_squared = fsqr(max_radius);
+  if (radius_squared > max_radius_squared) {
+    // Ooohps, this angle is dangerous, please decrease
+    // Set z-component to cosinus of max angle
+    z_axis_desired.z = cosf(MAX_ANGLE/360*2*M_PI_F);
+    // Scale-down x and y
+    //float radius = sqrtf(radius_squared);
+    //z_axis_desired.x *= max_radius / radius;
+    //z_axis_desired.y *= max_radius / radius;
+    z_axis_desired.x *= max_radius_squared / radius_squared;
+    z_axis_desired.y *= max_radius_squared / radius_squared;
+  }
+  */
+
 
   // [xC_des]
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
@@ -261,6 +296,11 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
   float stateAttitudeRateRoll = radians(sensors->gyro.x);
   float stateAttitudeRatePitch = -radians(sensors->gyro.y);
   float stateAttitudeRateYaw = radians(sensors->gyro.z);
+
+  spR = setpoint->attitudeRate.roll;
+  spP = setpoint->attitudeRate.pitch;
+  spY = setpoint->attitudeRate.yaw;
+
 
   ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
   ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
@@ -331,6 +371,9 @@ PARAM_ADD(PARAM_FLOAT, i_range_m_z, &i_range_m_z)
 PARAM_GROUP_STOP(ctrlMel)
 
 LOG_GROUP_START(ctrlMel)
+LOG_ADD(LOG_FLOAT, spR, &spR)
+LOG_ADD(LOG_FLOAT, spP, &spP)
+LOG_ADD(LOG_FLOAT, spY, &spY)
 LOG_ADD(LOG_FLOAT, zdx, &z_axis_desired.x)
 LOG_ADD(LOG_FLOAT, zdy, &z_axis_desired.y)
 LOG_ADD(LOG_FLOAT, zdz, &z_axis_desired.z)
