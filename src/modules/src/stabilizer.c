@@ -47,6 +47,8 @@
 
 static bool isInit;
 static bool emergencyStop = false;
+static bool upsideDown = false; // added by patrick for debugging
+static float aZimu; // added by patrick for debugging
 static int emergencyStopTimeout = EMERGENCY_STOP_TIMEOUT_DISABLED;
 
 // State variables for the stabilizer
@@ -164,7 +166,8 @@ static void stabilizerTask(void* param)
     checkEmergencyStopTimeout();
 
     // TODO: this should go into the sitAw framework
-    bool upsideDown = sensorData.acc.z < -0.5f;
+    aZimu = sensorData.acc.z; // added by patrick
+    upsideDown = sensorData.acc.z < -0.5f; // done by USC
 
     if (emergencyStop || upsideDown) {
       powerStop();
@@ -212,13 +215,16 @@ PARAM_ADD(PARAM_UINT8, controller, &controllerType)
 PARAM_GROUP_STOP(stabilizer)
 
 LOG_GROUP_START(ctrltarget)
-LOG_ADD(LOG_FLOAT, x, &setpoint.position.x)
-LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
-LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
+LOG_ADD(LOG_FLOAT, aZimu, &aZimu)
+LOG_ADD(LOG_UINT8, upsideDown, &upsideDown)
+LOG_ADD(LOG_UINT8, emergencyStop, &emergencyStop)
+//LOG_ADD(LOG_FLOAT, x, &setpoint.position.x)
+//LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
+//LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
 
-LOG_ADD(LOG_FLOAT, vx, &setpoint.velocity.x)
-LOG_ADD(LOG_FLOAT, vy, &setpoint.velocity.y)
-LOG_ADD(LOG_FLOAT, vz, &setpoint.velocity.z)
+//LOG_ADD(LOG_FLOAT, vx, &setpoint.velocity.x)
+//LOG_ADD(LOG_FLOAT, vy, &setpoint.velocity.y)
+//LOG_ADD(LOG_FLOAT, vz, &setpoint.velocity.z)
 
 LOG_ADD(LOG_FLOAT, ax, &setpoint.acceleration.x)
 LOG_ADD(LOG_FLOAT, ay, &setpoint.acceleration.y)
