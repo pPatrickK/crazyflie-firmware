@@ -49,6 +49,7 @@ static bool isInit;
 static bool emergencyStop = false;
 static bool upsideDown = false; // added by patrick for debugging
 static float aZimu; // added by patrick for debugging
+static uint32_t usdCnt = 0; // added by patrick; quick fix test of upsideDown Bug
 static int emergencyStopTimeout = EMERGENCY_STOP_TIMEOUT_DISABLED;
 
 // State variables for the stabilizer
@@ -163,13 +164,22 @@ static void stabilizerTask(void* param)
 
     controller(&control, &setpoint, &sensorData, &state, tick);
 
-    checkEmergencyStopTimeout();
+    checkEmergencyStopTimeout(); // is currently disabled
 
     // TODO: this should go into the sitAw framework
     aZimu = sensorData.acc.z; // added by patrick
-    upsideDown = sensorData.acc.z < -0.5f; // done by USC
+    //upsideDown = sensorData.acc.z < -0.5f; // done by USC
+    if(sensorData.acc.z < -0.5f){ // quick fix for upsideDown Bug; (too sensible)
+      usdCnt += 1;
+    }
+    else{
+      usdCnt = 0;
+    }
+    if(usdCnt==500){
+      upsideDown = 1; // true
+    }
 
-    if (emergencyStop || upsideDown) {
+    if (emergencyStop || upsideDown) { // something kills also the log
       powerStop();
       controllerInit(getControllerType());
       crtpCommanderHighLevelStop();
@@ -218,6 +228,7 @@ LOG_GROUP_START(ctrltarget)
 LOG_ADD(LOG_FLOAT, aZimu, &aZimu)
 LOG_ADD(LOG_UINT8, upsideDown, &upsideDown)
 LOG_ADD(LOG_UINT8, emergencyStop, &emergencyStop)
+LOG_ADD(LOG_UINT8, usdCnt, &usdCnt)
 //LOG_ADD(LOG_FLOAT, x, &setpoint.position.x)
 //LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
 //LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
