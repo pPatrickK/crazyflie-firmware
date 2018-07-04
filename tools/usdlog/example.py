@@ -45,7 +45,6 @@ if re.search('mag', keys):
     inStr = input("plot magnetometer data? ([Y]es / [n]o): ")
     if ((re.search('^[Yy]', inStr)) or (inStr == '')):
         plotMag = 1
-        plt.xlabel('RTOS Ticks')
         plotRows += 1
 
 plotBaro = 0
@@ -121,6 +120,7 @@ if plotAccel:
     plt.plot(logData['tick'], logData['acc.x'], '-', label='X')
     plt.plot(logData['tick'], logData['acc.y'], '-', label='Y')
     plt.plot(logData['tick'], logData['acc.z'], '-', label='Z')
+    plt.xlabel('RTOS Ticks')
     plt.ylabel('Accelerometer [g]')
     plt.legend(loc=9, ncol=3, borderaxespad=0.)
 
@@ -178,36 +178,62 @@ if plotRadio:
     plt.legend(loc=9, ncol=4, borderaxespad=0.)
 
 if plotVicon:
-    plotCurrent += 1
-    plt.subplot(plotRows, plotCols, plotCurrent)
+    # new figure
+    plt.figure('Vicon Data')
+    plt.subplot(4, 1, 1)
     plt.plot(logData['tick'], logData['vicon.x'], '-', label='X')
     plt.plot(logData['tick'], logData['vicon.y'], '-', label='Y')
     plt.plot(logData['tick'], logData['vicon.z'], '-', label='Z')
+    plt.xlabel('RTOS Ticks')
+    plt.ylabel('Position [m]')
+    plt.legend(loc=0, ncol=3, borderaxespad=0.)
+    plt.subplot(4, 1, 2)
     plt.plot(logData['tick'], logData['vicon.v_x'], '-', label='Vel X')
     plt.plot(logData['tick'], logData['vicon.v_y'], '-', label='Vel Y')
     plt.plot(logData['tick'], logData['vicon.v_z'], '-', label='Vel Z')
+    plt.xlabel('RTOS Ticks')
+    plt.ylabel('Velocity [m/s]')
+    plt.legend(loc=0, ncol=3, borderaxespad=0.)
+    plt.subplot(4, 1, 3)
     plt.plot(logData['tick'], logData['vicon.roll'], '-', label='roll')
     plt.plot(logData['tick'], logData['vicon.pitch'], '-', label='pitch')
     plt.plot(logData['tick'], logData['vicon.yaw'], '-', label='yaw')
+    plt.xlabel('RTOS Ticks')
+    plt.ylabel('Object Rot Angle [°]')
+    plt.legend(loc=0, ncol=3, borderaxespad=0.)
+    plt.subplot(4, 1, 4)
     plt.plot(logData['tick'], logData['vicon.dt'], '-', label='dT')
     plt.xlabel('RTOS Ticks')
-    plt.ylabel('Vicon Data')
-    plt.legend(loc=9, ncol=3, borderaxespad=0.)
+    plt.legend(loc=0, ncol=3, borderaxespad=0.)
+    plt.ylabel('Time since last Pkg [ms]')
 
 
 if plotViconVSCtrl:
+    plt.figure('Ctrl Target vs. Vicon')
+    plt.subplot(3, 1, 1)
     plt.plot(logData['tick'], logData['ctrltarget.roll'], '-', label='CTRL roll')
     plt.plot(logData['tick'], logData['ctrltarget.pitch'], '-', label='CTRL pitch')
     plt.plot(logData['tick'], logData['ctrltarget.yaw'], '-', label='CTRL yaw')
+    plt.xlabel('RTOS Ticks')
+    plt.ylabel('Rotation [°]')
+    plt.legend(loc=9, ncol=3, borderaxespad=0.)
+    plt.title('Trajectory Target Point')
+    plt.subplot(3, 1, 2)
     plt.plot(logData['tick'], logData['vicon.roll'], '-', label='Vicon roll')
     plt.plot(logData['tick'], logData['vicon.pitch'], '-', label='Vicon pitch')
     plt.plot(logData['tick'], logData['vicon.yaw'], '-', label='Vicon yaw')
+    plt.xlabel('RTOS Ticks')
+    plt.ylabel('Rotation [°]')
+    plt.legend(loc=9, ncol=3, borderaxespad=0.)
+    plt.subplot(3, 1, 3)
     plt.plot(logData['tick'], logData['vicon.dt'], '-', label='dT')
     plt.xlabel('RTOS Ticks')
-    plt.ylabel('Vicon vs CTRL Data')
-    plt.legend(loc=9, ncol=3, borderaxespad=0.)
+    plt.ylabel('Time since last Pkg [ms]')
+    plt.legend(loc=0, ncol=3, borderaxespad=0.)
 
 if plotPosEstiAltitude:
+    # new figure
+    plt.figure('Position-Estimator')
     plt.plot(logData['tick'], logData['posEstimatorAlt.estimatedZ'], '-', label='Esti Z')
     plt.plot(logData['tick'], logData['posEstimatorAlt.velocityZ'], '-', label='Vel Z')
     plt.plot(logData['tick'], logData['posEstimatorAlt.estVZ'], '-', label='Esti Vel Z')

@@ -152,9 +152,9 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
   // Position Error (ep)
   r_error = vsub(setpointPos, statePos);
   // clamp r_error as suggested by jpreiss https://github.com/USC-ACTLab/crazyswarm/issues/71
-  if(vmag(r_error)> 0.1f){
+  if(vmag(r_error)> 0.2f){
     r_error = vnormalize(r_error);
-    r_error = vscl( 0.1f, r_error);
+    r_error = vscl( 0.2f, r_error);
   }
 
   // Velocity Error (ev)
