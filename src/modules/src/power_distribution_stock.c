@@ -47,6 +47,7 @@ static struct {
   uint16_t m4;
 } motorPowerSet;
 
+
 void powerDistributionInit(void)
 {
   motorsInit(motorMapDefaultBrushed);

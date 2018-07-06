@@ -55,6 +55,13 @@ such as: take-off, landing, polynomial trajectories.
 #include "log.h"
 #include "param.h"
 
+static bool droneStarted = false; // for drone kill fix by FLW -----------------
+
+bool droneHasStarted(){
+  return droneStarted;
+} // end FLW -------------------------------------------------------------------
+
+
 // Local types
 enum TrajectoryLocation_e {
   TRAJECTORY_LOCATION_INVALID = 0,
@@ -261,9 +268,11 @@ void crtpCommanderHighLevelTask(void * prm)
         break;
       case COMMAND_TAKEOFF:
         ret = takeoff((const struct data_takeoff*)&p.data[1]);
+        droneStarted = true; // for drone kill fix by FLW ----------------------
         break;
       case COMMAND_LAND:
         ret = land((const struct data_land*)&p.data[1]);
+        droneStarted = false; // for drone kill fix by FLW ----------------------
         break;
       case COMMAND_STOP:
         ret = stop((const struct data_stop*)&p.data[1]);

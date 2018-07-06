@@ -140,6 +140,8 @@ def inlcude_log(key_group,group_label,sub_key_list,sub_key_label_list,plot_y_lab
 inlcude_log('vicon','Vicon Position',('x','y','z'),('X','Y','Z'),'Position [m]','Vicon Position')
 inlcude_log('vicon','Vicon Velocity',('v_x','v_y','v_z'),('vX','vY','vZ'),'Velocity [m/s]','Vicon Velocity')
 inlcude_log('vicon','Vicon System Latency',(['dt']),(['dT']),'Time since last Pkg [ms]','Vicon Package Arrival')
+inlcude_log('vicon','Start Flag',(['startFlag']),(['startFlag']),'Time since last Pkg [ms]','startFlag')
+inlcude_log('vicon','FuckYou',(['fuckYou']),(['fuckYou']),'Time since last Pkg [ms]','fuckYou')
 # Control Data
 inlcude_log('ctrltarget','CTRL Target',('roll','pitch','yaw'),('Roll','Pitch','Yaw'),'Object Rot Angle [°]','Control Target Data')
 inlcude_log('ctrltarget','CTRL Target Data',('emergencyStop','upsideDown'),('Emergency Stop ','Upside Down '),'Triggered? [bool]','Control Target FLAGS')

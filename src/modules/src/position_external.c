@@ -39,7 +39,11 @@
 #include "math3d.h"
 #include "packetdef.h"
 #include "quatcompress.h"
-
+// ------------------ for qick kill fix ----------------------------------------
+#include "crtp_commander_high_level.h"
+#include "power_distribution.h"
+#include "controller.h"
+//------------------------------------------------------------------------------
 
 // Global variables
 bool positionExternalFresh = false;
@@ -61,6 +65,12 @@ static float v_x;
 static float v_y;
 static float v_z;
 static uint16_t dt;
+//------------------------------------------------------------------------------
+static uint16_t thresKill = 400;
+static bool startFlag = false;
+static bool fuckYou = false;
+//------------------------------------------------------------------------------
+
 
 // #define MEASURE_PACKET_DROPS
 #ifdef MEASURE_PACKET_DROPS
@@ -129,6 +139,15 @@ void positionExternalUpdateDt()
   } else {
     dt = 10 * 1000;
   }
+  // shut off drone after connection lost ------------------by FLW ---------
+  startFlag = droneHasStarted();
+  fuckYou = (dt > thresKill) && droneHasStarted();
+  if (fuckYou){
+    powerStop();
+    controllerInit(getControllerType());
+    crtpCommanderHighLevelStop();
+  }
+  //------------------------------------------------------------------------
 }
 
 void setPositionInteractiveCallback(positionInteractiveCallback cb)
@@ -207,7 +226,9 @@ LOG_GROUP_START(vicon)
 LOG_ADD(LOG_FLOAT, v_x, &v_x)
 LOG_ADD(LOG_FLOAT, v_y, &v_y)
 LOG_ADD(LOG_FLOAT, v_z, &v_z)
-LOG_ADD(LOG_UINT16, dt, &dt) // zueit seit letztem packet
+LOG_ADD(LOG_UINT16, dt, &dt) // zueit seit letztem packet startFlag
+LOG_ADD(LOG_UINT8, startFlag, &startFlag) // by FlW ----------------------------
+LOG_ADD(LOG_UINT8, fuckYou, &fuckYou) // fuck you facebook filter by FLW -------
 LOG_ADD(LOG_FLOAT, roll, &posExtLastRPY.x)
 LOG_ADD(LOG_FLOAT, pitch, &posExtLastRPY.y)
 LOG_ADD(LOG_FLOAT, yaw, &posExtLastRPY.z)

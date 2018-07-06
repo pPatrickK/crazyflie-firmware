@@ -60,6 +60,8 @@ void crtpCommanderHighLevelInit(void);
 // Retrieves the current setpoint
 void crtpCommanderHighLevelGetSetpoint(setpoint_t* setpoint, const state_t *state);
 
+bool droneHasStarted(); // for drone kill fix by FLW ---------------------------
+
 // Tell the trajectory planner that it should cut power.
 // Should be used if an emergency is detected.
 void crtpCommanderHighLevelStop();
