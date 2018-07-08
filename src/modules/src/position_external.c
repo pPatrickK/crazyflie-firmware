@@ -65,8 +65,8 @@ static float v_x;
 static float v_y;
 static float v_z;
 static uint16_t dt;
-//------------------------------------------------------------------------------
-static uint16_t thresKill = 400;
+//-------------------------------------by FLW-----------------------------------
+static uint16_t thresKill = 800;
 static bool startFlag = false;
 static bool fuckYou = false;
 //------------------------------------------------------------------------------
