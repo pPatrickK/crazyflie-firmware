@@ -9,6 +9,7 @@ bin/*
 *~
 tools/make/config.mk
 tools/usdlog/logs/*
+tools/usdlog/__pycache__/*
 cflie.*
 version.c
 tags
