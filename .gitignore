@@ -6,6 +6,7 @@ bin/*
 .project
 .settings/*
 .vscode/*
+*.pyc
 *~
 tools/make/config.mk
 tools/usdlog/logs/*
