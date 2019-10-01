@@ -28,6 +28,7 @@
 #include "log.h"
 #include "param.h"
 #include "num.h"
+#include "math.h"
 
 #include "motors.h"
 
@@ -39,6 +40,11 @@ static struct {
   uint32_t m3;
   uint32_t m4;
 } motorPower;
+
+static float logM1;
+static float logM2;
+static float logM3;
+static float logM4;
 
 static struct {
   uint16_t m1;
@@ -77,10 +83,28 @@ void powerDistribution(const control_t *control)
   #ifdef QUAD_FORMATION_X
     int16_t r = control->roll / 2.0f;
     int16_t p = control->pitch / 2.0f;
-    motorPower.m1 = limitThrust(control->thrust - r + p + control->yaw);
-    motorPower.m2 = limitThrust(control->thrust - r - p - control->yaw);
-    motorPower.m3 =  limitThrust(control->thrust + r - p + control->yaw);
-    motorPower.m4 =  limitThrust(control->thrust + r + p - control->yaw);
+    logM1 = control->thrust - r + p + control->yaw;
+    logM2 = control->thrust - r - p - control->yaw;
+    logM3 = control->thrust + r - p + control->yaw;
+    logM4 = control->thrust + r + p - control->yaw;
+    float maxVal = fmaxf(fmaxf(logM1,logM2),fmaxf(logM3,logM4));
+    if(maxVal>=UINT16_MAX){
+      logM1 = (logM1/maxVal)*UINT16_MAX;
+      logM2 = (logM2/maxVal)*UINT16_MAX;
+      logM3 = (logM3/maxVal)*UINT16_MAX;
+      logM4 = (logM4/maxVal)*UINT16_MAX;
+    }
+
+
+
+    motorPower.m1 = limitThrust(logM1);
+    motorPower.m2 = limitThrust(logM2);
+    motorPower.m3 = limitThrust(logM3);
+    motorPower.m4 = limitThrust(logM4);
+    // motorPower.m1 = limitThrust(control->thrust - r + p + control->yaw);
+    // motorPower.m2 = limitThrust(control->thrust - r - p - control->yaw);
+    // motorPower.m3 =  limitThrust(control->thrust + r - p + control->yaw);
+    // motorPower.m4 =  limitThrust(control->thrust + r + p - control->yaw);
   #else // QUAD_FORMATION_NORMAL
     motorPower.m1 = limitThrust(control->thrust + control->pitch +
                                control->yaw);
@@ -121,4 +145,8 @@ LOG_ADD(LOG_INT32, m4, &motorPower.m4)
 LOG_ADD(LOG_INT32, m1, &motorPower.m1)
 LOG_ADD(LOG_INT32, m2, &motorPower.m2)
 LOG_ADD(LOG_INT32, m3, &motorPower.m3)
+LOG_ADD(LOG_FLOAT, logM1, &logM1)
+LOG_ADD(LOG_FLOAT, logM2, &logM2)
+LOG_ADD(LOG_FLOAT, logM3, &logM3)
+LOG_ADD(LOG_FLOAT, logM4, &logM4)
 LOG_GROUP_STOP(motor)

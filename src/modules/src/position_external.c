@@ -141,8 +141,9 @@ void positionExternalUpdateDt()
   }
   // shut off drone after connection lost ------------------by FLW ---------
   startFlag = droneHasStarted();
-  fuckYou = (dt > thresKill) && droneHasStarted();
+  fuckYou   = (dt > thresKill) && startFlag;
   if (fuckYou){
+    // TODO: Landefunktion einfügen für sauberes Landen
     powerStop();
     controllerInit(getControllerType());
     crtpCommanderHighLevelStop();
