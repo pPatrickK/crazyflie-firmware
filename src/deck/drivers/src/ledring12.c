@@ -43,6 +43,10 @@
 #include "param.h"
 #include "pm.h"
 #include "log.h"
+#include "pulse_processor.h"
+
+#define DEBUG_MODULE "LED"
+#include "debug.h"
 
 static bool isInit = false;
 
@@ -71,8 +75,6 @@ typedef void (*Ledring12Effect)(uint8_t buffer[][3], bool reset);
 #define WHITE {0xff, 0xff, 0xff}
 #define BLACK {0x00, 0x00, 0x00}
 
-#define MAX(a,b) ((a>b)?a:b)
-#define MIN(a,b) ((a<b)?a:b)
 #define COPY_COLOR(dest, orig) dest[0]=orig[0]; dest[1]=orig[1]; dest[2]=orig[2]
 #define ADD_COLOR(dest, o1, o2) dest[0]=(o1[0]>>1)+(o2[0]>>1);dest[1]=(o1[1]>>1)+(o2[1]>>1);dest[2]=(o1[2]>>1)+(o2[2]>>1);
 #define LIMIT(a) ((a>255)?255:(a<0)?0:a)
@@ -80,8 +82,22 @@ typedef void (*Ledring12Effect)(uint8_t buffer[][3], bool reset);
 #define DEADBAND(a, b) ((a<b) ? 0:a)
 #define LINSCALE(domain_low, domain_high, codomain_low, codomain_high, value) ((codomain_high - codomain_low) / (domain_high - domain_low)) * (value - domain_low) + codomain_low
 #define SET_WHITE(dest, intensity) dest[0] = intensity; dest[1] = intensity; dest[2] = intensity;
+#define RGB565_TO_RGB888(dest, orig)                                           \
+  uint8_t R5, G6, B5;                                                          \
+  R5 = orig[0] >> 3;                                                           \
+  G6 = ((orig[0] & 0x07) << 3) | (orig[1] >> 5);                               \
+  B5 = orig[1] & 0x1F;                                                         \
+  dest[0] = ((uint16_t)R5 * 527 + 23) >> 6;                                    \
+  dest[1] = ((uint16_t)G6 * 259 + 33) >> 6;                                    \
+  dest[2] = ((uint16_t)B5 * 527 + 23) >> 6;
 
-static uint32_t effect = 6;
+#ifndef LEDRING_DEFAULT_EFFECT
+#define LEDRING_DEFAULT_EFFECT 6
+#endif
+
+#define LEDRING_TIME_MEM_SEC 1000 / 25
+
+static uint32_t effect = LEDRING_DEFAULT_EFFECT;
 static uint32_t neffect;
 static uint8_t headlightEnable = 0;
 static uint8_t black[][3] = {BLACK, BLACK, BLACK,
@@ -97,6 +113,8 @@ static const uint8_t white[] = WHITE;
 static const uint8_t part_black[] = BLACK;
 
 uint8_t ledringmem[NBR_LEDS * 2];
+
+ledtimings ledringtimingsmem;
 
 /**************** Black (LEDs OFF) ***************/
 
@@ -115,29 +133,61 @@ static void blackEffect(uint8_t buffer[][3], bool reset)
 }
 
 /**************** White spin ***************/
+#if NBR_LEDS > 12
+static const uint8_t whiteRing[NBR_LEDS][3] = {{32, 32, 32}, {8,8,8}, {2,2,2},
+                                       BLACK, BLACK, BLACK,
+                                       BLACK, BLACK, BLACK,
+                                       BLACK, BLACK, BLACK,
+                                      };
+#else
 static const uint8_t whiteRing[][3] = {{32, 32, 32}, {8,8,8}, {2,2,2},
                                        BLACK, BLACK, BLACK,
                                        BLACK, BLACK, BLACK,
                                        BLACK, BLACK, BLACK,
                                       };
+#endif
 
+#if NBR_LEDS > 12
+static const uint8_t blueRing[NBR_LEDS][3] = {{64, 64, 255}, {32,32,64}, {8,8,16},
+                                       BLACK, BLACK, BLACK,
+                                       BLACK, BLACK, BLACK,
+                                       BLACK, BLACK, BLACK,
+                                      };
+#else
 static const uint8_t blueRing[][3] = {{64, 64, 255}, {32,32,64}, {8,8,16},
                                        BLACK, BLACK, BLACK,
                                        BLACK, BLACK, BLACK,
                                        BLACK, BLACK, BLACK,
                                       };
+#endif
 
-//static const uint8_t greenRing[][3] = {{64, 255, 64}, {32,64,32}, {8,16,8},
+// #if NBR_LEDS > 12
+// static const uint8_t greenRing[NBR_LEDS][3] = {{64, 255, 64}, {32,64,32}, {8,16,8},
 //                                       BLACK, BLACK, BLACK,
 //                                       BLACK, BLACK, BLACK,
 //                                       BLACK, BLACK, BLACK,
 //                                      };
-//
-//static const uint8_t redRing[][3] = {{64, 0, 0}, {16,0,0}, {8,0,0},
+// #else
+// static const uint8_t greenRing[][3] = {{64, 255, 64}, {32,64,32}, {8,16,8},
+//                                       BLACK, BLACK, BLACK,
+//                                       BLACK, BLACK, BLACK,
+//                                       BLACK, BLACK, BLACK,
+//                                      };
+// #endif
+
+// #if NBR_LEDS > 12
+// static const uint8_t redRing[NBR_LEDS][3] = {{64, 0, 0}, {16,0,0}, {8,0,0},
 //                                       {4,0,0}, {2,0,0}, {1,0,0},
 //                                       BLACK, BLACK, BLACK,
 //                                       BLACK, BLACK, BLACK,
 //                                      };
+// #else
+// static const uint8_t redRing[][3] = {{64, 0, 0}, {16,0,0}, {8,0,0},
+//                                       {4,0,0}, {2,0,0}, {1,0,0},
+//                                       BLACK, BLACK, BLACK,
+//                                       BLACK, BLACK, BLACK,
+//                                      };
+// #endif
 
 static void whiteSpinEffect(uint8_t buffer[][3], bool reset)
 {
@@ -238,11 +288,19 @@ static void boatEffect(uint8_t buffer[][3], bool reset)
 
 /**************** Color spin ***************/
 
+#if NBR_LEDS > 12
+static const uint8_t colorRing[NBR_LEDS][3] = {{0,0,32}, {0,0,16}, {0,0,8},
+                                       {0,0,4}, {16,16,16}, {8,8,8},
+                                       {4,4,4},{32,0,0},{16,0,0},
+                                       {8,0,0}, {4,0,0}, {2,0,0},
+                                      };
+#else
 static const uint8_t colorRing[][3] = {{0,0,32}, {0,0,16}, {0,0,8},
                                        {0,0,4}, {16,16,16}, {8,8,8},
                                        {4,4,4},{32,0,0},{16,0,0},
                                        {8,0,0}, {4,0,0}, {2,0,0},
                                       };
+#endif
 
 static void colorSpinEffect(uint8_t buffer[][3], bool reset)
 {
@@ -276,7 +334,7 @@ static void spinEffect2(uint8_t buffer[][3], bool reset)
   }
 
   COPY_COLOR(temp, buffer[(NBR_LEDS-1)]);
-  for (i=(NBR_LEDS-1); i>=0; i--) {
+  for (i=(NBR_LEDS-1); i>0; i--) {
     COPY_COLOR(buffer[i], buffer[i-1]);
   }
   COPY_COLOR(buffer[0], temp);
@@ -563,40 +621,275 @@ static void siren(uint8_t buffer[][3], bool reset)
   if (++tic >= 20) tic = 0;
 }
 
-static void packetRate(uint8_t buffer[][3], bool reset)
+/**
+ * Display a solid color and fade to the next one in a given time
+ */
+static uint32_t fadeColor = 0;
+static float fadeTime = 0.5;
+
+static float currentFadeTime = 0.5;
+
+#include "log.h"
+
+LOG_GROUP_START(ring)
+LOG_ADD(LOG_FLOAT, fadeTime, &currentFadeTime)
+LOG_GROUP_STOP(ring)
+static void fadeColorEffect(uint8_t buffer[][3], bool reset)
+{
+  static float currentRed = 255;
+  static float currentGreen = 255;
+  static float currentBlue = 255;
+  static float targetRed, targetGreen, targetBlue;
+  static uint32_t previousTargetColor = 0xffffffff;
+  static float cachedFadeTime = 0.5;
+
+  if (fadeColor != previousTargetColor) {
+    float alpha = currentFadeTime / cachedFadeTime;
+
+    currentRed = (alpha * currentRed) + ((1 - alpha) * targetRed);
+    currentGreen = (alpha * currentGreen) + ((1 - alpha) * targetGreen);
+    currentBlue = (alpha * currentBlue) + ((1 - alpha) * targetBlue);
+
+    currentFadeTime = fadeTime;
+    cachedFadeTime = fadeTime;
+    targetRed = (fadeColor >> 16) & 0x0FF;
+    targetGreen = (fadeColor >> 8) & 0x0FF;
+    targetBlue = (fadeColor >> 0) & 0x0FF;
+
+    previousTargetColor = fadeColor;
+  }
+
+  if (currentFadeTime > 0)
+  {
+    float alpha = currentFadeTime / cachedFadeTime;
+
+    int red = (alpha * currentRed) + ((1-alpha) * targetRed);
+    int green = (alpha * currentGreen) + ((1 - alpha) * targetGreen);
+    int blue = (alpha * currentBlue) + ((1 - alpha) * targetBlue);
+
+    for (int i = 0; i < NBR_LEDS; i++)
+    {
+      buffer[i][0] = red;
+      buffer[i][1] = green;
+      buffer[i][2] = blue;
+    }
+
+    currentFadeTime -= 50e-3f;
+  } else {
+    currentFadeTime = 0;
+    currentRed = (fadeColor >> 16) & 0x0FF;
+    currentGreen = (fadeColor >> 8) & 0x0FF;
+    currentBlue = (fadeColor >> 0) & 0x0FF;
+
+    for (int i = 0; i < NBR_LEDS; i++)
+    {
+      buffer[i][0] = currentRed;
+      buffer[i][1] = currentGreen;
+      buffer[i][2] = currentBlue;
+    }
+  }
+}
+
+/**
+ * An effect that shows the Signal Strength (RSSI) on the LED ring.
+ *
+ * Red means bad, green means good.
+ */
+static float badRssi = 85, goodRssi = 35;
+static void rssiEffect(uint8_t buffer[][3], bool reset)
 {
   int i;
-  static int varid;
-  uint32_t time_since_last_vicon_update; //ms
-  static int pmstateid;
-  int8_t pmstate;
+  static int isConnectedId, rssiId;
+  float rssi;
+  bool isConnected;
+
+  isConnectedId = logGetVarId("radio", "isConnected");
+  isConnected = logGetUint(isConnectedId);
+
+  rssiId = logGetVarId("radio", "rssi");
+  rssi = logGetFloat(rssiId);
+  uint8_t rssi_scaled = LIMIT(LINSCALE(badRssi, goodRssi, 0, 255, rssi));
+
+  for (i = 0; i < NBR_LEDS; i++) {
+    if (isConnected) {
+      buffer[i][0] = 255 - rssi_scaled; // Red (bad)
+      buffer[i][1] = rssi_scaled; // Green (good)
+      buffer[i][2] = 0; // Blue
+    } else {
+      buffer[i][0] = 100; // Red
+      buffer[i][1] = 100; // Green
+      buffer[i][2] = 100; // Blue
+    }
+  }
+}
+
+/**
+ * An effect that shows the status of the lighthouse.
+ *
+ * Red means 0 angles, green means 16 angles (2 basestations x 4 crazyflie sensors x 2 sweeping directions).
+ */
+static void lighthouseEffect(uint8_t buffer[][3], bool reset)
+{
+  #if DISABLE_LIGHTHOUSE_DRIVER == 1
+    uint16_t validAngles = 0;
+  #else
+    uint16_t validAngles = pulseProcessorAnglesQuality();
+  #endif
+
+  for (int i = 0; i < NBR_LEDS; i++) {
+    buffer[i][0] = LIMIT(LINSCALE(0.0f, 255.0f, 100.0f, 0.0f, validAngles)); // Red (small validAngles)
+    buffer[i][1] = LIMIT(LINSCALE(0.0f, 255.0f, 0.0f, 100.0f, validAngles)); // Green (large validAngles)
+    buffer[i][2] = 0;
+  }
+}
+
+/**
+ * An effect that shows the status of the location service.
+ *
+ * Red means bad, green means good.
+ * Blinking means battery was low during flight.
+ */
+static void locSrvStatus(uint8_t buffer[][3], bool reset)
+{
+  static int locSrvTickId = -1;
+  static int pmStateId = -1;
+
   static int tic = 0;
   static bool batteryEverLow = false;
 
-  varid = logGetVarId("vicon", "dt");
-  time_since_last_vicon_update = logGetUint(varid);
-  if (time_since_last_vicon_update > 30) time_since_last_vicon_update = 30;
+  // lazy initialization of the logging variables
+  if (locSrvTickId == -1) {
+    locSrvTickId = logGetVarId("locSrvZ", "tick");
+    pmStateId = logGetVarId("pm", "state");
+  }
 
-  pmstateid = logGetVarId("pm", "state");
-  pmstate = logGetInt(pmstateid);
+  // compute time since the last update in milliseconds
+  uint16_t time_since_last_update = xTaskGetTickCount() - logGetUint(locSrvTickId);
+  if (time_since_last_update > 30) {
+    time_since_last_update = 30;
+  }
+
+  int8_t pmstate = logGetInt(pmStateId);
   if (pmstate == lowPower) {
     batteryEverLow = true;
   }
 
-  for (i = 0; i < NBR_LEDS; i++) {
+  for (int i = 0; i < NBR_LEDS; i++) {
     if (batteryEverLow && tic < 10) {
       buffer[i][0] = 0;
       buffer[i][1] = 0;
-      buffer[i][2] = 0;
     } else {
-      buffer[i][0] = LIMIT(LINSCALE(0, 30, 0, 100, time_since_last_vicon_update)); // Red (long time_since_last_vicon_update)
-      buffer[i][1] = LIMIT(LINSCALE(0, 30, 100, 0, time_since_last_vicon_update)); // Green (short time_since_last_vicon_update)
+      buffer[i][0] = LIMIT(LINSCALE(0, 30, 0, 100, time_since_last_update)); // Red (large time_since_last_update)
+      buffer[i][1] = LIMIT(LINSCALE(0, 30, 100, 0, time_since_last_update)); // Green (small time_since_last_update)
+    }
+    buffer[i][2] = 0;
+  }
 
-      buffer[i][2] = 0;
+  if (++tic >= 20) {
+    tic = 0;
+  }
+}
+
+static bool isTimeMemDone(ledtiming current)
+{
+  return current.duration == 0 && current.color[0] == 0 &&
+         current.color[1] == 0;
+}
+
+static int timeEffectI = 0;
+static uint64_t timeEffectTime = 0;
+static uint8_t timeEffectPrevBuffer[NBR_LEDS][3];
+static float timeEffectRotation = 0;
+
+static void timeMemEffect(uint8_t outputBuffer[][3], bool reset)
+{
+  // Start timer when going to this
+  if (reset) {
+    for (int i = 0; i < NBR_LEDS; i++) {
+      COPY_COLOR(timeEffectPrevBuffer[i], part_black);
+      COPY_COLOR(outputBuffer[i], part_black);
+    }
+
+    timeEffectRotation = 0;
+    timeEffectTime = usecTimestamp() / 1000;
+    timeEffectI = 0;
+  }
+
+  ledtiming current = ledringtimingsmem.timings[timeEffectI];
+
+  // Stop when completed
+  if (isTimeMemDone(current))
+    return;
+
+  // Get the proper index
+  uint64_t time = usecTimestamp() / 1000;
+  while (timeEffectTime + LEDRING_TIME_MEM_SEC * current.duration < time) {
+    // Apply previous commands to the cache
+    uint8_t color[3];
+    RGB565_TO_RGB888(color, current.color)
+
+    if (current.leds == 0) {
+      for (int i = 0; i < NBR_LEDS; i++) {
+        COPY_COLOR(timeEffectPrevBuffer[i], color);
+      }
+    } else {
+      COPY_COLOR(timeEffectPrevBuffer[current.leds], color);
+    }
+
+    // Goto next effect
+    if(current.rotate)
+      timeEffectRotation += 1.0f * current.duration * LEDRING_TIME_MEM_SEC / (current.rotate * 1000);
+    timeEffectTime += LEDRING_TIME_MEM_SEC * current.duration;
+    timeEffectI++;
+    current = ledringtimingsmem.timings[timeEffectI];
+
+    if (isTimeMemDone(current))
+      return;
+  }
+
+  // Apply the current effect
+  uint8_t color[3];
+  RGB565_TO_RGB888(color, current.color)
+  uint8_t currentBuffer[NBR_LEDS][3];
+  for (int i = 0; i < NBR_LEDS; i++) {
+    COPY_COLOR(currentBuffer[i], timeEffectPrevBuffer[i]);
+  }
+
+  if (current.fade) {
+    float percent = 1.0 * (time - timeEffectTime) / (current.duration * LEDRING_TIME_MEM_SEC);
+    if (current.leds == 0)
+      for (int i = 0; i < NBR_LEDS; i++)
+        for (int j = 0; j < 3; j++)
+          currentBuffer[i][j] = (1.0f - percent) * timeEffectPrevBuffer[i][j] + percent * color[j];
+    else
+      for (int j = 0; j < 3; j++)
+        currentBuffer[current.leds][j] = (1.0f - percent) * timeEffectPrevBuffer[current.leds][j] + percent * color[j];
+  }
+  else {
+    if (current.leds == 0) {
+      for (int i = 0; i < NBR_LEDS; i++) {
+        COPY_COLOR(currentBuffer[i], color);
+      }
+    } else {
+      COPY_COLOR(currentBuffer[current.leds], color);
     }
   }
 
-  if (++tic >= 20) tic = 0;
+  float rotate = timeEffectRotation;
+  if(current.rotate) {
+    rotate += 1.0f * (time - timeEffectTime) / (current.rotate * 1000);
+  }
+
+  int shift = rotate * NBR_LEDS;
+  float percentShift = rotate * NBR_LEDS - shift;
+  shift = shift % NBR_LEDS;
+
+  // Output current leds
+  for (int i = 0; i < NBR_LEDS; i++)
+    for (int j = 0; j < 3; j++)
+      outputBuffer[(i+shift) % NBR_LEDS][j] =
+        percentShift * currentBuffer[i][j] +
+        (1-percentShift) * currentBuffer[(i+1) % NBR_LEDS][j];
 }
 
 /**************** Effect list ***************/
@@ -618,8 +911,12 @@ Ledring12Effect effectsFct[] =
   siren,
   gravityLight,
   virtualMemEffect,
-  packetRate,
-}; //TODO Add more
+  fadeColorEffect,
+  rssiEffect,
+  locSrvStatus,
+  timeMemEffect,
+  lighthouseEffect,
+};
 
 /********** Ring init and switching **********/
 static xTimerHandle timer;
@@ -690,6 +987,8 @@ PARAM_ADD(PARAM_UINT8, headlightEnable, &headlightEnable)
 PARAM_ADD(PARAM_FLOAT, glowstep, &glowstep)
 PARAM_ADD(PARAM_FLOAT, emptyCharge, &emptyCharge)
 PARAM_ADD(PARAM_FLOAT, fullCharge, &fullCharge)
+PARAM_ADD(PARAM_UINT32, fadeColor, &fadeColor)
+PARAM_ADD(PARAM_FLOAT, fadeTime, &fadeTime)
 PARAM_GROUP_STOP(ring)
 
 static const DeckDriver ledring12_deck = {

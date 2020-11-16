@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "log.h"
+#include "param.h"
 
 static bool isInit;
 
@@ -94,7 +95,7 @@ static MeasData m;
 
 // Only use on 0-terminated strings!
 static int skip_to_next(char ** sp, const char ch) {
-  int steps;
+  int steps=0;
   while (ch != 0 && (**sp) != ch) {
     (*sp)++;
     steps++;
@@ -281,8 +282,8 @@ static void gtgpsInit(DeckInfo *info)
   DEBUG_PRINT("Enabling reading from GlobalTop GPS\n");
   uart1Init(9600);
 
-  xTaskCreate(gtgpsTask, "GTGPS",
-              configMINIMAL_STACK_SIZE, NULL, /*priority*/1, NULL);
+  xTaskCreate(gtgpsTask, GTGPS_DECK_TASK_NAME,
+              configMINIMAL_STACK_SIZE, NULL, GTGPS_DECK_TASK_PRI, NULL);
 
   isInit = true;
 }
@@ -310,6 +311,10 @@ static const DeckDriver gtgps_deck = {
 };
 
 DECK_DRIVER(gtgps_deck);
+
+PARAM_GROUP_START(deck)
+PARAM_ADD(PARAM_UINT8 | PARAM_RONLY, bcGTGPS, &isInit)
+PARAM_GROUP_STOP(deck)
 
 LOG_GROUP_START(gps)
 LOG_ADD(LOG_INT32, lat, &m.latitude)

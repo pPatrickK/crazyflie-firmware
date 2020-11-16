@@ -28,7 +28,6 @@
 
 #include "config.h"
 
-#include "nrf24link.h"
 #include "crtp.h"
 #include "console.h"
 #include "crtpservice.h"
@@ -37,12 +36,10 @@
 #include "eskylink.h"
 #include "uart_syslink.h"
 #include "radiolink.h"
-#include "nrf24link.h"
 #include "usblink.h"
 #include "platformservice.h"
 #include "syslink.h"
 #include "crtp_localization_service.h"
-#include "position_external.h"
 
 static bool isInit;
 
@@ -59,20 +56,13 @@ void commInit(void)
   // crtpInit();
   // consoleInit();
 
-#ifdef USE_RADIOLINK_CRTP
   crtpSetLink(radiolinkGetLink());
-#elif defined(USE_ESKYLINK)
-  crtpSetLink(eskylinkGetLink());
-#else
-  crtpSetLink(nrf24linkGetLink());
-#endif
 
   crtpserviceInit();
   platformserviceInit();
   logInit();
   paramInit();
   locSrvInit();
-  positionExternalInit();
 
   //setup CRTP communication channel
   //TODO: check for USB first and prefer USB over radio

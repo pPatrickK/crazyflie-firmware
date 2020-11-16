@@ -44,34 +44,31 @@ void deckInit()
   deckDriverCount();
   deckInfoInit();
 
-#ifndef IGNORE_OW_DECKS
   int nDecks;
   int i;
 
   nDecks = deckCount();
 
-  DEBUG_PRINT("%d deck enumerated\n", nDecks);
+  DEBUG_PRINT("%d deck(s) found\n", nDecks);
 
   for (i=0; i<nDecks; i++) {
     DeckInfo *deck = deckInfo(i);
 
     if (deck->driver->init) {
       if (deck->driver->name) {
-        DECK_CORE_DBG_PRINT("Calling INIT from driver %s for deck %i\n", deck->driver->name, i);
+        DEBUG_PRINT("Calling INIT on driver %s for deck %i\n", deck->driver->name, i);
       } else {
-        DECK_CORE_DBG_PRINT("Calling INIT for deck %i\n", i);
+        DEBUG_PRINT("Calling INIT for deck %i\n", i);
       }
 
       deck->driver->init(deck);
     }
   }
-#endif
 }
 
 bool deckTest()
 {
   bool pass = true;
-#ifndef IGNORE_OW_DECKS
   int nDecks;
   int i;
 
@@ -89,7 +86,6 @@ bool deckTest()
       }
     }
   }
-#endif
 
   return pass;
 }

@@ -61,16 +61,31 @@
 #include "buzzer.h"
 #include "sound.h"
 #include "sysload.h"
+#include "estimator_kalman.h"
 #include "deck.h"
 #include "extrx.h"
+#include "app.h"
+#include "static_mem.h"
+#include "peer_localization.h"
+
+#ifndef START_DISARMED
+#define ARM_INIT true
+#else
+#define ARM_INIT false
+#endif
 
 /* Private variable */
 static bool selftestPassed;
 static bool canFly;
+static bool armed = ARM_INIT;
+static bool forceArm;
 static bool isInit;
+
+STATIC_MEM_TASK_ALLOC(systemTask, SYSTEM_TASK_STACKSIZE);
 
 /* System wide synchronisation */
 xSemaphoreHandle canStartMutex;
+static StaticSemaphore_t canStartMutexBuffer;
 
 /* Private functions */
 static void systemTask(void *arg);
@@ -78,10 +93,7 @@ static void systemTask(void *arg);
 /* Public functions */
 void systemLaunch(void)
 {
-  xTaskCreate(systemTask, SYSTEM_TASK_NAME,
-              SYSTEM_TASK_STACKSIZE, NULL,
-              SYSTEM_TASK_PRI, NULL);
-
+  STATIC_MEM_TASK_CREATE(systemTask, systemTask, SYSTEM_TASK_NAME, NULL, SYSTEM_TASK_PRI);
 }
 
 // This must be the first module to be initialized!
@@ -90,20 +102,26 @@ void systemInit(void)
   if(isInit)
     return;
 
-  canStartMutex = xSemaphoreCreateMutex();
+  canStartMutex = xSemaphoreCreateMutexStatic(&canStartMutexBuffer);
   xSemaphoreTake(canStartMutex, portMAX_DELAY);
 
   usblinkInit();
   sysLoadInit();
 
-  /* Initialized hear and early so that DEBUG_PRINT (buffered) can be used early */
+  /* Initialized here so that DEBUG_PRINT (buffered) can be used early */
+  debugInit();
   crtpInit();
   consoleInit();
 
   DEBUG_PRINT("----------------------------\n");
-  DEBUG_PRINT(P_NAME " is up and running!\n");
-  DEBUG_PRINT("Build %s:%s (%s) %s\n", V_SLOCAL_REVISION,
-              V_SREVISION, V_STAG, (V_MODIFIED)?"MODIFIED":"CLEAN");
+  DEBUG_PRINT("%s is up and running!\n", platformConfigGetDeviceTypeName());
+
+  if (V_PRODUCTION_RELEASE) {
+    DEBUG_PRINT("Production release %s\n", V_STAG);
+  } else {
+    DEBUG_PRINT("Build %s:%s (%s) %s\n", V_SLOCAL_REVISION,
+                V_SREVISION, V_STAG, (V_MODIFIED)?"MODIFIED":"CLEAN");
+  }
   DEBUG_PRINT("I am 0x%08X%08X%08X and I have %dKB of flash!\n",
               *((int*)(MCU_ID_ADDRESS+8)), *((int*)(MCU_ID_ADDRESS+4)),
               *((int*)(MCU_ID_ADDRESS+0)), *((short*)(MCU_FLASH_SIZE_ADDRESS)));
@@ -114,6 +132,11 @@ void systemInit(void)
   ledseqInit();
   pmInit();
   buzzerInit();
+  peerLocalizationInit();
+
+#ifdef APP_ENABLED
+  appInit();
+#endif
 
   isInit = true;
 }
@@ -143,10 +166,10 @@ void systemTask(void *arg)
 #endif
 
 #ifdef ENABLE_UART1
-  uart1Init();
+  uart1Init(9600);
 #endif
 #ifdef ENABLE_UART2
-  uart2Init();
+  uart2Init(115200);
 #endif
 
   //Init the high-levels modules
@@ -155,10 +178,11 @@ void systemTask(void *arg)
   commanderInit();
 
   StateEstimatorType estimator = anyEstimator;
+  estimatorKalmanTaskInit();
   deckInit();
   estimator = deckGetRequiredEstimator();
   stabilizerInit(estimator);
-  if (deckGetRequiredLowInterferenceRadioMode())
+  if (deckGetRequiredLowInterferenceRadioMode() && platformConfigPhysicalLayoutAntennasAreClose())
   {
     platformSetLowInterferenceRadioMode();
   }
@@ -175,10 +199,12 @@ void systemTask(void *arg)
   pass &= commTest();
   pass &= commanderTest();
   pass &= stabilizerTest();
+  pass &= estimatorKalmanTaskTest();
   pass &= deckTest();
   pass &= soundTest();
   pass &= memTest();
   pass &= watchdogNormalStartTest();
+  pass &= peerLocalizationTest();
 
   //Start the firmware
   if(pass)
@@ -186,8 +212,8 @@ void systemTask(void *arg)
     selftestPassed = 1;
     systemStart();
     soundSetEffect(SND_STARTUP);
-    ledseqRun(SYS_LED, seq_alive);
-    ledseqRun(LINK_LED, seq_testPassed);
+    ledseqRun(&seq_alive);
+    ledseqRun(&seq_testPassed);
   }
   else
   {
@@ -196,7 +222,7 @@ void systemTask(void *arg)
     {
       while(1)
       {
-        ledseqRun(SYS_LED, seq_testPassed); //Red passed == not passed!
+        ledseqRun(&seq_testFailed);
         vTaskDelay(M2T(2000));
         // System can be forced to start by setting the param to 1 from the cfclient
         if (selftestPassed)
@@ -253,6 +279,17 @@ bool systemCanFly(void)
   return canFly;
 }
 
+void systemSetArmed(bool val)
+{
+  armed = val;
+}
+
+bool systemIsArmed()
+{
+
+  return armed || forceArm;
+}
+
 void vApplicationIdleHook( void )
 {
   static uint32_t tickOfLatestWatchdogReset = M2T(0);
@@ -281,10 +318,12 @@ PARAM_ADD(PARAM_UINT32 | PARAM_RONLY, id2, MCU_ID_ADDRESS+8)
 PARAM_GROUP_STOP(cpu)
 
 PARAM_GROUP_START(system)
-PARAM_ADD(PARAM_INT8, selftestPassed, &selftestPassed)
+PARAM_ADD(PARAM_INT8 | PARAM_RONLY, selftestPassed, &selftestPassed)
+PARAM_ADD(PARAM_INT8, forceArm, &forceArm)
 PARAM_GROUP_STOP(sytem)
 
 /* Loggable variables */
 LOG_GROUP_START(sys)
 LOG_ADD(LOG_INT8, canfly, &canFly)
+LOG_ADD(LOG_INT8, armed, &armed)
 LOG_GROUP_STOP(sys)

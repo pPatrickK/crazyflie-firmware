@@ -13,7 +13,7 @@ endif
 
 target = @$(if $(QUIET), ,echo $($1_COMMAND$(VERBOSE)) ); @$($1_COMMAND)
 
-VTMPL_COMMAND=$(PYTHON2) tools/make/versionTemplate.py $< $@
+VTMPL_COMMAND=$(PYTHON) $(CRAZYFLIE_BASE)/tools/make/versionTemplate.py --crazyflie-base $(CRAZYFLIE_BASE) $< $@
 #$(BIN)/$(lastword $(subst /, ,$@))
 VTMPL_COMMAND_SILENT="  VTMPL $@"
 %.c: %.vtpl
@@ -44,13 +44,13 @@ $(PROG).hex: $(PROG).elf
 	@$(if $(QUIET), ,echo $(HEX_COMMAND$(VERBOSE)) )
 	@$(HEX_COMMAND)
 
-BIN_COMMAND=$(OBJCOPY) $< -O binary --pad-to 0 $@
+BIN_COMMAND=$(OBJCOPY) $< -O binary --pad-to 0 --remove-section=.bss --remove-section=.nzds  --remove-section=._usrstack $@
 BIN_COMMAND_SILENT="  COPY  $@"
 $(PROG).bin: $(PROG).elf
 	@$(if $(QUIET), ,echo $(BIN_COMMAND$(VERBOSE)) )
 	@$(BIN_COMMAND)
 
-DFU_COMMAND=$(PYTHON2) tools/make/dfu-convert.py -b $(LOAD_ADDRESS):$< $@
+DFU_COMMAND=$(PYTHON) $(CRAZYFLIE_BASE)/tools/make/dfu-convert.py -b $(LOAD_ADDRESS):$< $@
 DFU_COMMAND_SILENT="  DFUse $@"
 $(PROG).dfu: $(PROG).bin
 	@$(if $(QUIET), ,echo $(DFU_COMMAND$(VERBOSE)) )
@@ -74,7 +74,7 @@ clean:
 	@$(if $(QUIET), ,echo $(CLEAN_COMMAND$(VERBOSE)) )
 	@$(CLEAN_COMMAND)
 
-MRPROPER_COMMAND=rm -f *~ hal/src/*~ hal/interface/*~ tasks/src/*~ tasks/inc/*~ utils/src/*~ utils/inc/*~ tools/make/*~; rm -rf bin/dep/*.d $(BIN)/*.a $(BIN)/vendor/*.o
+MRPROPER_COMMAND=rm -f current_platform.mk *~ hal/src/*~ hal/interface/*~ tasks/src/*~ tasks/inc/*~ utils/src/*~ utils/inc/*~ tools/make/*~; rm -rf bin/dep/*.d $(BIN)/*.a $(BIN)/vendor/*.o
 MRPROPER_COMMAND_SILENT="  MRPROPER"
 mrproper: clean
 	@$(if $(QUIET), ,echo $(MRPROPER_COMMAND$(VERBOSE)) )

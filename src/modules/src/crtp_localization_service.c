@@ -40,8 +40,10 @@
 
 #include "locodeck.h"
 
-#include "estimator_kalman.h"
-#include "position_external.h"
+#include "estimator.h"
+#include "quatcompress.h"
+
+#include "peer_localization.h"
 
 #define NBR_OF_RANGES_IN_PACKET   5
 #define DEFAULT_EMERGENCY_STOP_TIMEOUT (1 * RATE_MAIN_LOOP)
@@ -71,25 +73,28 @@ typedef struct {
   int16_t z; // mm
 } __attribute__((packed)) extPositionPackedItem;
 
-/**
- * Position data cache
- */
-typedef struct
-{
-  struct CrtpExtPosition targetVal[2];
-  bool activeSide;
-  uint32_t timestamp; // FreeRTOS ticks
-} ExtPositionCache;
+// up to 2 items per CRTP packet
+typedef struct {
+  uint8_t id; // last 8 bit of the Crazyflie address
+  int16_t x; // mm
+  int16_t y; // mm
+  int16_t z; // mm
+  uint32_t quat; // compressed quaternion, see quatcompress.h
+} __attribute__((packed)) extPosePackedItem;
 
 // Struct for logging position information
 static positionMeasurement_t ext_pos;
-static ExtPositionCache crtpExtPosCache;
+// Struct for logging pose information
+static poseMeasurement_t ext_pose;
+
 static CRTPPacket pkRange;
 static uint8_t rangeIndex;
 static bool enableRangeStreamFloat = false;
 static float extPosStdDev = 0.01;
+static float extQuatStdDev = 4.5e-3;
 static bool isInit = false;
 static uint8_t my_id;
+static uint16_t tickOfLastPacket; // tick when last packet was received
 
 static void locSrvCrtpCB(CRTPPacket* pk);
 static void extPositionHandler(CRTPPacket* pk);
@@ -118,8 +123,10 @@ static void locSrvCrtpCB(CRTPPacket* pk)
       break;
     case GENERIC_TYPE:
       genericLocHandle(pk);
+      break;
     case EXT_POSITION_PACKED:
       extPositionPackedHandler(pk);
+      break;
     default:
       break;
   }
@@ -127,9 +134,14 @@ static void locSrvCrtpCB(CRTPPacket* pk)
 
 static void extPositionHandler(CRTPPacket* pk)
 {
-  crtpExtPosCache.targetVal[!crtpExtPosCache.activeSide] = *((struct CrtpExtPosition*)pk->data);
-  crtpExtPosCache.activeSide = !crtpExtPosCache.activeSide;
-  crtpExtPosCache.timestamp = xTaskGetTickCount();
+  const struct CrtpExtPosition* data = (const struct CrtpExtPosition*)pk->data;
+
+  ext_pos.x = data->x;
+  ext_pos.y = data->y;
+  ext_pos.z = data->z;
+  ext_pos.stdDev = extPosStdDev;
+  estimatorEnqueuePosition(&ext_pos);
+  tickOfLastPacket = xTaskGetTickCount();
 }
 
 static void genericLocHandle(CRTPPacket* pk)
@@ -149,6 +161,41 @@ static void genericLocHandle(CRTPPacket* pk)
     stabilizerSetEmergencyStop();
   } else if (type == EMERGENCY_STOP_WATCHDOG) {
     stabilizerSetEmergencyStopTimeout(DEFAULT_EMERGENCY_STOP_TIMEOUT);
+  } else if (type == EXT_POSE) {
+    const struct CrtpExtPose* data = (const struct CrtpExtPose*)&pk->data[1];
+    ext_pose.x = data->x;
+    ext_pose.y = data->y;
+    ext_pose.z = data->z;
+    ext_pose.quat.x = data->qx;
+    ext_pose.quat.y = data->qy;
+    ext_pose.quat.z = data->qz;
+    ext_pose.quat.w = data->qw;
+    ext_pose.stdDevPos = extPosStdDev;
+    ext_pose.stdDevQuat = extQuatStdDev;
+    estimatorEnqueuePose(&ext_pose);
+    tickOfLastPacket = xTaskGetTickCount();
+  } else if (type == EXT_POSE_PACKED) {
+    uint8_t numItems = (pk->size - 1) / sizeof(extPosePackedItem);
+    for (uint8_t i = 0; i < numItems; ++i) {
+      const extPosePackedItem* item = (const extPosePackedItem*)&pk->data[1 + i * sizeof(extPosePackedItem)];
+      if (item->id == my_id) {
+        ext_pose.x = item->x / 1000.0f;
+        ext_pose.y = item->y / 1000.0f;
+        ext_pose.z = item->z / 1000.0f;
+        quatdecompress(item->quat, (float *)&ext_pose.quat.q0);
+        ext_pose.stdDevPos = extPosStdDev;
+        ext_pose.stdDevQuat = extQuatStdDev;
+        estimatorEnqueuePose(&ext_pose);
+        tickOfLastPacket = xTaskGetTickCount();
+      }
+      else {
+        ext_pos.x = item->x / 1000.0f;
+        ext_pos.y = item->y / 1000.0f;
+        ext_pos.z = item->z / 1000.0f;
+        ext_pos.stdDev = extPosStdDev;
+        peerLocalizationTellPosition(item->id, &ext_pos);
+      }
+    }
   }
 }
 
@@ -157,57 +204,18 @@ static void extPositionPackedHandler(CRTPPacket* pk)
   uint8_t numItems = pk->size / sizeof(extPositionPackedItem);
   for (uint8_t i = 0; i < numItems; ++i) {
     const extPositionPackedItem* item = (const extPositionPackedItem*)&pk->data[i * sizeof(extPositionPackedItem)];
+    ext_pos.x = item->x / 1000.0f;
+    ext_pos.y = item->y / 1000.0f;
+    ext_pos.z = item->z / 1000.0f;
+    ext_pos.stdDev = extPosStdDev;
     if (item->id == my_id) {
-      struct CrtpExtPosition position;
-      position.x = item->x / 1000.0f;
-      position.y = item->y / 1000.0f;
-      position.z = item->z / 1000.0f;
-
-      crtpExtPosCache.targetVal[!crtpExtPosCache.activeSide] = position;
-      crtpExtPosCache.activeSide = !crtpExtPosCache.activeSide;
-      crtpExtPosCache.timestamp = xTaskGetTickCount();
-
-      break;
+      estimatorEnqueuePosition(&ext_pos);
+      tickOfLastPacket = xTaskGetTickCount();
+    }
+    else {
+      peerLocalizationTellPosition(item->id, &ext_pos);
     }
   }
-}
-
-bool getExtPosition(state_t *state)
-{
-  if (!estimatorKalmanTest()) {
-    return false;
-  }
-
-  // Only use position information if it's valid and recent
-  if ((xTaskGetTickCount() - crtpExtPosCache.timestamp) < M2T(5)) {
-    // Get the updated position from the mocap
-    ext_pos.x = crtpExtPosCache.targetVal[crtpExtPosCache.activeSide].x;
-    ext_pos.y = crtpExtPosCache.targetVal[crtpExtPosCache.activeSide].y;
-    ext_pos.z = crtpExtPosCache.targetVal[crtpExtPosCache.activeSide].z;
-    ext_pos.stdDev = extPosStdDev;
-    estimatorKalmanEnqueuePosition(&ext_pos);
-
-    return true;
-  }
-
-  // allow the official kalman filter to work with Crazyswarm position service
-  float x, y, z, q0, q1, q2, q3, vx, vy, vz;
-  uint16_t last_time_in_ms;
-  positionExternalGetLastData(
-    &x, &y, &z,
-    &q0, &q1, &q2, &q3,
-    &vx, &vy, &vz,
-    &last_time_in_ms);
-  if (positionExternalFresh2) {
-    ext_pos.x = x;
-    ext_pos.y = y;
-    ext_pos.z = z;
-    ext_pos.stdDev = extPosStdDev;
-    estimatorKalmanEnqueuePosition(&ext_pos);
-    positionExternalFresh2 = false;
-  }
-
-  return false;
 }
 
 void locSrvSendPacket(locsrv_t type, uint8_t *data, uint8_t length)
@@ -252,7 +260,12 @@ LOG_GROUP_START(ext_pos)
   LOG_ADD(LOG_FLOAT, Z, &ext_pos.z)
 LOG_GROUP_STOP(ext_pos)
 
+LOG_GROUP_START(locSrvZ)
+  LOG_ADD(LOG_UINT16, tick, &tickOfLastPacket)  // time when data was received last (ms/ticks)
+LOG_GROUP_STOP(locSrvZ)
+
 PARAM_GROUP_START(locSrv)
   PARAM_ADD(PARAM_UINT8, enRangeStreamFP32, &enableRangeStreamFloat)
   PARAM_ADD(PARAM_FLOAT, extPosStdDev, &extPosStdDev)
+  PARAM_ADD(PARAM_FLOAT, extQuatStdDev, &extQuatStdDev)
 PARAM_GROUP_STOP(locSrv)

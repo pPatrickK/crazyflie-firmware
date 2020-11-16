@@ -43,6 +43,11 @@ typedef struct attitude_s {
   float yaw;
 } attitude_t;
 
+/* vector */
+#define vec3d_size 3
+typedef float vec3d[vec3d_size];
+typedef float mat3d[vec3d_size][vec3d_size];
+
 /* x,y,z vector */
 struct vec3_s {
   uint32_t timestamp; // Timestamp when the data was computed
@@ -52,6 +57,7 @@ struct vec3_s {
   float z;
 };
 
+typedef struct vec3_s vector_t;
 typedef struct vec3_s point_t;
 typedef struct vec3_s velocity_t;
 typedef struct vec3_s acc_t;
@@ -100,6 +106,20 @@ typedef struct positionMeasurement_s {
   float stdDev;
 } positionMeasurement_t;
 
+typedef struct poseMeasurement_s {
+  union {
+    struct {
+      float x;
+      float y;
+      float z;
+    };
+    float pos[3];
+  };
+  quaternion_t quat;
+  float stdDevPos;
+  float stdDevQuat;
+} poseMeasurement_t;
+
 typedef struct distanceMeasurement_s {
   union {
     struct {
@@ -123,12 +143,11 @@ typedef struct sensorData_s {
   Axis3f gyro;              // deg/s
   Axis3f mag;               // gauss
   baro_t baro;
-  zDistance_t zrange;
-  point_t position;         // m
 #ifdef LOG_SEC_IMU
   Axis3f accSec;            // Gs
   Axis3f gyroSec;           // deg/s
 #endif
+  uint64_t interruptTimestamp;
 } sensorData_t;
 
 typedef struct state_s {
@@ -210,6 +229,36 @@ typedef struct tofMeasurement_s {
   float distance;
   float stdDev;
 } tofMeasurement_t;
+
+/** Absolute height measurement */
+typedef struct heightMeasurement_s {
+  uint32_t timestamp;
+  float height;
+  float stdDev;
+} heightMeasurement_t;
+
+/** Yaw error measurement */
+typedef struct {
+  uint32_t timestamp;
+  float yawError;
+  float stdDev;
+} yawErrorMeasurement_t;
+
+/** Sweep angle measurement */
+// Forward declaration of lighthouse struct to avoid dependency.
+struct lighthouseCalibrationAxis_s;
+typedef struct {
+  uint32_t timestamp;
+  vec3d* sensorPos;          // Sensor position in the CF reference frame
+  vec3d* rotorPos;           // Pos of rotor origin in global reference frame
+  mat3d* rotorRot;           // Rotor rotation matrix
+  mat3d* rotorRotInv;        // Inverted rotor rotation matrix
+  float t;                   // t is the tilt angle of the light plane on the rotor
+  float measuredSweepAngle;
+  float stdDev;
+  int baseStationType;       // Cast to lighthouseBaseStationType_t enum.
+  const struct lighthouseCalibrationAxis_s* calib;
+} sweepAngleMeasurement_t;
 
 // Frequencies to bo used with the RATE_DO_EXECUTE_HZ macro. Do NOT use an arbitrary number.
 #define RATE_1000_HZ 1000

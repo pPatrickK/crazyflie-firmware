@@ -42,10 +42,9 @@ We added the following:
 #include "math3d.h"
 #include "position_controller.h"
 #include "controller_mellinger.h"
+#include "physicalConstants.h"
 
-#define GRAVITY_MAGNITUDE (9.81f)
-
-static float g_vehicleMass = 0.032; // TODO: should be CF global for other modules
+static float g_vehicleMass = CF_MASS;
 static float massThrust = 132000;
 
 // XY Position PID
@@ -91,10 +90,16 @@ static float i_error_m_y = 0;
 static float i_error_m_z = 0;
 
 // Logging variables
-static float spR, spP, spY;
 static struct vec z_axis_desired;
-static float roll_desired; // deg
-static float pitch_desired; // deg
+
+static float cmd_thrust;
+static float cmd_roll;
+static float cmd_pitch;
+static float cmd_yaw;
+static float r_roll;
+static float r_pitch;
+static float r_yaw;
+static float accelz;
 
 void controllerMellingerReset(void)
 {
@@ -114,12 +119,6 @@ void controllerMellingerInit(void)
 bool controllerMellingerTest(void)
 {
   return true;
-}
-
-float clamp(float value, float min, float max) {
-  if (value < min) return min;
-  if (value > max) return max;
-  return value;
 }
 
 void controllerMellinger(control_t *control, setpoint_t *setpoint,
@@ -151,19 +150,9 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
 
   // Position Error (ep)
   r_error = vsub(setpointPos, statePos);
-  // clamp r_error as suggested by jpreiss https://github.com/USC-ACTLab/crazyswarm/issues/71
-  if(vmag(r_error)> 0.2f){
-    r_error = vnormalize(r_error);
-    r_error = vscl( 0.2f, r_error);
-  }
 
   // Velocity Error (ev)
   v_error = vsub(setpointVel, stateVel);
-  // clamp v_error as our own brilliancy suggested
-  /*if(vmag(r_error)>0.2){
-    r_error = vnormalize(r_error);
-    r_error = vscl(0.2, r_error);
-  }*/
 
   // Integral Error
   i_error_z += r_error.z * dt;
@@ -192,9 +181,9 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
     }
   }
 
-  // Rate-controled YAW is moving YAW angle setpoint
+  // Rate-controlled YAW is moving YAW angle setpoint
   if (setpoint->mode.yaw == modeVelocity) {
-    desiredYaw = state->attitude.yaw - setpoint->attitudeRate.yaw * dt;
+    desiredYaw = state->attitude.yaw + setpoint->attitudeRate.yaw * dt;
   } else if (setpoint->mode.yaw == modeAbs) {
     desiredYaw = setpoint->attitude.yaw;
   } else if (setpoint->mode.quat == modeAbs) {
@@ -204,11 +193,8 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
   }
 
   // Z-Axis [zB]
-  // actual pose
   struct quat q = mkquat(state->attitudeQuaternion.x, state->attitudeQuaternion.y, state->attitudeQuaternion.z, state->attitudeQuaternion.w);
-  // pose -> R
   struct mat33 R = quat2rotmat(q);
-  // Z = R(:,3) ;0,1,2 Z
   z_axis = mcolumn(R, 2);
 
   // yaw correction (only if position control is not used)
@@ -218,35 +204,14 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
     x_yaw = vnormalize(x_yaw);
     struct vec y_yaw = vcross(mkvec(0, 0, 1), x_yaw);
     struct mat33 R_yaw_only = mcolumns(x_yaw, y_yaw, mkvec(0, 0, 1));
-    target_thrust = mvmult(R_yaw_only, target_thrust);
+    target_thrust = mvmul(R_yaw_only, target_thrust);
   }
 
-  // Current thrust [F] scalar product
+  // Current thrust [F]
   current_thrust = vdot(target_thrust, z_axis);
 
-  // Calculate axis [zB_des] length one, neigung der drone
+  // Calculate axis [zB_des]
   z_axis_desired = vnormalize(target_thrust);
-
-  // TODO: Write documentation
-  // Now, z_axis_desired
-  /* // angle attitude clamping
-  #define MAX_ANGLE 20.0f // MAKE SURE TO USE A FLOAT ANGLE IN DEGREES BECAUSE IT WILL BE DIVIDED BY 360 TO YIELD RADIANS
-  float radius_squared = fsqr(z_axis_desired.x) + fsqr(z_axis_desired.y);
-  float max_radius = sinf(MAX_ANGLE/360*2*M_PI_F);
-  float max_radius_squared = fsqr(max_radius);
-  if (radius_squared > max_radius_squared) {
-    // Ooohps, this angle is dangerous, please decrease
-    // Set z-component to cosinus of max angle
-    z_axis_desired.z = cosf(MAX_ANGLE/360*2*M_PI_F);
-    // Scale-down x and y
-    //float radius = sqrtf(radius_squared);
-    //z_axis_desired.x *= max_radius / radius;
-    //z_axis_desired.y *= max_radius / radius;
-    z_axis_desired.x *= max_radius_squared / radius_squared;
-    z_axis_desired.y *= max_radius_squared / radius_squared;
-  }
-  */
-
 
   // [xC_des]
   // x_axis_desired = z_axis_desired x [sin(yaw), cos(yaw), 0]^T
@@ -257,9 +222,6 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
   y_axis_desired = vnormalize(vcross(z_axis_desired, x_c_des));
   // [xB_des]
   x_axis_desired = vcross(y_axis_desired, z_axis_desired);
-
-  pitch_desired = degrees(asinf(-x_axis_desired.z));
-  roll_desired  = degrees(atan2f(y_axis_desired.z, z_axis_desired.z));
 
   // [eR]
   // Slow version
@@ -297,11 +259,6 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
   float stateAttitudeRatePitch = -radians(sensors->gyro.y);
   float stateAttitudeRateYaw = radians(sensors->gyro.z);
 
-  spR = setpoint->attitudeRate.roll;
-  spP = setpoint->attitudeRate.pitch;
-  spY = setpoint->attitudeRate.yaw;
-
-
   ew.x = radians(setpoint->attitudeRate.roll) - stateAttitudeRateRoll;
   ew.y = -radians(setpoint->attitudeRate.pitch) - stateAttitudeRatePitch;
   ew.z = radians(setpoint->attitudeRate.yaw) - stateAttitudeRateYaw;
@@ -336,14 +293,30 @@ void controllerMellinger(control_t *control, setpoint_t *setpoint,
     control->thrust = massThrust * current_thrust;
   }
 
+  cmd_thrust = control->thrust;
+  r_roll = radians(sensors->gyro.x);
+  r_pitch = -radians(sensors->gyro.y);
+  r_yaw = radians(sensors->gyro.z);
+  accelz = sensors->acc.z;
+
   if (control->thrust > 0) {
     control->roll = clamp(M.x, -32000, 32000);
     control->pitch = clamp(M.y, -32000, 32000);
     control->yaw = clamp(-M.z, -32000, 32000);
+
+    cmd_roll = control->roll;
+    cmd_pitch = control->pitch;
+    cmd_yaw = control->yaw;
+
   } else {
     control->roll = 0;
     control->pitch = 0;
     control->yaw = 0;
+
+    cmd_roll = control->roll;
+    cmd_pitch = control->pitch;
+    cmd_yaw = control->yaw;
+
     controllerMellingerReset();
   }
 }
@@ -371,15 +344,18 @@ PARAM_ADD(PARAM_FLOAT, i_range_m_z, &i_range_m_z)
 PARAM_GROUP_STOP(ctrlMel)
 
 LOG_GROUP_START(ctrlMel)
-LOG_ADD(LOG_FLOAT, spR, &spR)
-LOG_ADD(LOG_FLOAT, spP, &spP)
-LOG_ADD(LOG_FLOAT, spY, &spY)
+LOG_ADD(LOG_FLOAT, cmd_thrust, &cmd_thrust)
+LOG_ADD(LOG_FLOAT, cmd_roll, &cmd_roll)
+LOG_ADD(LOG_FLOAT, cmd_pitch, &cmd_pitch)
+LOG_ADD(LOG_FLOAT, cmd_yaw, &cmd_yaw)
+LOG_ADD(LOG_FLOAT, r_roll, &r_roll)
+LOG_ADD(LOG_FLOAT, r_pitch, &r_pitch)
+LOG_ADD(LOG_FLOAT, r_yaw, &r_yaw)
+LOG_ADD(LOG_FLOAT, accelz, &accelz)
 LOG_ADD(LOG_FLOAT, zdx, &z_axis_desired.x)
 LOG_ADD(LOG_FLOAT, zdy, &z_axis_desired.y)
 LOG_ADD(LOG_FLOAT, zdz, &z_axis_desired.z)
 LOG_ADD(LOG_FLOAT, i_err_x, &i_error_x)
 LOG_ADD(LOG_FLOAT, i_err_y, &i_error_y)
 LOG_ADD(LOG_FLOAT, i_err_z, &i_error_z)
-LOG_ADD(LOG_FLOAT, rolld, &roll_desired)
-LOG_ADD(LOG_FLOAT, pitchd, &pitch_desired)
 LOG_GROUP_STOP(ctrlMel)

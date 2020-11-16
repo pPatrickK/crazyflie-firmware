@@ -133,7 +133,7 @@ void crtpCommanderRpytDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
   if (thrustLocked || (rawThrust < MIN_THRUST)) {
     setpoint->thrust = 0;
   } else {
-    setpoint->thrust = min(rawThrust, MAX_THRUST);
+    setpoint->thrust = fminf(rawThrust, MAX_THRUST);
   }
 
   if (altHoldMode) {
@@ -202,10 +202,17 @@ void crtpCommanderRpytDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
 
   // Yaw
   if (!posSetMode) {
-    setpoint->attitudeRate.yaw  = values->yaw;
-    yawModeUpdate(setpoint);
+    if (stabilizationModeYaw == RATE) {
+      // legacy rate input is inverted
+      setpoint->attitudeRate.yaw = -values->yaw;
+      yawModeUpdate(setpoint);
 
-    setpoint->mode.yaw = modeVelocity;
+      setpoint->mode.yaw = modeVelocity;
+    } else {
+      setpoint->mode.yaw = modeAbs;
+      setpoint->attitudeRate.yaw = 0;
+      setpoint->attitude.yaw = values->yaw;
+    }
   }
 }
 

@@ -48,6 +48,7 @@
 #define BIGQUAD_BAT_AMP_PER_VOLT   1.0f
 
 #ifdef ENABLE_BQ_DECK
+
 //Hardware configuration
 static bool isInit;
 
@@ -89,8 +90,8 @@ static void bigquadInit(DeckInfo *info)
 #ifdef BQ_DECK_ENABLE_OSD
   uart1Init(115200);
   mspInit(&s_MspObject, osdResponseCallback);
-  xTaskCreate(osdTask, "BQ_OSDTASK",
-              configMINIMAL_STACK_SIZE, NULL, /*priority*/1, NULL);
+  xTaskCreate(osdTask, BQ_OSD_TASK_NAME,
+              configMINIMAL_STACK_SIZE, NULL, BQ_OSD_TASK_PRI, NULL);
 #endif
 
   isInit = true;

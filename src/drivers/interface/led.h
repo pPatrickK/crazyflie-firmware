@@ -1,6 +1,6 @@
 /**
- *    ||          ____  _ __
- * +------+      / __ )(_) /_______________ _____  ___
+ *    ||          ____  _ __                           
+ * +------+      / __ )(_) /_______________ _____  ___ 
  * | 0xBC |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
  * +------+    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
  *  ||  ||    /_____/_/\__/\___/_/   \__,_/ /___/\___/
@@ -49,7 +49,7 @@
 
 #define LINK_LED         LED_GREEN_L
 #define CHG_LED          LED_BLUE_L
-#define LOWBAT_LED       LED_GREEN_R // LED_RED_R
+#define LOWBAT_LED       LED_RED_R
 #define LINK_DOWN_LED    LED_RED_L
 #define SYS_LED          LED_RED_R
 #define ERR_LED1         LED_RED_L
