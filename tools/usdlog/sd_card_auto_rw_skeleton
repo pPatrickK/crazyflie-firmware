@@ -1,0 +1,30 @@
+porthos@PorthosL:~$ ls /media
+porthos
+porthos@PorthosL:~$ mount /dev/sdb1
+mount: can't find /dev/sdb1 in /etc/fstab
+porthos@PorthosL:~$ sudo fatlabel /dev/sdb1
+drone_sd_3
+porthos@PorthosL:~$ mkdir tmp
+porthos@PorthosL:~$ cd tmp
+porthos@PorthosL:~/tmp$ ls /dev > time0
+porthos@PorthosL:~/tmp$ ls /dev > time1
+porthos@PorthosL:~/tmp$ diff time0 time1
+81a82
+> sdb1
+porthos@PorthosL:~/tmp$ sudo umount /dev/sdb1
+porthos@PorthosL:~/tmp$ sudo fatlabel /dev/sdb1
+drone_sd_3
+porthos@PorthosL:~/tmp$ mkdir drone_sd_3
+porthos@PorthosL:~/tmp$ mkdir mountpoint
+porthos@PorthosL:~/tmp$ sudo mount /dev/sdb1 mountpoint
+porthos@PorthosL:~/tmp$ cp -r mountpoint/ drone_sd_3/
+porthos@PorthosL:~/tmp$ ls drone_sd_3/
+mountpoint
+porthos@PorthosL:~/tmp$ sudo umount /dev/sdb1
+porthos@PorthosL:~/tmp$
+
+
+2 steps are missing here:
+	1. save config.txt to folder and write it to each sd card, AFTER copying files to disk
+	2. implement noise to indicate mount and unmount of sd card
+	3. timestamp folder as masterfolder for all sd card logs
