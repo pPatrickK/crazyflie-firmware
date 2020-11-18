@@ -14,3 +14,4 @@
 	path = vendor/FreeRTOS
 	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
 	branch = V10.2.1-convergence-FreeRTOS-Source
+
